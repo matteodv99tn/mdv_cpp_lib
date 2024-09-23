@@ -15,6 +15,11 @@ namespace mdv::mesh {
 
 class Face : public MeshElement {
 public:
+    
+    using Index_t = FaceIndex_t;
+    using IndexSet3_t = std::array<Index_t, 3>;  
+    using VertexSet3_t = std::array<Vertex, 3>;  
+
     /**
      * @brief Instantiates a vertex from a mesh and an index.
      *
@@ -41,21 +46,21 @@ public:
     /**
      * @brief Yields the set of vertices that make up the face.
      */
-    MDV_NODISCARD std::array<Vertex, 3> vertices() const;
+    MDV_NODISCARD VertexSet3_t vertices() const;
 
 private:
     /**
      * @brief Yields the ordered triplet of indices of the vertex indexes that make up
      * the face.
      */
-    MDV_NODISCARD std::array<VertexIndex_t, 3> vertices_ids() const;
+    MDV_NODISCARD const IndexSet3_t& vertices_ids() const;
 
     /**
      * @brief Finds the neighbouring faces of the current face.
      *
      * @note The function returns id = -1 if an edge has no neigbour.
      */
-    MDV_NODISCARD std::array<FaceIndex_t, 3> neighbour_faces_ids() const;
+    MDV_NODISCARD IndexSet3_t neighbour_faces_ids() const;
 
     bool operator==(const Face&) const noexcept;
 
@@ -75,8 +80,10 @@ public:
     using value_type        = Face;
     using pointer           = Face*;
     using reference         = Face&;
+
     // NOLINTEND
 
+    /*
     FaceIterator(Mesh* mesh, FaceIndex_t index) noexcept;
 
     Face&         operator*() noexcept;
@@ -87,6 +94,49 @@ public:
 
     bool operator==(const FaceIterator&) const noexcept;
     bool operator!=(const FaceIterator&) const noexcept;
+    */
+    FaceIterator(Mesh* mesh, FaceIndex_t index) noexcept : _v(mesh, index) {}
+
+    Face&
+    operator*() noexcept {
+        return _v;
+    }
+
+    FaceIterator&
+    operator++() noexcept {
+        ++_v._id;
+        return *this;
+    }
+
+    FaceIterator
+    operator++(int) noexcept {
+        FaceIterator tmp = *this;
+        ++_v._id;
+        return tmp;
+    }
+
+    FaceIterator&
+    operator--() noexcept {
+        --_v._id;
+        return *this;
+    }
+
+    FaceIterator
+    operator--(int) noexcept {
+        FaceIterator tmp = *this;
+        --_v._id;
+        return tmp;
+    }
+
+    bool
+    operator==(const FaceIterator& other) const noexcept {
+        return _v == other._v;
+    }
+
+    bool
+    operator!=(const FaceIterator& other) const noexcept {
+        return !(_v == other._v);
+    }
 
 private:
     Face _v;
@@ -100,8 +150,10 @@ public:
     using value_type        = const Face;
     using pointer           = const Face*;
     using reference         = const Face&;
+
     // NOLINTEND
 
+    /*
     ConstFaceIterator(const Mesh* mesh, FaceIndex_t index) noexcept;
 
     const Face&        operator*() const noexcept;
@@ -112,6 +164,50 @@ public:
 
     bool operator==(const ConstFaceIterator&) const noexcept;
     bool operator!=(const ConstFaceIterator&) const noexcept;
+    */
+
+    ConstFaceIterator(const Mesh* mesh, FaceIndex_t index) noexcept : _v(mesh, index) {}
+
+    const Face&
+    operator*() const noexcept {
+        return _v;
+    }
+
+    ConstFaceIterator&
+    operator++() noexcept {
+        ++_v._id;
+        return *this;
+    }
+
+    ConstFaceIterator
+    operator++(int) noexcept {
+        ConstFaceIterator tmp = *this;
+        ++_v._id;
+        return tmp;
+    }
+
+    ConstFaceIterator&
+    operator--() noexcept {
+        --_v._id;
+        return *this;
+    }
+
+    ConstFaceIterator
+    operator--(int) noexcept {
+        ConstFaceIterator tmp = *this;
+        --_v._id;
+        return tmp;
+    }
+
+    bool
+    operator==(const ConstFaceIterator& other) const noexcept {
+        return _v == other._v;
+    }
+
+    bool
+    operator!=(const ConstFaceIterator& other) const noexcept {
+        return !(_v == other._v);
+    }
 
 private:
     Face _v;

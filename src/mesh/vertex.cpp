@@ -23,7 +23,7 @@ Vertex::Vertex(const MeshElement& m, VertexIndex_t i) noexcept :
 Eigen::Vector3d
 Vertex::position() const noexcept {
     const auto& cgal_id     = static_cast<CgalData::Mesh_t::Vertex_index>(_id);
-    const auto& cgal_vertex = cmesh()->_cgal_data->_mesh.point(cgal_id);
+    const auto& cgal_vertex = mesh()->_cgal_data->_mesh.point(cgal_id);
     return {cgal_vertex.x(), cgal_vertex.y(), cgal_vertex.z()};
 }
 

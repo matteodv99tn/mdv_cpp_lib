@@ -78,7 +78,15 @@ public:
 
 
 public:
-    friend class Vertex;
+    /**
+     * @brief Syncs internal vertex data storage with the one of CGAL.
+     */
+    void sync_vertex_data();
+
+    /**
+     * @brief Syncs internal face data storage with the one of CGAL.
+     */
+    void sync_face_data();
 
     // Members
     LoggerPtr_t           _logger;
@@ -86,9 +94,9 @@ public:
     std::filesystem::path _file_path;
 
     Eigen::Matrix<double, 3, Eigen::Dynamic> _v_mat;
-    Eigen::Matrix<long, 3, Eigen::Dynamic>   _f_mat;
+    std::vector<Face::IndexSet3_t>           _f_mat;
 
-    std::vector<std::array<VertexIndex_t, 3>> _neighbouring_faces;
+    std::vector<Face::IndexSet3_t> _neighbouring_faces;
 
     friend class Face;
     friend class Vertex;

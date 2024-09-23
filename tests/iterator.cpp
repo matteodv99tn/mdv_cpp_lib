@@ -27,7 +27,7 @@ main() {
     };
 
     start             = std::chrono::high_resolution_clock::now();
-    const auto vertex = std::find(
+    const auto vertex = std::find_if(
             m.vertices_begin(),
             m.vertices_end(),
             [&pt, &is_approx](const auto& v) { return is_approx(v.position(), pt); }

@@ -40,31 +40,10 @@ Mesh::Mesh(const path& file_path) : _logger(nullptr), _file_path(file_path) {
     _logger->info("Number of vertices: {}", _cgal_data->_mesh.num_vertices());
     _logger->info("Number of faces: {}", _cgal_data->_mesh.num_faces());
 
+    sync_vertex_data();
+    sync_face_data();
 
-    _v_mat.resize(3, _cgal_data->_mesh.num_vertices());
-    _f_mat.resize(3, _cgal_data->_mesh.num_faces());
-
-    _logger->trace("Building matrix V");
-    for (const CgalData::Mesh_t::Vertex_index& vertex : _cgal_data->_mesh.vertices()) {
-        const auto cgal_vertex = _cgal_data->_mesh.point(vertex);
-        _v_mat.col(vertex.idx()) =
-                Eigen::Vector3d(cgal_vertex.x(), cgal_vertex.y(), cgal_vertex.z());
-    }
-
-    _logger->trace("Building matrix F");
-    for (const CgalData::Mesh_t::Face_index& face : _cgal_data->_mesh.faces()) {
-        const auto vertex_iter = CGAL::vertices_around_face(
-                _cgal_data->_mesh.halfedge(face), _cgal_data->_mesh
-        );
-        int i = 0;
-        for (const auto& vi : vertex_iter) {
-            Expects(i < 3);
-            _f_mat(i, static_cast<long>(face)) = vi.idx();
-            i++;
-        }
-    }
-
-    _logger->debug("Finding neighbouring faces");
+    _logger->trace("Finding neighbouring faces");
     _neighbouring_faces.reserve(_cgal_data->_mesh.num_faces());
 #if 1
     std::transform(
@@ -84,16 +63,12 @@ Mesh::Mesh(const path& file_path) : _logger(nullptr), _file_path(file_path) {
     };
 
     auto find_face_neighbour = [this, is_neighbour](const long& face_id) -> void {
-        const std::array<long, 3> curr_face = {
-                _f_mat(0, face_id), _f_mat(1, face_id), _f_mat(2, face_id)
-        };
+        const std::array<long, 3>& curr_face = _f_mat[face_id];
         std::array<long, 3> face_neighs = {-1, -1, -1};
 
         for (long i = 0; i < num_faces(); ++i) {
             if (i == face_id) continue;
-            const std::array<long, 3> f = {
-                    _f_mat(0, i), _f_mat(1, i), _f_mat(2, i)
-            };
+            const std::array<long, 3>& f = _f_mat[i];
 
             if (is_neighbour(f, curr_face.at(0), curr_face.at(1))) {
                 assert(face_neighs.at(0) == -1);
@@ -204,91 +179,125 @@ Mesh::face(const FaceIndex_t& id) const {
 }
 
 VertexIterator
-Mesh::vertices_begin()  noexcept{
+Mesh::vertices_begin() noexcept {
     return {this, 0};
 }
 
 VertexIterator
-Mesh::vertices_end()  noexcept{
+Mesh::vertices_end() noexcept {
     return {this, num_vertices()};
 }
 
 ConstVertexIterator
-Mesh::cvertices_begin() const  noexcept{
+Mesh::cvertices_begin() const noexcept {
     return {const_cast<const Mesh*>(this), 0};
 }
 
 ConstVertexIterator
-Mesh::cvertices_end() const  noexcept{
+Mesh::cvertices_end() const noexcept {
     return {const_cast<const Mesh*>(this), num_vertices()};
 }
 
 ConstVertexIterator
-Mesh::vertices_begin() const  noexcept{
+Mesh::vertices_begin() const noexcept {
     return {this, 0};
 }
 
 ConstVertexIterator
-Mesh::vertices_end() const  noexcept{
+Mesh::vertices_end() const noexcept {
     return {this, num_vertices()};
 }
 
 boost::iterator_range<VertexIterator>
-Mesh::vertices()  noexcept{
+Mesh::vertices() noexcept {
     return {vertices_begin(), vertices_end()};
 }
 
 boost::iterator_range<ConstVertexIterator>
-Mesh::vertices() const  noexcept{
+Mesh::vertices() const noexcept {
     return boost::make_iterator_range(cvertices_begin(), cvertices_end());
 }
 
 boost::iterator_range<ConstVertexIterator>
-Mesh::cvertices() const  noexcept{
+Mesh::cvertices() const noexcept {
     return {cvertices_begin(), cvertices_end()};
 }
 
 FaceIterator
-Mesh::faces_begin()  noexcept{
+Mesh::faces_begin() noexcept {
     return {this, 0};
 }
 
 FaceIterator
-Mesh::faces_end()  noexcept{
+Mesh::faces_end() noexcept {
     return {this, num_faces()};
 }
 
 ConstFaceIterator
-Mesh::cfaces_begin() const  noexcept{
+Mesh::cfaces_begin() const noexcept {
     return {const_cast<const Mesh*>(this), 0};
 }
 
 ConstFaceIterator
-Mesh::cfaces_end() const  noexcept{
+Mesh::cfaces_end() const noexcept {
     return {const_cast<const Mesh*>(this), num_faces()};
 }
 
 ConstFaceIterator
-Mesh::faces_begin() const  noexcept{
+Mesh::faces_begin() const noexcept {
     return {this, 0};
 }
 
 ConstFaceIterator
-Mesh::faces_end() const  noexcept{
+Mesh::faces_end() const noexcept {
     return {this, num_faces()};
 }
 
 boost::iterator_range<FaceIterator>
-Mesh::faces()  noexcept{
+Mesh::faces() noexcept {
     return {faces_begin(), faces_end()};
 }
 
 boost::iterator_range<ConstFaceIterator>
-Mesh::faces() const  noexcept{
+Mesh::faces() const noexcept {
     return {faces_begin(), faces_end()};
 }
 
 boost::iterator_range<ConstFaceIterator>
-Mesh::cfaces() const  noexcept{
+Mesh::cfaces() const noexcept {
     return {cfaces_begin(), cfaces_end()};
+}
+
+//  ____       _            _
+// |  _ \ _ __(_)_   ____ _| |_ ___  ___
+// | |_) | '__| \ \ / / _` | __/ _ \/ __|
+// |  __/| |  | |\ V / (_| | ||  __/\__ \
+// |_|   |_|  |_| \_/ \__,_|\__\___||___/
+//
+void
+Mesh::sync_vertex_data() {
+    _logger->trace("Syncing matrix V");
+    _v_mat.resize(3, _cgal_data->_mesh.num_vertices());
+    for (const CgalData::Mesh_t::Vertex_index& vertex : _cgal_data->_mesh.vertices()) {
+        const auto cgal_vertex = _cgal_data->_mesh.point(vertex);
+        _v_mat.col(vertex.idx()) =
+                Eigen::Vector3d(cgal_vertex.x(), cgal_vertex.y(), cgal_vertex.z());
+    }
+}
+
+void
+Mesh::sync_face_data() {
+    _logger->trace("Syncing matrix F");
+    _f_mat.reserve(_cgal_data->_mesh.num_faces());
+    for (const CgalData::Mesh_t::Face_index& face : _cgal_data->_mesh.faces()) {
+        const auto vertex_iter = CGAL::vertices_around_face(
+                _cgal_data->_mesh.halfedge(face), _cgal_data->_mesh
+        );
+        int i = 0;
+        for (const auto& vi : vertex_iter) {
+            Expects(i < 3);
+            _f_mat[static_cast<long>(face)].at(i) = vi.idx();
+            i++;
+        }
+    }
 }

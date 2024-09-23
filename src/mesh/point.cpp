@@ -23,8 +23,8 @@ Point::Point(const Face& face, const Vec2_t& uv_coords) :
 Point
 Point::from_cartesian_position(const Point3d_t& point, const MeshElement& mesh) {
     const CgalData::Point3_t cgal_point{point.x(), point.y(), point.z()};
-    const auto [face_id, bar_coords] = mesh.cmesh()->_cgal_data->_shortest_path->locate(
-            cgal_point, mesh.cmesh()->_cgal_data->_aabb_tree
+    const auto [face_id, bar_coords] = mesh.mesh()->_cgal_data->_shortest_path->locate(
+            cgal_point, mesh.mesh()->_cgal_data->_aabb_tree
     );
 
     const Face face{mesh, static_cast<FaceIndex_t>(face_id)};

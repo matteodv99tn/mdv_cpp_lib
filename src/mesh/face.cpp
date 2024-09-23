@@ -34,23 +34,9 @@ Face::normal() const {
     return e1.cross(e2).normalized();
 }
 
-std::array<mdv::mesh::VertexIndex_t, 3>
+const Face::IndexSet3_t&
 Face::vertices_ids() const {
-#if 0
-    const auto face_id_cgal = static_cast<mdv::mesh::CgalData::Mesh_t::Face_index>(_id);
-    const CgalData::Mesh_t& cgal_mesh = cmesh()->_cgal_data->_mesh;
-    const auto& [vertices_begin, vertices_end] =
-            CGAL::vertices_around_face(cgal_mesh.halfedge(face_id_cgal), cgal_mesh);
-    std::array<VertexIndex_t, 3> res;
-    std::transform(vertices_begin, vertices_end, res.begin(), [](const auto& vertex) {
-        return static_cast<VertexIndex_t>(vertex.id());
-    });
-#else
-    const std::array<VertexIndex_t, 3> res{
-            cmesh()->_f_mat(0, _id), cmesh()->_f_mat(1, _id), cmesh()->_f_mat(2, _id)
-    };
-#endif
-    return res;
+    return mesh()->_f_mat[_id];
 }
 
 Vertex
@@ -87,8 +73,8 @@ Face::neighbour_faces_ids() const {
     std::array<FaceIndex_t, 3> res{-1, -1, -1};
     const auto [this_v0, this_v1, this_v2] = vertices_ids();
 
-#if 0
-    for (const Face& other : cmesh()->cfaces()) {
+#if 1
+    for (const Face& other : mesh()->cfaces()) {
         if (other == *this) continue;  // Skip this face
 
         // Check for neigbours
@@ -110,7 +96,7 @@ Face::neighbour_faces_ids() const {
         }
     }
 #else
-    for (auto it = cmesh()->faces_begin(); it != cmesh()->faces_end(); ++it) {
+    for (auto it = mesh()->faces_begin(); it != mesh()->faces_end(); ++it) {
         if ((*it) == *this) continue;  // Skip this face
 
         // Check for neigbours
@@ -154,6 +140,7 @@ Face::operator==(const Face& other) const noexcept {
 // |___|\__\___|_|  \__,_|\__\___/|_|  |___/
 //
 
+/*
 FaceIterator::FaceIterator(Mesh* mesh, FaceIndex_t index) noexcept : _v(mesh, index) {
 }
 
@@ -242,3 +229,4 @@ bool
 ConstFaceIterator::operator!=(const ConstFaceIterator& other) const noexcept {
     return !(_v == other._v);
 }
+*/

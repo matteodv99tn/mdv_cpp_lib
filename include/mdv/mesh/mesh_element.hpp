@@ -10,32 +10,30 @@ namespace mdv::mesh {
 
 class MeshElement {
 public:
-    MeshElement(Mesh* mesh) noexcept;
-    MeshElement(const Mesh* mesh) noexcept;
-
-    /**
-     * @brief Provides a modifiable pointer to the mesh.
-     * This method also guards against calling it on a const object, so use it with
-     * caution.
-     *
-     * If you want just to access the mesh, use cmesh() instead.
-     *
-     */
-    MDV_NODISCARD Mesh* mesh();
+    MeshElement(const Mesh* mesh) noexcept : _mesh(mesh) {};
 
     /**
      * @brief Const pointer to the mesh.
      *
      */
-    MDV_NODISCARD const Mesh* cmesh() const noexcept;
+    MDV_NODISCARD const Mesh*
+    mesh() const noexcept {
+        return _mesh;
+    };
 
-    bool operator==(const MeshElement&) const noexcept;
-    bool operator!=(const MeshElement&) const noexcept;
+    bool
+    operator==(const MeshElement& other) const noexcept {
+        return _mesh == other._mesh;
+    }
+
+    bool
+    operator!=(const MeshElement& other) const noexcept {
+        return _mesh != other._mesh;
+    }
 
 
 private:
-    gsl::not_null<Mesh*> _mesh;
-    bool                 _is_modifiable_mesh{false};
+    gsl::not_null<const Mesh*> _mesh;
 };
 
 }  // namespace mdv::mesh
