@@ -1,0 +1,17 @@
+add_library(
+    mdv_utils 
+    ${CMAKE_CURRENT_LIST_DIR}/logging.cpp
+)
+target_include_directories(
+    mdv_utils 
+    PUBLIC
+    ${MDV_INCLUDES_DIR}
+    PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/include
+)
+target_link_libraries(
+    mdv_utils 
+    PUBLIC
+    spdlog::spdlog
+    fmt::fmt
+)

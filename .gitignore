@@ -1,0 +1,10 @@
+.cache/
+.idea/
+.vscode/
+
+build/
+json/
+trajectories/
+meshes/generated/
+
+include/mesh_manifolds/defines.hpp

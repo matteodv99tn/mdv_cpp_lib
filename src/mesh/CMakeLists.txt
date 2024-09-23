@@ -1,0 +1,23 @@
+add_library(
+    meshlib
+    ${CMAKE_CURRENT_LIST_DIR}/mesh.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mesh_element.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/vertex.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/face.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/point.cpp
+)
+target_include_directories(
+    meshlib
+    PUBLIC
+    ${MDV_INCLUDES_DIR}
+    PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/include
+)
+target_link_libraries(
+    meshlib
+    PUBLIC
+    mdv_utils 
+    Eigen3::Eigen
+    CGAL::CGAL
+    Microsoft.GSL::GSL
+)
