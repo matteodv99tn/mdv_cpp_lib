@@ -6,22 +6,8 @@
 namespace mdv::mesh {
 
 class Mesh;
-class Vertex;
-class Face;
-class Edge;
 
-class MeshPoint;
-
-/**
- * @brief Hidden class for internal use.
- *
- * To avoid directly exposing the CGAL library which slows down compilation, we define
- * this opaque struct.
- */
-class CgalData;
-
-using VertexIndex_t = long;
-using FaceIndex_t   = long;
+// class MeshPoint;
 
 using Point3d_t = Eigen::Vector3d;
 

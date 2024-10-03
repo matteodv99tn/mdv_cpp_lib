@@ -34,7 +34,6 @@ CheckOptions:
   - { key: readability-identifier-naming.MacroDefinitionCase,         value: UPPER_CASE       }
   - { key: readability-identifier-naming.EnumCase,                    value: CamelCase        }
   - { key: readability-identifier-naming.TypeAliasCase,               value: CamelCase        }
-  - { key: readability-identifier-naming.TypeAliasSuffix,             value: _t               }
   - { key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic, value: true}
   - { key: misc-header-include-cycle.IgnoredFilesList, value: "./include/dmplib/manifolds/*"}
 ...

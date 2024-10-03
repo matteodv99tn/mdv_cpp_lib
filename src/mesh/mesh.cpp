@@ -4,24 +4,13 @@
 #include <execution>
 #include <spdlog/spdlog.h>
 
-#include <mdv/mesh/face.hpp>
 #include <mdv/mesh/fwd.hpp>
 #include <mdv/mesh/mesh.hpp>
-#include <mdv/mesh/vertex.hpp>
 #include <mdv/utils/logging.hpp>
 
 #include "cgal_data.hpp"
 
-using mdv::mesh::CgalData;
-using mdv::mesh::ConstFaceIterator;
-using mdv::mesh::ConstVertexIterator;
-using mdv::mesh::Face;
-using mdv::mesh::FaceIndex_t;
-using mdv::mesh::FaceIterator;
 using mdv::mesh::Mesh;
-using mdv::mesh::Vertex;
-using mdv::mesh::VertexIndex_t;
-using mdv::mesh::VertexIterator;
 
 using std::filesystem::path;
 
@@ -33,7 +22,7 @@ using std::filesystem::path;
 //
 Mesh::Mesh(const path& file_path) : _logger(nullptr), _file_path(file_path) {
     _logger    = class_logger_factory("Mesh", file_name(), Trace);
-    _cgal_data = new CgalData(file_path, _logger);
+    _cgal_data = new CgalMesh(file_path, _logger);
     Ensures(_cgal_data != nullptr);
 
     _logger->info("Loaded mesh from file {}", file_path.string());
@@ -45,12 +34,12 @@ Mesh::Mesh(const path& file_path) : _logger(nullptr), _file_path(file_path) {
 
     _logger->trace("Finding neighbouring faces");
     _neighbouring_faces.reserve(_cgal_data->_mesh.num_faces());
-#if 1
+#if 0
     std::transform(
             faces_begin(),
             faces_end(),
             _neighbouring_faces.begin(),
-            [](const Face& f) { return f.neighbour_faces_ids(); }
+            [](const Face& f) { return f.search_neighbour_faces_ids(); }
     );
 #else
 
@@ -63,8 +52,8 @@ Mesh::Mesh(const path& file_path) : _logger(nullptr), _file_path(file_path) {
     };
 
     auto find_face_neighbour = [this, is_neighbour](const long& face_id) -> void {
-        const std::array<long, 3>& curr_face = _f_mat[face_id];
-        std::array<long, 3> face_neighs = {-1, -1, -1};
+        const std::array<long, 3>& curr_face   = _f_mat[face_id];
+        std::array<long, 3>        face_neighs = {-1, -1, -1};
 
         for (long i = 0; i < num_faces(); ++i) {
             if (i == face_id) continue;
@@ -88,7 +77,7 @@ Mesh::Mesh(const path& file_path) : _logger(nullptr), _file_path(file_path) {
 #endif
 }
 
-CgalData::CgalData(const path& file_path, LoggerPtr_t& logger) :
+Mesh::CgalMesh::CgalMesh(const path& file_path, LoggerPtr_t& logger) :
         _logger(logger), _shortest_path(nullptr) {
     const bool loaded = CGAL::IO::read_polygon_mesh(file_path.string(), _mesh);
     if (!loaded) {
@@ -96,7 +85,7 @@ CgalData::CgalData(const path& file_path, LoggerPtr_t& logger) :
         throw std::runtime_error("Cannot load mesh");
     }
 
-    _shortest_path = std::make_unique<ShortestPath_t>(_mesh);
+    _shortest_path = std::make_unique<ShortestPath>(_mesh);
     _logger->trace("Initialised shortest path object");
 
     _shortest_path->build_aabb_tree(_aabb_tree);
@@ -131,7 +120,7 @@ Mesh::transform(const Eigen::Affine3d& transformation) {
     const double m33 = transformation(2, 2);
     const double m34 = transformation(2, 3);
 
-    const CgalData::Transform_t transform(
+    const Mesh::CgalMesh::Transform transform(
             m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, 1.0
     );
     CGAL::Polygon_mesh_processing::transform(transform, _cgal_data->_mesh);
@@ -148,16 +137,17 @@ Mesh::file_name() const {
     return _file_path.stem().string();
 }
 
-VertexIndex_t
+std::size_t
 Mesh::num_vertices() const {
     return _cgal_data->_mesh.num_vertices();
 }
 
-FaceIndex_t
+std::size_t
 Mesh::num_faces() const {
-    return _cgal_data->_mesh.num_vertices();
+    return _cgal_data->_mesh.num_faces();
 }
 
+/*
 Vertex
 Mesh::vertex(const VertexIndex_t& id) {
     return {this, id};
@@ -267,6 +257,7 @@ boost::iterator_range<ConstFaceIterator>
 Mesh::cfaces() const noexcept {
     return {cfaces_begin(), cfaces_end()};
 }
+*/
 
 //  ____       _            _
 // |  _ \ _ __(_)_   ____ _| |_ ___  ___
@@ -277,8 +268,8 @@ Mesh::cfaces() const noexcept {
 void
 Mesh::sync_vertex_data() {
     _logger->trace("Syncing matrix V");
-    _v_mat.resize(3, _cgal_data->_mesh.num_vertices());
-    for (const CgalData::Mesh_t::Vertex_index& vertex : _cgal_data->_mesh.vertices()) {
+    _v_mat.resize(3, static_cast<long>(num_vertices()));
+    for (const CgalMesh::Mesh::Vertex_index& vertex : _cgal_data->_mesh.vertices()) {
         const auto cgal_vertex = _cgal_data->_mesh.point(vertex);
         _v_mat.col(vertex.idx()) =
                 Eigen::Vector3d(cgal_vertex.x(), cgal_vertex.y(), cgal_vertex.z());
@@ -288,8 +279,8 @@ Mesh::sync_vertex_data() {
 void
 Mesh::sync_face_data() {
     _logger->trace("Syncing matrix F");
-    _f_mat.reserve(_cgal_data->_mesh.num_faces());
-    for (const CgalData::Mesh_t::Face_index& face : _cgal_data->_mesh.faces()) {
+    _f_mat.resize(static_cast<long>(num_faces()));
+    for (const CgalMesh::Mesh::Face_index& face : _cgal_data->_mesh.faces()) {
         const auto vertex_iter = CGAL::vertices_around_face(
                 _cgal_data->_mesh.halfedge(face), _cgal_data->_mesh
         );
@@ -300,4 +291,78 @@ Mesh::sync_face_data() {
             i++;
         }
     }
+    _logger->trace("f mat size: {}", _f_mat.size());
+}
+
+Mesh::Face::IndexTriplet
+Mesh::Face::search_neighbour_faces_ids() const noexcept {
+    // Function that checks if an id is contained in an array
+    auto contains_ids = [](const std::array<long, 3>& arr,
+                           const Face::Index&         id1,
+                           const Face::Index&         id2) {
+        return (std::find(arr.begin(), arr.end(), id1) != arr.end())
+               && (std::find(arr.begin(), arr.end(), id2) != arr.end());
+    };
+
+    std::array<Face::Index, 3> res{-1, -1, -1};
+    // const auto [this_v0, this_v1, this_v2] = _mesh->_f_mat[_id];
+    const long this_v0 = _mesh->_f_mat[_id][0];
+    const long this_v1 = _mesh->_f_mat[_id][1];
+    const long this_v2 = _mesh->_f_mat[_id][2];
+
+#if 0
+    for (const Face& other : _mesh->faces()) {
+        if (other == *this) continue;  // Skip this face
+
+        // Check for neigbours
+        const auto& other_vertices = other.vertices_ids();
+        if (contains_ids(other_vertices, this_v0, this_v1)) {
+            assert(res[0] == -1);
+            res[0] = other.id();
+        }
+        if (contains_ids(other_vertices, this_v1, this_v2)) {
+            assert(res[1] == -1);
+            res[1] = other.id();
+        }
+        if (contains_ids(other_vertices, this_v2, this_v0)) {
+            assert(res[2] == -1);
+            res[2] = other.id();
+        }
+    }
+#else
+    for (long i = 0; i < _mesh->num_faces(); ++i) {
+        if (i == _id) continue;  // Skip this face
+
+        // Check for neigbours
+        const auto& other_vertices = _mesh->_f_mat[i];
+        if (contains_ids(other_vertices, this_v0, this_v1)) {
+            assert(res[0] == -1);
+            res[0] = i;
+        }
+        if (contains_ids(other_vertices, this_v1, this_v2)) {
+            assert(res[1] == -1);
+            res[1] = i;
+        }
+        if (contains_ids(other_vertices, this_v2, this_v0)) {
+            assert(res[2] == -1);
+            res[2] = i;
+        }
+    }
+#endif
+    return res;
+}
+
+Mesh::FaceIterator
+Mesh::faces_begin() const noexcept {
+    return {this, 0};
+}
+
+Mesh::FaceIterator
+Mesh::faces_end() const noexcept {
+    return {this, static_cast<long>(num_faces())};
+}
+
+boost::iterator_range<Mesh::FaceIterator>
+Mesh::faces() const noexcept {
+    return {faces_begin(), faces_end()};
 }

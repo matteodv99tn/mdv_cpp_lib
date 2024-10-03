@@ -2,7 +2,7 @@
 #define MDV_MESH_CGAL_DATA_HPP
 
 #include <CGAL/AABB_face_graph_triangle_primitive.h>
-#include <CGAL/AABB_traits.h>
+#include <CGAL/AABB_traits_3.h>
 #include <CGAL/AABB_tree.h>
 #include <CGAL/aff_transformation_tags.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
@@ -15,40 +15,40 @@
 #include <CGAL/Surface_mesh_shortest_path/Surface_mesh_shortest_path_traits.h>
 #include <filesystem>
 
+#include <mdv/mesh/mesh.hpp>
 #include <mdv/utils/logging.hpp>
 
 namespace mdv::mesh {
 
-class CgalData {
+class Mesh::CgalMesh {
 public:
     // CGAL typedefs - general
-    using Kernel_t    = CGAL::Exact_predicates_inexact_constructions_kernel;
-    using Point3_t    = Kernel_t::Point_3;
-    using Mesh_t      = CGAL::Surface_mesh<Point3_t>;
-    using Transform_t = Kernel_t::Aff_transformation_3;
-    using Vec3_t      = Kernel_t::Vector_3;
+    using Kernel    = CGAL::Exact_predicates_inexact_constructions_kernel;
+    using Point3    = Kernel::Point_3;
+    using Mesh      = CGAL::Surface_mesh<Point3>;
+    using Transform = Kernel::Aff_transformation_3;
+    using Vec3      = Kernel::Vector_3;
 
     // CGAL typedefs - shortest path
-    using ShortestPathTraits_t =
-            CGAL::Surface_mesh_shortest_path_traits<Kernel_t, Mesh_t>;
-    using ShortestPath_t = CGAL::Surface_mesh_shortest_path<ShortestPathTraits_t>;
+    using ShortestPathTraits = CGAL::Surface_mesh_shortest_path_traits<Kernel, Mesh>;
+    using ShortestPath       = CGAL::Surface_mesh_shortest_path<ShortestPathTraits>;
 
     // CGAL typedefs - AABB tree
-    using AabbPrimitive_t = CGAL::AABB_face_graph_triangle_primitive<Mesh_t>;
-    using AabbTraits_t    = CGAL::AABB_traits<Kernel_t, AabbPrimitive_t>;
-    using AabbTree_t      = CGAL::AABB_tree<AabbTraits_t>;
+    using AabbPrimitive = CGAL::AABB_face_graph_triangle_primitive<Mesh>;
+    using AabbTraits    = CGAL::AABB_traits_3<Kernel, AabbPrimitive>;
+    using AabbTree      = CGAL::AABB_tree<AabbTraits>;
 
     // CGAL typedefs - variable access
-    using CgalVertexIndex_t = Mesh_t::Vertex_index;
-    using CgalFaceIndex_t   = Mesh_t::Face_index;
-    using FaceLocation_t    = ShortestPath_t::Face_location;
+    using CgalVertexIndex = Mesh::Vertex_index;
+    using CgalFaceIndex   = Mesh::Face_index;
+    using FaceLocation    = ShortestPath::Face_location;
 
-    CgalData(const std::filesystem::path& file_path, LoggerPtr_t& logger);
+    CgalMesh(const std::filesystem::path& file_path, LoggerPtr_t& logger);
 
-    LoggerPtr_t                     _logger;
-    Mesh_t                          _mesh;
-    std::unique_ptr<ShortestPath_t> _shortest_path;
-    AabbTree_t                      _aabb_tree;
+    LoggerPtr_t                   _logger;
+    Mesh                          _mesh;
+    std::unique_ptr<ShortestPath> _shortest_path;
+    AabbTree                      _aabb_tree;
 };
 
 
