@@ -34,15 +34,6 @@ Mesh::Mesh(const path& file_path) : _logger(nullptr), _file_path(file_path) {
 
     _logger->trace("Finding neighbouring faces");
     _neighbouring_faces.reserve(_cgal_data->_mesh.num_faces());
-#if 0
-    std::transform(
-            faces_begin(),
-            faces_end(),
-            _neighbouring_faces.begin(),
-            [](const Face& f) { return f.search_neighbour_faces_ids(); }
-    );
-#else
-
     auto is_neighbour = [](const std::array<long, 3>& face,
                            const long&                v1_id,
                            const long&                v2_id) -> bool {
@@ -50,7 +41,6 @@ Mesh::Mesh(const path& file_path) : _logger(nullptr), _file_path(file_path) {
         const bool v2_found = std::find(face.begin(), face.end(), v2_id) != face.end();
         return v1_found && v2_found;
     };
-
     auto find_face_neighbour = [this, is_neighbour](const long& face_id) -> void {
         const std::array<long, 3>& curr_face   = _f_mat[face_id];
         std::array<long, 3>        face_neighs = {-1, -1, -1};
@@ -74,7 +64,6 @@ Mesh::Mesh(const path& file_path) : _logger(nullptr), _file_path(file_path) {
         }
         _neighbouring_faces.at(face_id) = face_neighs;
     };
-#endif
 }
 
 Mesh::CgalMesh::CgalMesh(const path& file_path, LoggerPtr_t& logger) :
@@ -147,117 +136,35 @@ Mesh::num_faces() const {
     return _cgal_data->_mesh.num_faces();
 }
 
-/*
-Vertex
-Mesh::vertex(const VertexIndex_t& id) {
-    return {this, id};
-}
-
-Vertex
-Mesh::vertex(const VertexIndex_t& id) const {
-    return {this, id};
-}
-
-Face
-Mesh::face(const FaceIndex_t& id) {
-    return {this, id};
-}
-
-Face
-Mesh::face(const FaceIndex_t& id) const {
-    return {this, id};
-}
-
-VertexIterator
-Mesh::vertices_begin() noexcept {
-    return {this, 0};
-}
-
-VertexIterator
-Mesh::vertices_end() noexcept {
-    return {this, num_vertices()};
-}
-
-ConstVertexIterator
-Mesh::cvertices_begin() const noexcept {
-    return {const_cast<const Mesh*>(this), 0};
-}
-
-ConstVertexIterator
-Mesh::cvertices_end() const noexcept {
-    return {const_cast<const Mesh*>(this), num_vertices()};
-}
-
-ConstVertexIterator
-Mesh::vertices_begin() const noexcept {
-    return {this, 0};
-}
-
-ConstVertexIterator
-Mesh::vertices_end() const noexcept {
-    return {this, num_vertices()};
-}
-
-boost::iterator_range<VertexIterator>
-Mesh::vertices() noexcept {
-    return {vertices_begin(), vertices_end()};
-}
-
-boost::iterator_range<ConstVertexIterator>
-Mesh::vertices() const noexcept {
-    return boost::make_iterator_range(cvertices_begin(), cvertices_end());
-}
-
-boost::iterator_range<ConstVertexIterator>
-Mesh::cvertices() const noexcept {
-    return {cvertices_begin(), cvertices_end()};
-}
-
-FaceIterator
-Mesh::faces_begin() noexcept {
-    return {this, 0};
-}
-
-FaceIterator
-Mesh::faces_end() noexcept {
-    return {this, num_faces()};
-}
-
-ConstFaceIterator
-Mesh::cfaces_begin() const noexcept {
-    return {const_cast<const Mesh*>(this), 0};
-}
-
-ConstFaceIterator
-Mesh::cfaces_end() const noexcept {
-    return {const_cast<const Mesh*>(this), num_faces()};
-}
-
-ConstFaceIterator
+Mesh::FaceIterator
 Mesh::faces_begin() const noexcept {
     return {this, 0};
 }
 
-ConstFaceIterator
+Mesh::FaceIterator
 Mesh::faces_end() const noexcept {
-    return {this, num_faces()};
+    return {this, static_cast<long>(num_faces())};
 }
 
-boost::iterator_range<FaceIterator>
-Mesh::faces() noexcept {
-    return {faces_begin(), faces_end()};
-}
-
-boost::iterator_range<ConstFaceIterator>
+boost::iterator_range<Mesh::FaceIterator>
 Mesh::faces() const noexcept {
     return {faces_begin(), faces_end()};
 }
 
-boost::iterator_range<ConstFaceIterator>
-Mesh::cfaces() const noexcept {
-    return {cfaces_begin(), cfaces_end()};
+Mesh::VertexIterator
+Mesh::vertices_begin() const noexcept {
+    return {this, 0};
 }
-*/
+
+Mesh::VertexIterator
+Mesh::vertices_end() const noexcept {
+    return {this, static_cast<long>(num_vertices())};
+}
+
+boost::iterator_range<Mesh::VertexIterator>
+Mesh::vertices() const noexcept {
+    return {vertices_begin(), vertices_end()};
+}
 
 //  ____       _            _
 // |  _ \ _ __(_)_   ____ _| |_ ___  ___
@@ -291,78 +198,4 @@ Mesh::sync_face_data() {
             i++;
         }
     }
-    _logger->trace("f mat size: {}", _f_mat.size());
-}
-
-Mesh::Face::IndexTriplet
-Mesh::Face::search_neighbour_faces_ids() const noexcept {
-    // Function that checks if an id is contained in an array
-    auto contains_ids = [](const std::array<long, 3>& arr,
-                           const Face::Index&         id1,
-                           const Face::Index&         id2) {
-        return (std::find(arr.begin(), arr.end(), id1) != arr.end())
-               && (std::find(arr.begin(), arr.end(), id2) != arr.end());
-    };
-
-    std::array<Face::Index, 3> res{-1, -1, -1};
-    // const auto [this_v0, this_v1, this_v2] = _mesh->_f_mat[_id];
-    const long this_v0 = _mesh->_f_mat[_id][0];
-    const long this_v1 = _mesh->_f_mat[_id][1];
-    const long this_v2 = _mesh->_f_mat[_id][2];
-
-#if 0
-    for (const Face& other : _mesh->faces()) {
-        if (other == *this) continue;  // Skip this face
-
-        // Check for neigbours
-        const auto& other_vertices = other.vertices_ids();
-        if (contains_ids(other_vertices, this_v0, this_v1)) {
-            assert(res[0] == -1);
-            res[0] = other.id();
-        }
-        if (contains_ids(other_vertices, this_v1, this_v2)) {
-            assert(res[1] == -1);
-            res[1] = other.id();
-        }
-        if (contains_ids(other_vertices, this_v2, this_v0)) {
-            assert(res[2] == -1);
-            res[2] = other.id();
-        }
-    }
-#else
-    for (long i = 0; i < _mesh->num_faces(); ++i) {
-        if (i == _id) continue;  // Skip this face
-
-        // Check for neigbours
-        const auto& other_vertices = _mesh->_f_mat[i];
-        if (contains_ids(other_vertices, this_v0, this_v1)) {
-            assert(res[0] == -1);
-            res[0] = i;
-        }
-        if (contains_ids(other_vertices, this_v1, this_v2)) {
-            assert(res[1] == -1);
-            res[1] = i;
-        }
-        if (contains_ids(other_vertices, this_v2, this_v0)) {
-            assert(res[2] == -1);
-            res[2] = i;
-        }
-    }
-#endif
-    return res;
-}
-
-Mesh::FaceIterator
-Mesh::faces_begin() const noexcept {
-    return {this, 0};
-}
-
-Mesh::FaceIterator
-Mesh::faces_end() const noexcept {
-    return {this, static_cast<long>(num_faces())};
-}
-
-boost::iterator_range<Mesh::FaceIterator>
-Mesh::faces() const noexcept {
-    return {faces_begin(), faces_end()};
 }
