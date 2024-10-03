@@ -14,4 +14,5 @@ target_link_libraries(
     PUBLIC
     spdlog::spdlog
     fmt::fmt
+    Eigen3::Eigen
 )

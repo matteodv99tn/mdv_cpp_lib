@@ -18,6 +18,8 @@ include(cmake/autodiff.cmake)
 include(cmake/nlohmann_json.cmake) 
 include(cmake/matplotlibcpp.cmake) 
 
+find_package(Catch2 3 REQUIRED)
+
 include(FetchContent)
 FetchContent_Declare(GSL
     GIT_REPOSITORY "https://github.com/microsoft/GSL"
@@ -57,3 +59,17 @@ target_link_libraries(
     iterator_test
     meshlib
 )
+
+
+file(GLOB UNIT_TEST_SRCS unit_tests/*.cpp)
+add_executable(
+    catch2_tests
+    ${UNIT_TEST_SRCS}
+)
+target_link_libraries(
+    catch2_tests
+    PRIVATE
+    Catch2::Catch2WithMain
+    mdv_utils
+)
+
