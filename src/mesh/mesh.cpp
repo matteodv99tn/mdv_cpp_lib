@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <CGAL/Polygon_mesh_processing/transform.h>
+#include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <Eigen/Geometry>
 #include <execution>
 #include <spdlog/spdlog.h>
@@ -35,7 +36,7 @@ Mesh::Mesh(const path& file_path) : _file_path(file_path) {
     sync_face_data();
 
     _logger->debug("Finding neighbouring faces");
-    _neighbouring_faces.reserve(_cgal_data->_mesh.num_faces());
+    _neighbouring_faces.resize(_cgal_data->_mesh.num_faces());
     // Helper function that checks if two vertices are neighbours of a given face
     auto is_neighbour = [](const std::array<long, 3>& face,
                            const long&                v1_id,
@@ -45,30 +46,23 @@ Mesh::Mesh(const path& file_path) : _file_path(file_path) {
         return v1_found && v2_found;
     };
     // Helper function that find the neighbouring faces of a given face
-    auto find_face_neighbour = [this,
-                                is_neighbour](const Face::Index& face_id) -> void {
-        const std::array<long, 3>& curr_face   = _f_mat[face_id];
-        std::array<long, 3>        face_neighs = {-1, -1, -1};
+    auto find_face_neighbour = [this](const Face::Index& face_id) -> void {
+        std::array<long, 3> face_neighs = {-1, -1, -1};
+        int                 i           = 0;
 
-        for (auto i = 0; i < num_faces(); ++i) {
-            if (i == face_id) continue;
-            const std::array<long, 3>& f = _f_mat[i];
-
-            if (is_neighbour(f, curr_face.at(0), curr_face.at(1))) {
-                assert(face_neighs.at(0) == -1);
-                face_neighs.at(0) = i;
-            }
-            if (is_neighbour(f, curr_face.at(0), curr_face.at(2))) {
-                assert(face_neighs.at(1) == -1);
-                face_neighs.at(1) = i;
-            }
-            if (is_neighbour(f, curr_face.at(1), curr_face.at(2))) {
-                assert(face_neighs.at(2) == -1);
-                face_neighs.at(2) = i;
-            }
+        // Use CGAL's halfedge circulator to find adjacent faces
+        const auto half_edge = _cgal_data->_mesh.halfedge(
+                _cgal_data->_mesh.face(static_cast<CGAL::SM_Halfedge_index>(face_id))
+        );
+        for (const auto edge : _cgal_data->_mesh.halfedges_around_face(half_edge)) {
+            const auto opposite = _cgal_data->_mesh.opposite(edge);
+            if (!_cgal_data->_mesh.is_border(opposite))
+                face_neighs[i] = _cgal_data->_mesh.face(opposite).idx();
+            i++;
         }
         _neighbouring_faces.at(face_id) = face_neighs;
     };
+
     // Helper function to find neighbours in batches (to enable efficient parallelism)
     auto batch_find_process_neighbours =
             [this, find_face_neighbour](const long& start, const long& end) -> void {
@@ -201,7 +195,7 @@ Mesh::vertices() const noexcept {
 void
 Mesh::sync_vertex_data() {
     _logger->trace("Syncing matrix V");
-    _v_mat.reserve(num_vertices());
+    _v_mat.resize(num_vertices());
     for (const CgalMesh::Mesh::Vertex_index& vertex : _cgal_data->_mesh.vertices()) {
         const auto cgal_vertex = _cgal_data->_mesh.point(vertex);
         _v_mat[vertex.idx()] =
