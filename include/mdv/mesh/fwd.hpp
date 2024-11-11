@@ -9,7 +9,7 @@ class Mesh;
 
 // class MeshPoint;
 
-using Point3d_t = Eigen::Vector3d;
+using Point3d = Eigen::Vector3d;
 
 }  // namespace mdv::mesh
 

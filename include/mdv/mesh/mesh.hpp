@@ -35,7 +35,7 @@ public:
 
         Vertex(const Mesh* m, const Index& id) noexcept : _mesh(m), _id(id) {};
 
-        MDV_NODISCARD Point3d_t position() const noexcept;
+        MDV_NODISCARD Point3d position() const noexcept;
 
         // clang-format off
 
@@ -64,8 +64,6 @@ public:
         using VertexTriplet = std::array<Vertex, 3>;
         Face(const Mesh* m, const Index& id) noexcept : _mesh(m), _id(id) {};
 
-        MDV_NODISCARD IndexTriplet search_neighbour_faces_ids() const noexcept;
-
         /**
          * @brief Normal vector to the triangle
          *
@@ -75,7 +73,7 @@ public:
         /**
          * @brief Yields the vertex of the face using face indexing, zero-based.
          *
-         * @param[in] i  index of the vertex. Checkd to be in the range [0, 2].
+         * @param[in] i  index of the vertex. Checked to be in the range [0, 2].
          */
         MDV_NODISCARD Vertex vertex(long i) const;
 
@@ -85,9 +83,16 @@ public:
         MDV_NODISCARD VertexTriplet vertices() const;
 
         // clang-format off
-        MDV_NODISCARD const IndexTriplet& vertices_ids() const { return _mesh->_f_mat[_id]; }
+        /**
+         * @brief Returns the (ordered) triplet of indices of the vertex indices.
+         *
+         */
+        MDV_NODISCARD const IndexTriplet& 
+        vertices_ids() const { return _mesh->_f_mat[_id]; }
 
-        MDV_NODISCARD long id() const { return _id; }
+        MDV_NODISCARD long 
+        id() const { return _id; }
+
         bool operator==(const Face& other) const noexcept { return (_mesh == other._mesh) && (_id == other._id); }
 
         // clang-format on
@@ -173,12 +178,12 @@ private:
 
     // Members
     class CgalMesh;
-    LoggerPtr_t           _logger;
+    SpdLoggerPtr          _logger;
     gsl::owner<CgalMesh*> _cgal_data{nullptr};
     std::filesystem::path _file_path;
 
-    Eigen::Matrix<double, 3, Eigen::Dynamic> _v_mat;
-    std::vector<Face::IndexTriplet>          _f_mat;
+    std::vector<Point3d>            _v_mat;
+    std::vector<Face::IndexTriplet> _f_mat;
 
     std::vector<Face::IndexTriplet> _neighbouring_faces;
 };

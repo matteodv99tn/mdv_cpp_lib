@@ -15,7 +15,7 @@
 // |____/ \___|\___|_|\__,_|_|  \__,_|\__|_|\___/|_| |_|___/
 //
 
-using mdv::LoggerPtr_t;
+using mdv::SpdLoggerPtr;
 
 std::string format_logger_name(const std::string& name);
 
@@ -23,11 +23,11 @@ spdlog::level::level_enum to_spdlog_level(const mdv::LogLevel& level);
 
 //  ___                 _                           _        _   _
 // |_ _|_ __ ___  _ __ | | ___ _ __ ___   ___ _ __ | |_ __ _| |_(_) ___  _ __
-//  | || '_ ` _ \| '_ \| |/ _ \ '_ ` _ \ / _ \ '_ \| __/ _` | __| |/ _ \| '_ \ 
+//  | || '_ ` _ \| '_ \| |/ _ \ '_ ` _ \ / _ \ '_ \| __/ _` | __| |/ _ \| '_ \
 //  | || | | | | | |_) | |  __/ | | | | |  __/ | | | || (_| | |_| | (_) | | | |
 // |___|_| |_| |_| .__/|_|\___|_| |_| |_|\___|_| |_|\__\__,_|\__|_|\___/|_| |_|
 //               |_|
-LoggerPtr_t
+SpdLoggerPtr
 mdv::class_logger_factory(
         const std::string& class_name,
         const std::string& instance_name,
@@ -35,7 +35,7 @@ mdv::class_logger_factory(
 ) {
     const std::string logger_name =
             format_logger_name(class_name + "-" + instance_name);
-    LoggerPtr_t logger = spdlog::stdout_color_st(logger_name);
+    SpdLoggerPtr logger = spdlog::stdout_color_st(logger_name);
 
     const std::string fmt = fmt::format("[%l][{}][{}] %v", class_name, instance_name);
     logger->set_pattern(fmt);
@@ -45,7 +45,7 @@ mdv::class_logger_factory(
     return logger;
 }
 
-// LoggerPtr_t static_logger_factory(const std::string& class_name, const LogLevel&
+// SpdLoggerPtr static_logger_factory(const std::string& class_name, const LogLevel&
 // level);
 
 
@@ -65,7 +65,7 @@ format_logger_name(const std::string& name) {
             name.end(),
             std::back_inserter(formatted_name),
             [undesired_chars](char c) {
-                const char c_low = std::tolower(c);
+                const char c_low = std::tolower(c);  // NOLINT: narrowing conversion
                 if (undesired_chars.find(c_low) != undesired_chars.end()) return '-';
                 return c_low;
             }

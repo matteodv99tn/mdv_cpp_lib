@@ -43,9 +43,9 @@ public:
     using CgalFaceIndex   = Mesh::Face_index;
     using FaceLocation    = ShortestPath::Face_location;
 
-    CgalMesh(const std::filesystem::path& file_path, LoggerPtr_t& logger);
+    CgalMesh(const std::filesystem::path& file_path, SpdLoggerPtr& logger);
 
-    LoggerPtr_t                   _logger;
+    SpdLoggerPtr                   _logger;
     Mesh                          _mesh;
     std::unique_ptr<ShortestPath> _shortest_path;
     AabbTree                      _aabb_tree;

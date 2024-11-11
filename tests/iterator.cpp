@@ -7,13 +7,12 @@
 
 int
 main() {
-    // const std::string file_path =
-    //         "/home/matteo/Documents/cpp/mdv/meshes/generated/flat.off";
     const std::string file_path = "/home/matteo/Documents/cpp/mdv/meshes/bunny.off";
     // const std::string   file_path =
     // "/home/matteo/Documents/cpp/mdv/meshes/bunny_simple.off";
     std::vector<double> times_ms;
     auto                start = std::chrono::high_resolution_clock::now();
+    std::cout << "Loading mesh from file " << file_path << std::endl;
     mdv::mesh::Mesh     m(file_path);
     auto                stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);

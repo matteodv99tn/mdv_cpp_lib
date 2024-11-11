@@ -33,7 +33,7 @@ TEST_CASE("Parallel condition check - generic size vector", "[conditions]") {
 
     const std::vector<long> vec_dimensions = {3, 10, 100, 1000};
 
-    for (long dim : vec_dimensions) {
+    for (const long dim : vec_dimensions) {
         SECTION("Testing with dimension " + std::to_string(dim)) {
             Eigen::VectorXd v1(dim);
             Eigen::VectorXd v2(dim);

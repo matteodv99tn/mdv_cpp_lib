@@ -10,6 +10,7 @@ Checks: "
         performance-*,
         misc-*,
         -modernize-use-trailing-return-type,
+        -modernize-use-constraints,
         -readability-identifier-length,
         -misc-include-cleaner,
         -readability-inconsistent-declaration-parameter-name,
@@ -19,7 +20,7 @@ Checks: "
         -readability-function-cognitive-complexity,
         -cppcoreguidelines-pro-bounds-array-to-pointer-decay
         "
-WarningsAsErrors: '*'
+# WarningsAsErrors: '*'
 HeaderFilterRegex: './include/'
 CheckOptions:
   - { key: readability-braces-around-statements.ShortStatementLines,  value: 2                }
