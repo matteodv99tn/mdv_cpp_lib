@@ -5,6 +5,7 @@
 #include <Eigen/Geometry>
 #include <filesystem>
 #include <gsl/pointers>
+#include <utility>
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/iterator_range_core.hpp>
@@ -22,6 +23,15 @@ public:
     class Vertex;
     class Face;
     class Point;
+    class CgalMesh;
+
+    using Geodesic = std::vector<Point3d>;
+
+    enum GeodesicBuilderPolicy : std::uint8_t {
+        InternalState,
+        ExecutionLocal
+    };
+
     class IndexBasedElement {
     public:
         using Index = long;
@@ -228,6 +238,27 @@ public:
 
     void transform(const Eigen::Affine3d& transformation);
 
+    /**
+     * @brief Builds a geodesic path between two points.
+     *
+     * Available policies are:
+     *  - InternalState: uses an internal state that remembers the last "to" location;
+     *    to be preffered when it is known that the end-point for the geodesic is not
+     *    changing between different function calls;
+     *  - ExecutionLocal: creates a local ShortestPath object; slowest method.
+     *
+     * @param from The starting point of the geodesic.
+     * @param to The ending point of the geodesic.
+     * @param policy The policy to use for building the geodesic. Defaults to
+     * InternalState.
+     * @return Geodesic The constructed geodesic path.
+     */
+    MDV_NODISCARD Geodesic build_geodesic(
+            const Point&          from,
+            const Point&          to,
+            GeodesicBuilderPolicy policy = InternalState
+    );
+
 
     // Getters
 
@@ -280,7 +311,6 @@ private:
 
 
     // Members
-    class CgalMesh;
     SpdLoggerPtr          _logger;
     gsl::owner<CgalMesh*> _cgal_data{nullptr};
     std::filesystem::path _file_path;

@@ -14,6 +14,7 @@
 #include <CGAL/Surface_mesh_shortest_path/Surface_mesh_shortest_path.h>
 #include <CGAL/Surface_mesh_shortest_path/Surface_mesh_shortest_path_traits.h>
 #include <filesystem>
+#include <optional>
 
 #include <mdv/mesh/mesh.hpp>
 #include <mdv/utils/logging.hpp>
@@ -45,12 +46,19 @@ public:
 
     CgalMesh(const std::filesystem::path& file_path, SpdLoggerPtr& logger);
 
-    SpdLoggerPtr                   _logger;
+    SpdLoggerPtr                  _logger;
     Mesh                          _mesh;
     std::unique_ptr<ShortestPath> _shortest_path;
     AabbTree                      _aabb_tree;
+
+    std::optional<mdv::mesh::Mesh::Point> _current_shortpath_source = std::nullopt;
 };
 
+Mesh::CgalMesh::FaceLocation location_from_mesh_point(const Mesh::Point& pt) noexcept;
+
+Mesh::Geodesic construct_geodesic(
+        Mesh::CgalMesh::ShortestPath& shpath, const Mesh::Point& from
+);
 
 }  // namespace mdv::mesh
 

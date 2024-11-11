@@ -135,6 +135,40 @@ Mesh::transform(const Eigen::Affine3d& transformation) {
     CGAL::Polygon_mesh_processing::transform(transform, _cgal_data->_mesh);
 }
 
+Mesh::Geodesic
+Mesh::build_geodesic(const Point& from, const Point& to, GeodesicBuilderPolicy policy) {
+    auto internal_state_implementation = [this, &from, &to]() -> Geodesic {
+        const auto curr_target = _cgal_data->_current_shortpath_source.value_or(
+                Mesh::Point::undefined(to.mesh())
+        );
+        const bool is_close = curr_target.face_id() == to.face_id()
+                              && (curr_target.position() - to.position()).norm() < 1e-3;
+
+        if (!is_close) {
+            _logger->trace("Updating shortest path source point");
+            if (_cgal_data->_current_shortpath_source.has_value())
+                _cgal_data->_shortest_path->remove_all_source_points();
+            _cgal_data->_shortest_path->add_source_point(location_from_mesh_point(to));
+            _cgal_data->_current_shortpath_source = to;
+        }
+        return construct_geodesic(*_cgal_data->_shortest_path, from);
+    };
+
+    auto exec_local_implementation = [](const Point& from,
+                                        const Point& to) -> Geodesic {
+        Mesh::CgalMesh::ShortestPath shpathobj(from.mesh()->_cgal_data->_mesh);
+        shpathobj.add_source_point(location_from_mesh_point(to));
+        return construct_geodesic(shpathobj, from);
+    };
+
+    switch (policy) {
+        case InternalState:
+            return internal_state_implementation();
+        case ExecutionLocal:
+            return exec_local_implementation(from, to);
+    }
+}
+
 //   ____      _   _
 //  / ___| ___| |_| |_ ___ _ __ ___
 // | |  _ / _ \ __| __/ _ \ '__/ __|
