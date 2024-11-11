@@ -45,8 +45,8 @@ public:
         // clang-format on
 
     private:
-        const Mesh* _mesh;
-        Index       _id;
+        gsl::not_null<const Mesh*> _mesh;
+        Index                      _id;
         friend class MeshIterator<Vertex, Index>;
     };
 
@@ -98,8 +98,8 @@ public:
         // clang-format on
 
     private:
-        const Mesh* _mesh;
-        Index       _id;
+        gsl::not_null<const Mesh*> _mesh;
+        Index                      _id;
         friend class MeshIterator<Face, Index>;
     };
 
