@@ -21,6 +21,24 @@ public:
     // Forward declarations
     class Vertex;
     class Face;
+    class Point;
+    class IndexBasedElement {
+    public:
+        using Index = long;
+
+        IndexBasedElement(const Mesh* m, const Index& id) noexcept :
+                _mesh(m), _id(id) {};
+
+        // clang-format off
+        MDV_NODISCARD Index id() const noexcept { return _id; }
+        MDV_NODISCARD const Mesh* mesh() const noexcept { return _mesh; }
+
+        // clang-format on
+
+    protected:
+        gsl::not_null<const Mesh*> _mesh;
+        Index                      _id;
+    };
 
     // __     __        _
     // \ \   / /__ _ __| |_ _____  __
@@ -28,25 +46,24 @@ public:
     //   \ V /  __/ |  | ||  __/>  <
     //    \_/ \___|_|   \__\___/_/\_\
     //
-    class Vertex {
+    class Vertex : IndexBasedElement {
     public:
         using Index    = long;
         using Iterator = MeshIterator<Vertex, Index>;
 
-        Vertex(const Mesh* m, const Index& id) noexcept : _mesh(m), _id(id) {};
-
-        MDV_NODISCARD Point3d position() const noexcept;
+        Vertex(const Mesh* m, const Index& id) noexcept : IndexBasedElement(m, id) {};
 
         // clang-format off
 
         MDV_NODISCARD long id() const { return _id; }
         bool operator==(const Vertex& other) const noexcept { return (_mesh == other._mesh) && (_id == other._id); }
 
+        MDV_NODISCARD const Point3d&
+        position() const noexcept {return _mesh->_v_mat[_id]; }
+
         // clang-format on
 
     private:
-        gsl::not_null<const Mesh*> _mesh;
-        Index                      _id;
         friend class MeshIterator<Vertex, Index>;
     };
 
@@ -56,13 +73,13 @@ public:
     // |  _| (_| | (_|  __/
     // |_|  \__,_|\___\___|
     //
-    class Face {
+    class Face : IndexBasedElement {
     public:
         using Index         = long;
         using IndexTriplet  = std::array<Index, 3>;
         using Iterator      = MeshIterator<Face, Index>;
         using VertexTriplet = std::array<Vertex, 3>;
-        Face(const Mesh* m, const Index& id) noexcept : _mesh(m), _id(id) {};
+        Face(const Mesh* m, const Index& id) noexcept : IndexBasedElement(m, id) {};
 
         /**
          * @brief Normal vector to the triangle
@@ -90,17 +107,102 @@ public:
         MDV_NODISCARD const IndexTriplet& 
         vertices_ids() const { return _mesh->_f_mat[_id]; }
 
-        MDV_NODISCARD long 
-        id() const { return _id; }
-
         bool operator==(const Face& other) const noexcept { return (_mesh == other._mesh) && (_id == other._id); }
 
         // clang-format on
 
     private:
-        gsl::not_null<const Mesh*> _mesh;
-        Index                      _id;
         friend class MeshIterator<Face, Index>;
+        friend class Point;
+
+        void
+        set_id(const Index& id) noexcept {
+            _id = id;
+        }
+
+        /**
+         * @brief Return the position of the first vertex within the face.
+         *
+         */
+        MDV_NODISCARD const Point3d&
+        v1() const noexcept {
+            return _mesh->_v_mat[_mesh->_f_mat[_id][0]];
+        };
+
+        /**
+         * @brief Return the position of the second vertex within the face.
+         *
+         */
+        MDV_NODISCARD const Point3d&
+        v2() const noexcept {
+            return _mesh->_v_mat[_mesh->_f_mat[_id][1]];
+        };
+
+        /**
+         * @brief Return the position of the third vertex within the face.
+         *
+         */
+        MDV_NODISCARD const Point3d&
+        v3() const noexcept {
+            return _mesh->_v_mat[_mesh->_f_mat[_id][2]];
+        };
+    };
+
+    //  ____       _       _
+    // |  _ \ ___ (_)_ __ | |_
+    // | |_) / _ \| | '_ \| __|
+    // |  __/ (_) | | | | | |_
+    // |_|   \___/|_|_| |_|\__|
+    //
+    /**
+     * @brief Class that describes a point lying on the surface of the mesh.
+     *
+     * Internally the point is stored as a pair of UV coordinates on a given face.
+     */
+    class Point {
+    public:
+        /**
+         * @brief Retrieves the closes point on the mesh to the given point described in
+         * 3D space.
+         *
+         */
+        static Point from_cartesian(const Mesh* m, const Point3d& pt);
+
+        /**
+         * @brief Defines an "undefined" point, i.e. a point with no meaning.
+         *
+         * Useful to initialise a point into a known state that represent an invalid
+         * location.
+         *
+         */
+        static Point undefined(const Mesh* m) noexcept;
+
+        MDV_NODISCARD bool is_undefined() const noexcept;
+
+        /**
+         * @brief Return the barycentric coordinate of the point.
+         */
+        MDV_NODISCARD Eigen::Vector3d barycentric() const noexcept;
+
+        /**
+         * @brief Retrieves the cartesian position of the point.
+         *
+         */
+        MDV_NODISCARD Point3d position() const noexcept;
+
+        // clang-format off
+        MDV_NODISCARD double u() const noexcept { return _uv(0); }
+        MDV_NODISCARD double v() const noexcept { return _uv(1); }
+        MDV_NODISCARD Face::Index face_id() const noexcept { return _face.id(); }
+        MDV_NODISCARD const Mesh* mesh() const noexcept { return _face.mesh(); }
+
+        // clang-format on
+    private:
+        Point(Face face, Eigen::Vector2d uv) :
+                _face(std::move(face)), _uv(std::move(uv)) {}
+
+        Face            _face;
+        Eigen::Vector2d _uv;
     };
 
     //  __  __           _
@@ -130,7 +232,8 @@ public:
     // Getters
 
     /**
-     * @brief Provides the file name, without extension, of the source file of the mesh.
+     * @brief Provides the file name, without extension, of the source file of
+     * the mesh.
      *
      */
     [[nodiscard]] std::string file_name() const;

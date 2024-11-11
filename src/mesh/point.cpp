@@ -1,13 +1,11 @@
-#include <mdv/mesh/face.hpp>
+#include <CGAL/Surface_mesh/Surface_mesh.h>
+
 #include <mdv/mesh/mesh.hpp>
-#include <mdv/mesh/point.hpp>
-#include <mdv/mesh/vertex.hpp>
 
 #include "cgal_data.hpp"
+#include "mdv/mesh/fwd.hpp"
 
-using mdv::mesh::Face;
-using mdv::mesh::Point;
-using mdv::mesh::Vertex;
+using mdv::mesh::Mesh;
 
 //   ____                _                   _
 //  / ___|___  _ __  ___| |_ _ __ _   _  ___| |_ ___  _ __ ___
@@ -16,42 +14,63 @@ using mdv::mesh::Vertex;
 //  \____\___/|_| |_|___/\__|_|   \__,_|\___|\__\___/|_|  |___/
 //
 
-Point::Point(const Face& face, const Vec2_t& uv_coords) :
-        _face(face), _uv_coords(uv_coords) {
+Mesh::Point
+Mesh::Point::from_cartesian(const Mesh* m, const Point3d& pt) {
+    const Mesh::CgalMesh::Point3 cgal_pt{pt(0), pt(1), pt(2)};
+    const auto [id, coords] =
+            m->_cgal_data->_shortest_path->locate(cgal_pt, m->_cgal_data->_aabb_tree);
+
+    const Face face(m, static_cast<Mesh::Face::Index>(id.idx()));
+
+    // Convert barycentric coordinates to UV
+    const auto&                       v1 = face.v1();
+    const auto&                       v2 = face.v2();
+    const auto&                       v3 = face.v3();
+    const Eigen::Matrix<double, 3, 2> A  = [&v1, &v2, &v3]() {
+        Eigen::Matrix<double, 3, 2> mat;
+        mat.col(0) = v2 - v1;
+        mat.col(1) = v3 - v1;
+        return mat;
+    }();
+    const Eigen::Vector3d b  = pt - v1;
+    const Eigen::Vector2d uv = A.fullPivHouseholderQr().solve(b);
+
+    return {face, uv};
 }
 
-Point
-Point::from_cartesian_position(const Point3d_t& point, const MeshElement& mesh) {
-    const CgalData::Point3_t cgal_point{point.x(), point.y(), point.z()};
-    const auto [face_id, bar_coords] = mesh.mesh()->_cgal_data->_shortest_path->locate(
-            cgal_point, mesh.mesh()->_cgal_data->_aabb_tree
-    );
-
-    const Face face{mesh, static_cast<FaceIndex_t>(face_id)};
-
-    const auto& [v1, v2, v3] = face.vertices();
-    Eigen::Matrix<double, 3, 2> A;  // NOLINT
-    A.col(0)       = v2.position() - v1.position();
-    A.col(1)       = v3.position() - v1.position();
-    const Vec3_t b = point - v1.position();
-    const Vec2_t x = A.colPivHouseholderQr().solve(b);
-    return {face, x};
+Mesh::Point
+Mesh::Point::undefined(const Mesh* m) noexcept {
+    const Face            face{m, -1};
+    const Eigen::Vector2d uv{-1.0, -1.0};
+    return {face, uv};
 }
 
-//  __  __                _
-// |  \/  | ___ _ __ ___ | |__   ___ _ __ ___
-// | |\/| |/ _ \ '_ ` _ \| '_ \ / _ \ '__/ __|
-// | |  | |  __/ | | | | | |_) |  __/ |  \__ \
-// |_|  |_|\___|_| |_| |_|_.__/ \___|_|  |___/
-//
+bool
+Mesh::Point::is_undefined() const noexcept {
+    return face_id() == -1 && _uv == Eigen::Vector2d(-1.0, -1.0);
+}
 
-mdv::mesh::Point3d_t
-Point::position() const {
-    const auto [vert0, vert1, vert2] = _face.vertices();
-    const auto p0                    = vert0.position();
-    const auto p1                    = vert1.position();
-    const auto p2                    = vert2.position();
-    const auto e0                    = p1 - p0;
-    const auto e1                    = p2 - p0;
-    return p0 + _uv_coords(0) * e0 + _uv_coords(1) * e1;
+Eigen::Vector3d
+Mesh::Point::barycentric() const noexcept {
+    const auto& v1 = _face.v1();
+    const auto& v2 = _face.v2();
+    const auto& v3 = _face.v3();
+
+    const Eigen::Matrix3d A = [&v1, &v2, &v3]() {
+        Eigen::Matrix3d mat;
+        mat.row(0) = v1;
+        mat.row(1) = v2;
+        mat.row(2) = v3;
+        return mat;
+    }();
+    const Eigen::Vector3d b = position();
+    return A.colPivHouseholderQr().solve(b);
 };
+
+mdv::mesh::Point3d
+Mesh::Point::position() const noexcept {
+    const auto& p1 = _face.v1();
+    const auto& p2 = _face.v2();
+    const auto& p3 = _face.v3();
+    return p1 + (p2 - p1) * _uv(0) + (p3 - p1) * _uv(1);
+}
