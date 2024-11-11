@@ -1,4 +1,5 @@
 #include <CGAL/Surface_mesh/Surface_mesh.h>
+#include <cstdlib>
 
 #include <mdv/mesh/mesh.hpp>
 
@@ -42,6 +43,17 @@ Mesh::Point
 Mesh::Point::undefined(const Mesh* m) noexcept {
     const Face            face{m, -1};
     const Eigen::Vector2d uv{-1.0, -1.0};
+    return {face, uv};
+}
+
+Mesh::Point
+Mesh::Point::random(const Mesh* m) noexcept {
+    const Face face{m, static_cast<Mesh::Face::Index>(std::rand() % m->num_faces())};
+    const auto uv =
+            (Eigen::Vector2d::Ones() + Eigen::Vector2d::Random()) / (2 * std::sqrt(2));
+    Ensures(uv.sum() <= 1.0);
+    Ensures(uv(0) >= 0.0);
+    Ensures(uv(1) >= 0.0);
     return {face, uv};
 }
 

@@ -187,6 +187,8 @@ public:
          */
         static Point undefined(const Mesh* m) noexcept;
 
+        static Point random(const Mesh* m) noexcept;
+
         MDV_NODISCARD bool is_undefined() const noexcept;
 
         /**
