@@ -25,7 +25,7 @@ SpdLoggerPtr class_logger_factory(
 );
 
 SpdLoggerPtr static_logger_factory(
-        const std::string& class_name, const LogLevel& level = Info
+        const std::string& logger_name, const LogLevel& level = Info
 );
 
 

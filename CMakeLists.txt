@@ -19,6 +19,7 @@ include(cmake/nlohmann_json.cmake)
 include(cmake/matplotlibcpp.cmake) 
 
 find_package(Catch2 3 REQUIRED)
+find_package(rerun_sdk REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(GSL
@@ -45,11 +46,17 @@ message(STATUS "spdlog version: ${spdlog_VERSION}")
 message(STATUS "fmt dir: ${fmt_DIR}")
 message(STATUS "fmt version: ${fmt_VERSION}")
 
+configure_file(
+    ${CMAKE_CURRENT_LIST_DIR}/include/mdv/config.hpp.in
+    ${CMAKE_CURRENT_LIST_DIR}/include/mdv/config.hpp
+)
+
 set(MDV_INCLUDES_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 
-message(STATUS "GSL dir: ${GSL_DIR}")
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/utils)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/mesh)
+
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/mesh)
 
 add_executable(
     iterator_test

@@ -56,7 +56,7 @@ public:
     //   \ V /  __/ |  | ||  __/>  <
     //    \_/ \___|_|   \__\___/_/\_\
     //
-    class Vertex : IndexBasedElement {
+    class Vertex : public IndexBasedElement {
     public:
         using Index    = long;
         using Iterator = MeshIterator<Vertex, Index>;
@@ -83,7 +83,7 @@ public:
     // |  _| (_| | (_|  __/
     // |_|  \__,_|\___\___|
     //
-    class Face : IndexBasedElement {
+    class Face : public IndexBasedElement {
     public:
         using Index         = long;
         using IndexTriplet  = std::array<Index, 3>;

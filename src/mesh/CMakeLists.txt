@@ -5,6 +5,7 @@ add_library(
     ${CMAKE_CURRENT_LIST_DIR}/vertex.cpp
     ${CMAKE_CURRENT_LIST_DIR}/face.cpp
     ${CMAKE_CURRENT_LIST_DIR}/point.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/rerun.cpp
 )
 target_include_directories(
     meshlib
@@ -20,4 +21,5 @@ target_link_libraries(
     Eigen3::Eigen
     CGAL::CGAL
     Microsoft.GSL::GSL
+    rerun_sdk
 )
