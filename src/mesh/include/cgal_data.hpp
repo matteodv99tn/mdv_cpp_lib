@@ -21,6 +21,12 @@
 
 namespace mdv::mesh {
 
+//   ____            _ __  __           _
+//  / ___|__ _  __ _| |  \/  | ___  ___| |__
+// | |   / _` |/ _` | | |\/| |/ _ \/ __| '_ \
+// | |__| (_| | (_| | | |  | |  __/\__ \ | | |
+//  \____\__, |\__,_|_|_|  |_|\___||___/_| |_|
+//       |___/
 class Mesh::CgalMesh {
 public:
     // CGAL typedefs - general
@@ -44,6 +50,9 @@ public:
     using CgalFaceIndex   = Mesh::Face_index;
     using FaceLocation    = ShortestPath::Face_location;
 
+    // CGAL typedefs - descriptors
+    using VertexDescriptor = boost::graph_traits<CgalMesh::Mesh>::vertex_descriptor;
+
     CgalMesh(const std::filesystem::path& file_path, SpdLoggerPtr& logger);
 
     SpdLoggerPtr                  _logger;
@@ -52,6 +61,8 @@ public:
     AabbTree                      _aabb_tree;
 
     std::optional<mdv::mesh::Mesh::Point> _current_shortpath_source = std::nullopt;
+
+    void build_vertex_normals_map() noexcept;
 };
 
 Mesh::CgalMesh::FaceLocation location_from_mesh_point(const Mesh::Point& pt) noexcept;
@@ -59,6 +70,23 @@ Mesh::CgalMesh::FaceLocation location_from_mesh_point(const Mesh::Point& pt) noe
 Mesh::Geodesic construct_geodesic(
         Mesh::CgalMesh::ShortestPath& shpath, const Mesh::Point& from
 );
+
+
+//   ____                              _
+//  / ___|___  _ ____   _____ _ __ ___(_) ___  _ __
+// | |   / _ \| '_ \ \ / / _ \ '__/ __| |/ _ \| '_ \
+// | |__| (_) | | | \ V /  __/ |  \__ \ | (_) | | | |
+//  \____\___/|_| |_|\_/ \___|_|  |___/_|\___/|_| |_|
+//
+//  _          _
+// | |__   ___| |_ __   ___ _ __ ___
+// | '_ \ / _ \ | '_ \ / _ \ '__/ __|
+// | | | |  __/ | |_) |  __/ |  \__ \
+// |_| |_|\___|_| .__/ \___|_|  |___/
+//              |_|
+
+Eigen::Vector3d convert(const Mesh::CgalMesh::Vec3& x);
+Eigen::Vector3d convert(const Mesh::CgalMesh::Point3& x);
 
 }  // namespace mdv::mesh
 

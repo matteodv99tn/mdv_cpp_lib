@@ -63,6 +63,8 @@ public:
 
         Vertex(const Mesh* m, const Index& id) noexcept : IndexBasedElement(m, id) {};
 
+        MDV_NODISCARD Eigen::Vector3d normal() const noexcept;
+
         // clang-format off
 
         MDV_NODISCARD long id() const { return _id; }

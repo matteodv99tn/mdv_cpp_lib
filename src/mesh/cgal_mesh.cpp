@@ -1,4 +1,6 @@
+#include <CGAL/Polygon_mesh_processing/compute_normal.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
+#include <spdlog/spdlog.h>
 
 #include <mdv/mesh/mesh.hpp>
 
@@ -28,7 +30,43 @@ mdv::mesh::construct_geodesic(
             cgal_geod.cbegin(),
             cgal_geod.cend(),
             geod.begin(),
-            [](const auto& pt) -> Point3d { return {pt.x(), pt.y(), pt.z()}; }
+            [](const auto& pt) -> Point3d { return convert(pt); }
     );
     return geod;
+}
+
+void
+Mesh::CgalMesh::build_vertex_normals_map() noexcept {
+    _mesh.property_map<VertexDescriptor, Vec3>("v:normal");
+    auto&& [normals, new_map] = _mesh.add_property_map<VertexDescriptor, Vec3>(
+            "v:normal", CGAL::NULL_VECTOR
+    );
+    if (new_map) {
+        _logger->debug("Computing vertex normals");
+        CGAL::Polygon_mesh_processing::compute_vertex_normals(_mesh, normals);
+    } else {
+        _logger->debug("Vertex normals already computed");
+    }
+}
+
+//   ____                              _
+//  / ___|___  _ ____   _____ _ __ ___(_) ___  _ __
+// | |   / _ \| '_ \ \ / / _ \ '__/ __| |/ _ \| '_ \
+// | |__| (_) | | | \ V /  __/ |  \__ \ | (_) | | | |
+//  \____\___/|_| |_|\_/ \___|_|  |___/_|\___/|_| |_|
+//
+//  _          _
+// | |__   ___| |_ __   ___ _ __ ___
+// | '_ \ / _ \ | '_ \ / _ \ '__/ __|
+// | | | |  __/ | |_) |  __/ |  \__ \
+// |_| |_|\___|_| .__/ \___|_|  |___/
+//              |_|
+Eigen::Vector3d
+mdv::mesh::convert(const Mesh::CgalMesh::Vec3& x) {
+    return {x.x(), x.y(), x.z()};
+}
+
+Eigen::Vector3d
+mdv::mesh::convert(const Mesh::CgalMesh::Point3& x) {
+    return {x.x(), x.y(), x.z()};
 }

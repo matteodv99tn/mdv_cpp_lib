@@ -34,6 +34,7 @@ Mesh::Mesh(const path& file_path) : _file_path(file_path) {
 
     sync_vertex_data();
     sync_face_data();
+    _cgal_data->build_vertex_normals_map();
 
     _logger->debug("Finding neighbouring faces");
     _neighbouring_faces.resize(_cgal_data->_mesh.num_faces());

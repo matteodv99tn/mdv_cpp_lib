@@ -6,8 +6,8 @@
 
 namespace mdv::mesh::rerun {
 
-::rerun::archetypes::Mesh3D from_mesh(const Mesh& mesh);
-
+::rerun::archetypes::Mesh3D      from_mesh(const Mesh& mesh);
+::rerun::archetypes::Arrows3D    vertex_normals(const Mesh& mesh);
 
 }  // namespace mdv::mesh::rerun
 
