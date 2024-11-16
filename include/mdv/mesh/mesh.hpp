@@ -25,7 +25,7 @@ public:
     class Point;
     class CgalMesh;
 
-    using Geodesic = std::vector<Point3d>;
+    using Geodesic = ::mdv::mesh::Geodesic;
 
     enum GeodesicBuilderPolicy : std::uint8_t {
         InternalState,
@@ -207,6 +207,7 @@ public:
         // clang-format off
         MDV_NODISCARD double u() const noexcept { return _uv(0); }
         MDV_NODISCARD double v() const noexcept { return _uv(1); }
+        MDV_NODISCARD const Face& face() const noexcept { return _face; }
         MDV_NODISCARD Face::Index face_id() const noexcept { return _face.id(); }
         MDV_NODISCARD const Mesh* mesh() const noexcept { return _face.mesh(); }
 
@@ -261,7 +262,9 @@ public:
             const Point&          from,
             const Point&          to,
             GeodesicBuilderPolicy policy = InternalState
-    );
+    ) const;
+
+    MDV_NODISCARD std::vector<Eigen::Vector3d> compute_vertex_normals() const noexcept;
 
 
     // Getters
@@ -318,6 +321,7 @@ private:
     SpdLoggerPtr          _logger;
     gsl::owner<CgalMesh*> _cgal_data{nullptr};
     std::filesystem::path _file_path;
+    friend class CgalMesh;
 
     std::vector<Point3d>            _v_mat;
     std::vector<Face::IndexTriplet> _f_mat;

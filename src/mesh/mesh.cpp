@@ -2,13 +2,13 @@
 #include <CGAL/Polygon_mesh_processing/transform.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <Eigen/Geometry>
-#include <execution>
 #include <spdlog/spdlog.h>
 #include <thread>
 
 #include <mdv/mesh/fwd.hpp>
 #include <mdv/mesh/mesh.hpp>
 #include <mdv/utils/logging.hpp>
+#include <mdv/utils/logging_extras.hpp>
 
 #include "cgal_data.hpp"
 
@@ -137,7 +137,8 @@ Mesh::transform(const Eigen::Affine3d& transformation) {
 }
 
 Mesh::Geodesic
-Mesh::build_geodesic(const Point& from, const Point& to, GeodesicBuilderPolicy policy) {
+Mesh::build_geodesic(const Point& from, const Point& to, GeodesicBuilderPolicy policy)
+        const {
     auto internal_state_implementation = [this, &from, &to]() -> Geodesic {
         const auto curr_target = _cgal_data->_current_shortpath_source.value_or(
                 Mesh::Point::undefined(to.mesh())
@@ -162,10 +163,17 @@ Mesh::build_geodesic(const Point& from, const Point& to, GeodesicBuilderPolicy p
         return construct_geodesic(shpathobj, from);
     };
 
+    _logger->debug(
+            "Building geodesic from {} to {}",
+            eigen_to_str(from.position()),
+            eigen_to_str(to.position())
+    );
     switch (policy) {
         case InternalState:
+            _logger->trace("Computing geodesic in InternalState mode");
             return internal_state_implementation();
         case ExecutionLocal:
+            _logger->trace("Computing geodesic in ExecutionLocal mode");
             return exec_local_implementation(from, to);
     }
 }

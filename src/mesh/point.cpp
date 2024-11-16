@@ -1,7 +1,9 @@
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <cstdlib>
+#include <spdlog/spdlog.h>
 
 #include <mdv/mesh/mesh.hpp>
+#include <mdv/utils/conditions.hpp>
 
 #include "cgal_data.hpp"
 #include "mdv/mesh/fwd.hpp"
@@ -70,13 +72,22 @@ Mesh::Point::barycentric() const noexcept {
 
     const Eigen::Matrix3d A = [&v1, &v2, &v3]() {
         Eigen::Matrix3d mat;
-        mat.row(0) = v1;
-        mat.row(1) = v2;
-        mat.row(2) = v3;
+        mat.col(0) = v1;
+        mat.col(1) = v2;
+        mat.col(2) = v3;
         return mat;
     }();
-    const Eigen::Vector3d b = position();
-    return A.colPivHouseholderQr().solve(b);
+    const Eigen::Vector3d b   = position();
+    const Eigen::Vector3d sol = A.colPivHouseholderQr().solve(b);
+    if (!mdv::condition::is_zero(sol.sum() - 1.0)) {
+        mesh()->_logger->error(
+                "When converting from UV coords. to barycentric, sum ({}) is different "
+                "1.0",
+                sol.sum()
+        );
+    }
+    Ensures(mdv::condition::is_zero(sol.sum() - 1.0));
+    return sol;
 };
 
 mdv::mesh::Point3d
