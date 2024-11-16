@@ -2,6 +2,7 @@
 #define MDV_LOGGING_HPP
 
 #include <cstdint>
+#include <Eigen/Dense>
 #include <memory>
 #include <spdlog/fwd.h>
 #include <string>
@@ -27,7 +28,6 @@ SpdLoggerPtr class_logger_factory(
 SpdLoggerPtr static_logger_factory(
         const std::string& logger_name, const LogLevel& level = Info
 );
-
 
 }  // namespace mdv
 

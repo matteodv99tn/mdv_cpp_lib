@@ -34,6 +34,7 @@ find_package(fmt        REQUIRED)
 find_package(Eigen3     REQUIRED)
 find_package(spdlog     REQUIRED)
 find_package(CGAL       REQUIRED)
+find_package(range-v3   REQUIRED)
 
 # find_program(CLANGTIDY clang-tidy)
 # set(CMAKE_CXX_CLANG_TIDY

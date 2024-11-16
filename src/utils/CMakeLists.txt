@@ -1,6 +1,7 @@
 add_library(
     mdv_utils 
     ${CMAKE_CURRENT_LIST_DIR}/logging.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/logging_extras.cpp
 )
 target_include_directories(
     mdv_utils 
@@ -15,4 +16,7 @@ target_link_libraries(
     spdlog::spdlog
     fmt::fmt
     Eigen3::Eigen
+    GSL
+    PRIVATE
+    range-v3
 )
