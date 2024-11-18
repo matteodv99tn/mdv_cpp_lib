@@ -79,5 +79,6 @@ target_link_libraries(
     PRIVATE
     Catch2::Catch2WithMain
     mdv_utils
+    meshlib
 )
 

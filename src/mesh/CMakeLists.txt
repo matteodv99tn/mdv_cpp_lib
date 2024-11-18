@@ -11,7 +11,7 @@ target_include_directories(
     meshlib
     PUBLIC
     ${MDV_INCLUDES_DIR}
-    PRIVATE
+    PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/include
 )
 target_link_libraries(

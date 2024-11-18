@@ -11,8 +11,10 @@ using ::mdv::mesh::Mesh;
 
 Mesh::CgalMesh::FaceLocation
 mdv::mesh::location_from_mesh_point(const ::mdv::mesh::Mesh::Point& pt) noexcept {
+    // Note: barycentric coordinates are exported in the "wrong" order, since this
+    // appears coorect w.r.t. to Cgal internal data alignment
     const Eigen::Vector3d b = pt.barycentric();
-    std::array<double, 3> bar_coords{b(0), b(1), b(2)};
+    std::array<double, 3> bar_coords{b(2), b(0), b(1)};
     return {static_cast<CGAL::SM_Face_index>(pt.face_id()), bar_coords};
 }
 
@@ -20,7 +22,7 @@ Mesh::Geodesic
 mdv::mesh::construct_geodesic(
         Mesh::CgalMesh::ShortestPath& shpath, const Mesh::Point& from
 ) {
-    const auto&& [face_id, barycentric_coords] = location_from_mesh_point(from);
+    const auto [face_id, barycentric_coords] = location_from_mesh_point(from);
     std::vector<Mesh::CgalMesh::Point3> cgal_geod;
     shpath.shortest_path_points_to_source_points(
             face_id, barycentric_coords, std::back_inserter(cgal_geod)

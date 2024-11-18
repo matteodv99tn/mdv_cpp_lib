@@ -93,6 +93,8 @@ public:
         using VertexTriplet = std::array<Vertex, 3>;
         Face(const Mesh* m, const Index& id) noexcept : IndexBasedElement(m, id) {};
 
+        static Face random(const Mesh* m) noexcept;
+
         /**
          * @brief Normal vector to the triangle
          *
@@ -173,12 +175,22 @@ public:
      */
     class Point {
     public:
+        Point(Face face, Eigen::Vector2d uv) :
+                _face(std::move(face)), _uv(std::move(uv)) {}
+
         /**
          * @brief Retrieves the closes point on the mesh to the given point described in
          * 3D space.
          *
          */
         static Point from_cartesian(const Mesh* m, const Point3d& pt);
+
+        /**
+         * @brief Retrieves the closes point on the mesh to the given point described in
+         * 3D space.
+         *
+         */
+        static Point from_barycentric(const Mesh* m, const Point3d& barycentric);
 
         /**
          * @brief Defines an "undefined" point, i.e. a point with no meaning.
@@ -210,12 +222,10 @@ public:
         MDV_NODISCARD const Face& face() const noexcept { return _face; }
         MDV_NODISCARD Face::Index face_id() const noexcept { return _face.id(); }
         MDV_NODISCARD const Mesh* mesh() const noexcept { return _face.mesh(); }
+        MDV_NODISCARD const Eigen::Vector2d& uv() const noexcept { return _uv; }
 
         // clang-format on
     private:
-        Point(Face face, Eigen::Vector2d uv) :
-                _face(std::move(face)), _uv(std::move(uv)) {}
-
         Face            _face;
         Eigen::Vector2d _uv;
     };

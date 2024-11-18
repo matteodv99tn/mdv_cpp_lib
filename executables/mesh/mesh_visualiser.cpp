@@ -1,8 +1,8 @@
 #include <chrono>
 #include <cstdlib>
+#include <iostream>
 #include <string>
 #include <thread>
-#include <iostream>
 
 #include <mdv/config.hpp>
 #include <mdv/mesh/mesh.hpp>

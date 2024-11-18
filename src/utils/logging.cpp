@@ -35,7 +35,8 @@ mdv::class_logger_factory(
 ) {
     const std::string logger_name =
             format_logger_name(class_name + "-" + instance_name);
-    SpdLoggerPtr logger = spdlog::stdout_color_st(logger_name);
+    SpdLoggerPtr logger = spdlog::get(logger_name);
+    if (!logger) logger = spdlog::stdout_color_st(logger_name);
 
     const std::string fmt = fmt::format("[%l][{}][{}] %v", class_name, instance_name);
     logger->set_pattern(fmt);

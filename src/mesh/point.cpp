@@ -26,10 +26,10 @@ Mesh::Point::from_cartesian(const Mesh* m, const Point3d& pt) {
     const Face face(m, static_cast<Mesh::Face::Index>(id.idx()));
 
     // Convert barycentric coordinates to UV
-    const auto&                       v1 = face.v1();
-    const auto&                       v2 = face.v2();
-    const auto&                       v3 = face.v3();
-    const Eigen::Matrix<double, 3, 2> A  = [&v1, &v2, &v3]() {
+    const auto& v1 = face.v1();
+    const auto& v2 = face.v2();
+    const auto& v3 = face.v3();
+    const auto  A  = [&v1, &v2, &v3]() -> Eigen::Matrix<double, 3, 2> {
         Eigen::Matrix<double, 3, 2> mat;
         mat.col(0) = v2 - v1;
         mat.col(1) = v3 - v1;
@@ -50,9 +50,11 @@ Mesh::Point::undefined(const Mesh* m) noexcept {
 
 Mesh::Point
 Mesh::Point::random(const Mesh* m) noexcept {
-    const Face face{m, static_cast<Mesh::Face::Index>(std::rand() % m->num_faces())};
-    const auto uv =
-            (Eigen::Vector2d::Ones() + Eigen::Vector2d::Random()) / (2 * std::sqrt(2));
+    const auto face   = Mesh::Face::random(m);
+    const auto uv_val = (Eigen::Vector2d::Ones() + Eigen::Vector2d::Random());
+    // Worst case scenario: uv_val = (2, 2) -> uv = (0.5, 0.5)
+    // so, divide by 8
+    const auto uv = uv_val / 8;
     Ensures(uv.sum() <= 1.0);
     Ensures(uv(0) >= 0.0);
     Ensures(uv(1) >= 0.0);
