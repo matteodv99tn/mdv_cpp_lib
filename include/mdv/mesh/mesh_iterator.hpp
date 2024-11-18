@@ -17,7 +17,7 @@ public:
 
     // NOLINTEND
 
-    MeshIterator(const Mesh* mesh, const Index& index) noexcept : _v(mesh, index) {}
+    MeshIterator(const Mesh* mesh, const Index& index) noexcept : _v(*mesh, index) {}
 
     Element&
     operator*() noexcept {

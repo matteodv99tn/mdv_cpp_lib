@@ -28,8 +28,8 @@ main(int argc, char* argv[]) {
     rec.spawn().exit_on_failure();
 
     std::cout << "Picking random points\n";
-    const auto pt1 = Mesh::Point::random(&mesh);
-    const auto pt2 = Mesh::Point::random(&mesh);
+    const auto pt1 = Mesh::Point::random(mesh);
+    const auto pt2 = Mesh::Point::random(mesh);
 
     rec.log("points", mdv::mesh::rerun_convert::points({pt1, pt2}));
     rec.log_static("mesh", rr_mesh);

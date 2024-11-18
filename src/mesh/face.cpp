@@ -9,8 +9,8 @@
 using mdv::mesh::Mesh;
 
 Mesh::Face
-Mesh::Face::random(const Mesh* m) noexcept {
-    return {m, static_cast<Mesh::Face::Index>(std::rand() % m->num_faces())};
+Mesh::Face::random(const Mesh& m) noexcept {
+    return {m, static_cast<Mesh::Face::Index>(std::rand() % m.num_faces())};
 }
 
 mdv::Vec3d
@@ -24,13 +24,11 @@ Mesh::Face::normal() const {
 Mesh::Vertex
 Mesh::Face::vertex(const long i) const {
     Expects(i >= 0 && i < 3);
-    return {this->_mesh, vertices_ids()[i]};
+    return {*_mesh, vertices_ids()[i]};
 }
 
 Mesh::Face::VertexTriplet
 Mesh::Face::vertices() const {
     const auto ids = vertices_ids();
-    return {Vertex(this->_mesh, ids[0]),
-            Vertex(this->_mesh, ids[1]),
-            Vertex(this->_mesh, ids[2])};
+    return {Vertex(*_mesh, ids[0]), Vertex(*_mesh, ids[1]), Vertex(*_mesh, ids[2])};
 }

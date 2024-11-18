@@ -18,10 +18,10 @@ using mdv::mesh::Mesh;
 //
 
 Mesh::Point
-Mesh::Point::from_cartesian(const Mesh* m, const Point3d& pt) {
+Mesh::Point::from_cartesian(const Mesh& m, const Point3d& pt) {
     const Mesh::CgalMesh::Point3 cgal_pt{pt(0), pt(1), pt(2)};
     const auto [id, coords] =
-            m->_cgal_data->_shortest_path->locate(cgal_pt, m->_cgal_data->_aabb_tree);
+            m._cgal_data->_shortest_path->locate(cgal_pt, m._cgal_data->_aabb_tree);
 
     const Face face(m, static_cast<Mesh::Face::Index>(id.idx()));
 
@@ -42,14 +42,14 @@ Mesh::Point::from_cartesian(const Mesh* m, const Point3d& pt) {
 }
 
 Mesh::Point
-Mesh::Point::undefined(const Mesh* m) noexcept {
+Mesh::Point::undefined(const Mesh& m) noexcept {
     const Face            face{m, -1};
     const Eigen::Vector2d uv{-1.0, -1.0};
     return {face, uv};
 }
 
 Mesh::Point
-Mesh::Point::random(const Mesh* m) noexcept {
+Mesh::Point::random(const Mesh& m) noexcept {
     const auto face   = Mesh::Face::random(m);
     const auto uv_val = (Eigen::Vector2d::Ones() + Eigen::Vector2d::Random());
     // Worst case scenario: uv_val = (2, 2) -> uv = (0.5, 0.5)
@@ -82,7 +82,7 @@ Mesh::Point::barycentric() const noexcept {
     const Eigen::Vector3d b   = position();
     const Eigen::Vector3d sol = A.colPivHouseholderQr().solve(b);
     if (!mdv::condition::is_zero(sol.sum() - 1.0)) {
-        mesh()->_logger->error(
+        mesh()._logger->error(
                 "When converting from UV coords. to barycentric, sum ({}) is different "
                 "1.0",
                 sol.sum()

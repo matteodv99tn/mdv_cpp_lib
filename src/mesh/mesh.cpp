@@ -158,7 +158,7 @@ Mesh::build_geodesic(const Point& from, const Point& to, GeodesicBuilderPolicy p
 
     auto exec_local_implementation = [](const Point& from,
                                         const Point& to) -> Geodesic {
-        Mesh::CgalMesh::ShortestPath shpathobj(from.mesh()->_cgal_data->_mesh);
+        Mesh::CgalMesh::ShortestPath shpathobj(from.mesh()._cgal_data->_mesh);
         shpathobj.add_source_point(location_from_mesh_point(to));
         return construct_geodesic(shpathobj, from);
     };

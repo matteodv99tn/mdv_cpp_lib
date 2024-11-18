@@ -36,12 +36,12 @@ public:
     public:
         using Index = long;
 
-        IndexBasedElement(const Mesh* m, const Index& id) noexcept :
-                _mesh(m), _id(id) {};
+        IndexBasedElement(const Mesh& m, const Index& id) noexcept :
+                _mesh(&m), _id(id) {};
 
         // clang-format off
         MDV_NODISCARD Index id() const noexcept { return _id; }
-        MDV_NODISCARD const Mesh* mesh() const noexcept { return _mesh; }
+        MDV_NODISCARD const Mesh& mesh() const noexcept { return *_mesh; }
 
         // clang-format on
 
@@ -61,7 +61,7 @@ public:
         using Index    = long;
         using Iterator = MeshIterator<Vertex, Index>;
 
-        Vertex(const Mesh* m, const Index& id) noexcept : IndexBasedElement(m, id) {};
+        Vertex(const Mesh& m, const Index& id) noexcept : IndexBasedElement(m, id) {};
 
         MDV_NODISCARD Eigen::Vector3d normal() const noexcept;
 
@@ -91,9 +91,9 @@ public:
         using IndexTriplet  = std::array<Index, 3>;
         using Iterator      = MeshIterator<Face, Index>;
         using VertexTriplet = std::array<Vertex, 3>;
-        Face(const Mesh* m, const Index& id) noexcept : IndexBasedElement(m, id) {};
+        Face(const Mesh& m, const Index& id) noexcept : IndexBasedElement(m, id) {};
 
-        static Face random(const Mesh* m) noexcept;
+        static Face random(const Mesh& m) noexcept;
 
         /**
          * @brief Normal vector to the triangle
@@ -183,14 +183,14 @@ public:
          * 3D space.
          *
          */
-        static Point from_cartesian(const Mesh* m, const Point3d& pt);
+        static Point from_cartesian(const Mesh& m, const Point3d& pt);
 
         /**
          * @brief Retrieves the closes point on the mesh to the given point described in
          * 3D space.
          *
          */
-        static Point from_barycentric(const Mesh* m, const Point3d& barycentric);
+        static Point from_barycentric(const Mesh& m, const Point3d& barycentric);
 
         /**
          * @brief Defines an "undefined" point, i.e. a point with no meaning.
@@ -199,9 +199,9 @@ public:
          * location.
          *
          */
-        static Point undefined(const Mesh* m) noexcept;
+        static Point undefined(const Mesh& m) noexcept;
 
-        static Point random(const Mesh* m) noexcept;
+        static Point random(const Mesh& m) noexcept;
 
         MDV_NODISCARD bool is_undefined() const noexcept;
 
@@ -221,7 +221,7 @@ public:
         MDV_NODISCARD double v() const noexcept { return _uv(1); }
         MDV_NODISCARD const Face& face() const noexcept { return _face; }
         MDV_NODISCARD Face::Index face_id() const noexcept { return _face.id(); }
-        MDV_NODISCARD const Mesh* mesh() const noexcept { return _face.mesh(); }
+        MDV_NODISCARD const Mesh& mesh() const noexcept { return _face.mesh(); }
         MDV_NODISCARD const Eigen::Vector2d& uv() const noexcept { return _uv; }
 
         // clang-format on
@@ -290,8 +290,8 @@ public:
     MDV_NODISCARD std::size_t num_faces() const;
 
     // clang-format off
-    MDV_NODISCARD Face face(const Face::Index& id) const { return {this, id}; }
-    MDV_NODISCARD Vertex vertex(const Vertex::Index& id) const { return {this, id}; }
+    MDV_NODISCARD Face face(const Face::Index& id) const { return {*this, id}; }
+    MDV_NODISCARD Vertex vertex(const Vertex::Index& id) const { return {*this, id}; }
 
     // clang-format on
 
