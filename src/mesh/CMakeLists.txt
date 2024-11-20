@@ -1,25 +1,24 @@
-add_library(
-    meshlib
+set(MDV_SRCS
+    ${MDV_SRCS}
     ${CMAKE_CURRENT_LIST_DIR}/mesh.cpp
     ${CMAKE_CURRENT_LIST_DIR}/cgal_mesh.cpp
     ${CMAKE_CURRENT_LIST_DIR}/vertex.cpp
     ${CMAKE_CURRENT_LIST_DIR}/face.cpp
     ${CMAKE_CURRENT_LIST_DIR}/point.cpp
     ${CMAKE_CURRENT_LIST_DIR}/rerun.cpp
+    PARENT_SCOPE
 )
-target_include_directories(
-    meshlib
-    PUBLIC
-    ${MDV_INCLUDES_DIR}
-    PUBLIC
-    ${CMAKE_CURRENT_LIST_DIR}/include
-)
-target_link_libraries(
-    meshlib
-    PUBLIC
-    mdv_utils 
+set(MDV_PUB_LIBS
+    ${MDV_PUB_LIBS}
     Eigen3::Eigen
     CGAL::CGAL
     Microsoft.GSL::GSL
     rerun_sdk
+    spdlog::spdlog
+    PARENT_SCOPE
+)
+set(MDV_PRIV_INCLUDES_DIRS
+    ${MDV_PRIV_INCLUDES_DIRS}
+    ${CMAKE_CURRENT_LIST_DIR}/include
+    PARENT_SCOPE
 )

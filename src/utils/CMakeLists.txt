@@ -1,22 +1,19 @@
-add_library(
-    mdv_utils 
+set(MDV_SRCS
+    ${MDV_SRCS}
     ${CMAKE_CURRENT_LIST_DIR}/logging.cpp
     ${CMAKE_CURRENT_LIST_DIR}/logging_extras.cpp
+    PARENT_SCOPE
 )
-target_include_directories(
-    mdv_utils 
-    PUBLIC
-    ${MDV_INCLUDES_DIR}
-    PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/include
-)
-target_link_libraries(
-    mdv_utils 
-    PUBLIC
+set(MDV_PUB_LIBS
+    ${MDV_PUB_LIBS}
     spdlog::spdlog
     fmt::fmt
     Eigen3::Eigen
-    GSL
-    PRIVATE
+    Microsoft.GSL::GSL
+    PARENT_SCOPE
+)
+set(MDV_PRIV_LIBS
+    ${MDV_PRIV_LIBS}
     range-v3
+    PARENT_SCOPE
 )
