@@ -1,6 +1,7 @@
 #include <CGAL/boost/graph/iterator.h>
 #include <cstdlib>
 #include <gsl/assert>
+#include <random>
 
 #include <mdv/eigen_defines.hpp>
 #include <mdv/mesh/fwd.hpp>
@@ -10,7 +11,10 @@ using mdv::mesh::Mesh;
 
 Mesh::Face
 Mesh::Face::random(const Mesh& m) noexcept {
-    return {m, static_cast<Mesh::Face::Index>(std::rand() % m.num_faces())};
+    static std::random_device                        rd;
+    static std::mt19937                              gen(rd());
+    std::uniform_int_distribution<Mesh::Face::Index> dist(0, m.num_faces() - 1);
+    return {m, dist(gen)};
 }
 
 mdv::Vec3d

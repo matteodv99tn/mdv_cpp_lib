@@ -67,7 +67,6 @@ public:
 
         // clang-format off
 
-        MDV_NODISCARD long id() const { return _id; }
         bool operator==(const Vertex& other) const noexcept { return (_mesh == other._mesh) && (_id == other._id); }
 
         MDV_NODISCARD const Point3d&

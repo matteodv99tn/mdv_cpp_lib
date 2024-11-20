@@ -26,15 +26,13 @@ Mesh::Point::from_cartesian(const Mesh& m, const Point3d& pt) {
     const Face face(m, static_cast<Mesh::Face::Index>(id.idx()));
 
     // Convert barycentric coordinates to UV
-    const auto& v1 = face.v1();
-    const auto& v2 = face.v2();
-    const auto& v3 = face.v3();
-    const auto  A  = [&v1, &v2, &v3]() -> Eigen::Matrix<double, 3, 2> {
-        Eigen::Matrix<double, 3, 2> mat;
-        mat.col(0) = v2 - v1;
-        mat.col(1) = v3 - v1;
-        return mat;
-    }();
+    const auto&                 v1 = face.v1();
+    const auto&                 v2 = face.v2();
+    const auto&                 v3 = face.v3();
+    Eigen::Matrix<double, 3, 2> A;
+    A.col(0) = v2 - v1;
+    A.col(1) = v3 - v1;
+
     const Eigen::Vector3d b  = pt - v1;
     const Eigen::Vector2d uv = A.fullPivHouseholderQr().solve(b);
 
@@ -72,13 +70,11 @@ Mesh::Point::barycentric() const noexcept {
     const auto& v2 = _face.v2();
     const auto& v3 = _face.v3();
 
-    const Eigen::Matrix3d A = [&v1, &v2, &v3]() {
-        Eigen::Matrix3d mat;
-        mat.col(0) = v1;
-        mat.col(1) = v2;
-        mat.col(2) = v3;
-        return mat;
-    }();
+    Eigen::Matrix3d A;
+    A.col(0) = v1;
+    A.col(1) = v2;
+    A.col(2) = v3;
+
     const Eigen::Vector3d b   = position();
     const Eigen::Vector3d sol = A.colPivHouseholderQr().solve(b);
     if (!mdv::condition::is_zero(sol.sum() - 1.0)) {
