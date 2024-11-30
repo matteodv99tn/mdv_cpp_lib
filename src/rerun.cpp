@@ -4,7 +4,7 @@
 #include <stdexcept>
 
 #include <mdv/mesh/mesh.hpp>
-#include <mdv/mesh/rerun.hpp>
+#include <mdv/rerun.hpp>
 #include <mdv/utils/logging.hpp>
 #include <mdv/utils/logging_extras.hpp>
 #include <rerun/archetypes/mesh3d.hpp>
@@ -23,7 +23,7 @@ namespace rrd = rerun::datatypes;
 
 using mdv::mesh::Mesh;
 
-namespace mdv::mesh::rerun_convert::internal {
+namespace mdv::rerun_convert::internal {
 
 rrd::Vec3D           convert(const Eigen::Vector3d& x);
 rrc::Position3D      vertex_to_position(const Mesh::Vertex& v);
@@ -34,13 +34,13 @@ std::vector<rrc::Position3D>      retrieve_vertices(const Mesh& mesh);
 std::vector<rrc::Vector3D>        retrieve_vertex_normals(const Mesh& mesh);
 std::vector<rrc::TriangleIndices> retrieve_triangles(const Mesh& mesh);
 
-}  // namespace mdv::mesh::rerun_convert::internal
+}  // namespace mdv::rerun_convert::internal
 
 static mdv::SpdLoggerPtr rr_logger =
-        mdv::static_logger_factory("rerun-mesh-adaptor", mdv::Debug);
+        mdv::static_logger_factory("rerun-converter", mdv::Debug);
 
 rra::Mesh3D
-mdv::mesh::rerun_convert::mesh(const Mesh& mesh) {
+mdv::rerun_convert::mesh(const Mesh& mesh) {
     using ::rerun::components::Position3D;
     using ::rerun::components::TriangleIndices;
     using ::rerun::components::Vector3D;
@@ -62,7 +62,7 @@ mdv::mesh::rerun_convert::mesh(const Mesh& mesh) {
 }
 
 rrc::LineStrip3D
-mdv::mesh::rerun_convert::geodesic(const mdv::mesh::Geodesic& geod) {
+mdv::rerun_convert::geodesic(const mdv::mesh::Geodesic& geod) {
     rr_logger->info("Exporting geodesic line");
     if (geod.empty()) {
         rr_logger->warn("Geodesic line has no points!");
@@ -74,7 +74,7 @@ mdv::mesh::rerun_convert::geodesic(const mdv::mesh::Geodesic& geod) {
 }
 
 rra::Arrows3D
-mdv::mesh::rerun_convert::vertex_normals(const Mesh& mesh) {
+mdv::rerun_convert::vertex_normals(const Mesh& mesh) {
     std::vector<rrc::Vector3D> normals(mesh.num_vertices());
     std::transform(
             mesh.vertices_begin(),
@@ -89,12 +89,12 @@ mdv::mesh::rerun_convert::vertex_normals(const Mesh& mesh) {
 }
 
 rra::Points3D
-mdv::mesh::rerun_convert::point(const Mesh::Point& pt) {
+mdv::rerun_convert::point(const Mesh::Point& pt) {
     return rra::Points3D({internal::position(pt)});
 }
 
 rra::Points3D
-mdv::mesh::rerun_convert::points(const std::vector<Mesh::Point>& pts) {
+mdv::rerun_convert::points(const std::vector<Mesh::Point>& pts) {
     std::vector<rrc::Position3D> positions(pts.size());
     std::transform(pts.begin(), pts.end(), positions.begin(), internal::position);
     return rra::Points3D(std::move(positions));
@@ -107,7 +107,7 @@ mdv::mesh::rerun_convert::points(const std::vector<Mesh::Point>& pts) {
 // |___|_| |_|\__\___|_|  |_| |_|\__,_|_|___/
 //
 
-namespace mdv::mesh::rerun_convert::internal {
+namespace mdv::rerun_convert::internal {
 
 rrd::Vec3D
 convert(const Eigen::Vector3d& x) {
@@ -175,4 +175,4 @@ retrieve_vertex_normals(const Mesh& mesh) {
     return normals;
 }
 
-}  // namespace mdv::mesh::rerun_convert::internal
+}  // namespace mdv::rerun_convert::internal

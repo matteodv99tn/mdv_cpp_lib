@@ -5,7 +5,6 @@ set(MDV_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/vertex.cpp
     ${CMAKE_CURRENT_LIST_DIR}/face.cpp
     ${CMAKE_CURRENT_LIST_DIR}/point.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/rerun.cpp
     PARENT_SCOPE
 )
 set(MDV_PUB_LIBS

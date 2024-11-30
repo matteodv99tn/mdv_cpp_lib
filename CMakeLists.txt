@@ -48,6 +48,7 @@ set(MDV_PUB_LIBS "")
 set(MDV_PRIV_LIBS "")
 set(MDV_PRIV_INCLUDES_DIRS "")
 
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/utils)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/mesh)
 
