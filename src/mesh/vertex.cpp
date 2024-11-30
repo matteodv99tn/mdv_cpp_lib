@@ -11,11 +11,11 @@ using mdv::mesh::Mesh;
 
 Eigen::Vector3d
 Mesh::Vertex::normal() const noexcept {
-    using VertexDescriptor = Mesh::CgalMesh::VertexDescriptor;
-    using Vec3             = Mesh::CgalMesh::Vec3;
+    using VertexDescriptor = Mesh::CgalData::VertexDescriptor;
+    using Vec3             = Mesh::CgalData::Vec3;
     // _mesh->_cgal_data->build_vertex_normals_map();
     const auto normals =
-            _mesh->_cgal_data->_mesh.property_map<VertexDescriptor, Vec3>("v:normal")
+            _mesh->_data->_mesh.property_map<VertexDescriptor, Vec3>("v:normal")
                     .value();
     return convert(normals[VertexDescriptor(_id)]);
 }

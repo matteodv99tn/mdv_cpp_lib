@@ -4,13 +4,8 @@
 #include <CGAL/AABB_face_graph_triangle_primitive.h>
 #include <CGAL/AABB_traits_3.h>
 #include <CGAL/AABB_tree.h>
-#include <CGAL/aff_transformation_tags.h>
-#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-#include <CGAL/Exact_predicates_exact_constructions_kernel_with_sqrt.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/Simple_cartesian.h>
 #include <CGAL/Surface_mesh.h>
-#include <CGAL/Surface_mesh_shortest_path.h>
 #include <CGAL/Surface_mesh_shortest_path/Surface_mesh_shortest_path.h>
 #include <CGAL/Surface_mesh_shortest_path/Surface_mesh_shortest_path_traits.h>
 #include <filesystem>
@@ -27,8 +22,7 @@ namespace mdv::mesh {
 // | |__| (_| | (_| | | |  | |  __/\__ \ | | |
 //  \____\__, |\__,_|_|_|  |_|\___||___/_| |_|
 //       |___/
-class Mesh::CgalMesh {
-public:
+struct Mesh::CgalData {
     // CGAL typedefs - general
     using Kernel    = CGAL::Exact_predicates_inexact_constructions_kernel;
     using Point3    = Kernel::Point_3;
@@ -51,24 +45,33 @@ public:
     using FaceLocation    = ShortestPath::Face_location;
 
     // CGAL typedefs - descriptors
-    using VertexDescriptor = boost::graph_traits<CgalMesh::Mesh>::vertex_descriptor;
+    using VertexDescriptor = boost::graph_traits<CgalData::Mesh>::vertex_descriptor;
 
-    CgalMesh(const std::filesystem::path& file_path, SpdLoggerPtr& logger);
+    // Factory functions
+    static gsl::owner<CgalData*> from_file(const std::filesystem::path& file_path);
 
-    SpdLoggerPtr                  _logger;
+    CgalData(const Mesh&& mesh, const SpdLoggerPtr&& logger, const std::string& name);
+
+    mutable SpdLoggerPtr          _logger;
     Mesh                          _mesh;
     std::unique_ptr<ShortestPath> _shortest_path;
     AabbTree                      _aabb_tree;
+    std::string                   _name;
 
     std::optional<mdv::mesh::Mesh::Point> _current_shortpath_source = std::nullopt;
 
     void build_vertex_normals_map() noexcept;
+
+    SpdLoggerPtr&
+    logger() const {
+        return _logger;
+    };
 };
 
-Mesh::CgalMesh::FaceLocation location_from_mesh_point(const Mesh::Point& pt) noexcept;
+Mesh::CgalData::FaceLocation location_from_mesh_point(const Mesh::Point& pt) noexcept;
 
 Mesh::Geodesic construct_geodesic(
-        Mesh::CgalMesh::ShortestPath& shpath, const Mesh::Point& from
+        Mesh::CgalData::ShortestPath& shpath, const Mesh::Point& from
 );
 
 
@@ -85,8 +88,8 @@ Mesh::Geodesic construct_geodesic(
 // |_| |_|\___|_| .__/ \___|_|  |___/
 //              |_|
 
-Eigen::Vector3d convert(const Mesh::CgalMesh::Vec3& x);
-Eigen::Vector3d convert(const Mesh::CgalMesh::Point3& x);
+Eigen::Vector3d convert(const Mesh::CgalData::Vec3& x);
+Eigen::Vector3d convert(const Mesh::CgalData::Point3& x);
 
 }  // namespace mdv::mesh
 

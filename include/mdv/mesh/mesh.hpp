@@ -5,6 +5,8 @@
 #include <Eigen/Geometry>
 #include <filesystem>
 #include <gsl/pointers>
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include <boost/range/iterator_range.hpp>
@@ -23,7 +25,7 @@ public:
     class Vertex;
     class Face;
     class Point;
-    class CgalMesh;
+    class CgalData;
 
     using Geodesic = ::mdv::mesh::Geodesic;
 
@@ -42,6 +44,7 @@ public:
         // clang-format off
         MDV_NODISCARD Index id() const noexcept { return _id; }
         MDV_NODISCARD const Mesh& mesh() const noexcept { return *_mesh; }
+        MDV_NODISCARD SpdLoggerPtr& logger() const { return _mesh->logger(); }
 
         // clang-format on
 
@@ -221,6 +224,7 @@ public:
         MDV_NODISCARD const Face& face() const noexcept { return _face; }
         MDV_NODISCARD Face::Index face_id() const noexcept { return _face.id(); }
         MDV_NODISCARD const Mesh& mesh() const noexcept { return _face.mesh(); }
+        MDV_NODISCARD SpdLoggerPtr& logger() const noexcept { return _face.logger(); }
         MDV_NODISCARD const Eigen::Vector2d& uv() const noexcept { return _uv; }
 
         // clang-format on
@@ -236,13 +240,13 @@ public:
     // |_|  |_|\___||___/_| |_|
     //
 
-    /**
-     * @brief Initialises a mesh object from file
-     *
-     * @param[input] file_path path to the source file of the mesh
-     */
-    Mesh(const std::filesystem::path& file_path);
+    // Factory functions
+    static Mesh from_file(const std::filesystem::path& file_path);
 
+private:
+    Mesh(gsl::owner<CgalData*> data);
+
+public:
     Mesh(const Mesh& other)            = delete;
     Mesh(const Mesh&& other)           = delete;
     Mesh operator=(const Mesh& other)  = delete;
@@ -277,20 +281,15 @@ public:
 
 
     // Getters
-
-    /**
-     * @brief Provides the file name, without extension, of the source file of
-     * the mesh.
-     *
-     */
-    [[nodiscard]] std::string file_name() const;
-
     MDV_NODISCARD std::size_t num_vertices() const;
     MDV_NODISCARD std::size_t num_faces() const;
+    MDV_NODISCARD std::string_view name() const;
 
     // clang-format off
     MDV_NODISCARD Face face(const Face::Index& id) const { return {*this, id}; }
     MDV_NODISCARD Vertex vertex(const Vertex::Index& id) const { return {*this, id}; }
+
+    MDV_NODISCARD SpdLoggerPtr& logger() const;
 
     // clang-format on
 
@@ -327,14 +326,11 @@ private:
 
 
     // Members
-    SpdLoggerPtr          _logger;
-    gsl::owner<CgalMesh*> _cgal_data{nullptr};
-    std::filesystem::path _file_path;
-    friend class CgalMesh;
+    gsl::owner<CgalData*> _data{nullptr};
+    friend class CgalData;
 
     std::vector<Point3d>            _v_mat;
     std::vector<Face::IndexTriplet> _f_mat;
-
     std::vector<Face::IndexTriplet> _neighbouring_faces;
 };
 

@@ -8,10 +8,10 @@ using mdv::mesh::Mesh;
 TEST_CASE("Conversion to barycentric coordinates", "[mesh][point]") {
     using mdv::condition::is_zero_norm;
     const std::string     mesh_path = std::string(mdv::config::mesh_dir) + "/torus.off";
-    const Mesh            mesh(mesh_path);
-    const Eigen::Vector3d b1_des = {1.0, 0.0, 0.0};
-    const Eigen::Vector3d b2_des = {0.0, 1.0, 0.0};
-    const Eigen::Vector3d b3_des = {0.0, 0.0, 1.0};
+    const auto            mesh      = Mesh::from_file(mesh_path);
+    const Eigen::Vector3d b1_des    = {1.0, 0.0, 0.0};
+    const Eigen::Vector3d b2_des    = {0.0, 1.0, 0.0};
+    const Eigen::Vector3d b3_des    = {0.0, 0.0, 1.0};
 
     for (int i = 0; i < 256; ++i) {
         // Check conversion to barycentric coordinates

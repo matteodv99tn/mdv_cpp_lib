@@ -20,7 +20,7 @@ main(int argc, char* argv[]) {
     if (argc > 1) mesh_path = std::string(argv[1]);
     std::cout << "Selected mesh path: " << mesh_path << std::endl;
 
-    const Mesh mesh(mesh_path);
+    const auto mesh = Mesh::from_file(mesh_path);
     std::cout << "Mesh loaded\n";
     const auto rr_mesh = mdv::mesh::rerun_convert::mesh(mesh);
 

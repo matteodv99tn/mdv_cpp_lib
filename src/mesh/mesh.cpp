@@ -3,6 +3,7 @@
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <Eigen/Geometry>
 #include <spdlog/spdlog.h>
+#include <string_view>
 #include <thread>
 
 #include <mdv/mesh/fwd.hpp>
@@ -22,22 +23,22 @@ using std::filesystem::path;
 // | |__| (_) | | | \__ \ |_| |  | |_| | (__| || (_) | |  \__ \
 //  \____\___/|_| |_|___/\__|_|   \__,_|\___|\__\___/|_|  |___/
 //
-Mesh::Mesh(const path& file_path) : _file_path(file_path) {
-    _logger = class_logger_factory("Mesh", file_name(), Debug);
-    // NOLINTNEXTLINE can't initialise in member initialisation list due to ordering
-    _cgal_data = new CgalMesh(file_path, _logger);
-    Ensures(_cgal_data != nullptr);
+Mesh
+Mesh::from_file(const std::filesystem::path& file_path) {
+    gsl::owner<CgalData*> data = CgalData::from_file(file_path);
+    return {data};
+}
 
-    _logger->info("Loaded mesh from file {}", file_path.string());
-    _logger->info("Number of vertices: {}", _cgal_data->_mesh.num_vertices());
-    _logger->info("Number of faces: {}", _cgal_data->_mesh.num_faces());
+Mesh::Mesh(gsl::owner<CgalData*> data) : _data(data) {
+    Ensures(_data != nullptr);
+    logger()->info("Number of vertices: {}", _data->_mesh.num_vertices());
+    logger()->info("Number of faces: {}", _data->_mesh.num_faces());
 
     sync_vertex_data();
     sync_face_data();
-    _cgal_data->build_vertex_normals_map();
 
-    _logger->debug("Finding neighbouring faces");
-    _neighbouring_faces.resize(_cgal_data->_mesh.num_faces());
+    logger()->trace("Finding neighbouring faces");
+    _neighbouring_faces.resize(_data->_mesh.num_faces());
     // Helper function that checks if two vertices are neighbours of a given face
     auto is_neighbour = [](const std::array<long, 3>& face,
                            const long&                v1_id,
@@ -52,25 +53,22 @@ Mesh::Mesh(const path& file_path) : _file_path(file_path) {
         int                 i           = 0;
 
         // Use CGAL's halfedge circulator to find adjacent faces
-        const auto half_edge = _cgal_data->_mesh.halfedge(
-                _cgal_data->_mesh.face(static_cast<CGAL::SM_Halfedge_index>(face_id))
+        const auto half_edge = _data->_mesh.halfedge(
+                _data->_mesh.face(static_cast<CGAL::SM_Halfedge_index>(face_id))
         );
-        for (const auto edge : _cgal_data->_mesh.halfedges_around_face(half_edge)) {
-            const auto opposite = _cgal_data->_mesh.opposite(edge);
-            if (!_cgal_data->_mesh.is_border(opposite))
-                face_neighs[i] = _cgal_data->_mesh.face(opposite).idx();
+        for (const auto edge : _data->_mesh.halfedges_around_face(half_edge)) {
+            const auto opposite = _data->_mesh.opposite(edge);
+            if (!_data->_mesh.is_border(opposite))
+                face_neighs[i] = _data->_mesh.face(opposite).idx();
             i++;
         }
         _neighbouring_faces.at(face_id) = face_neighs;
     };
-
     // Helper function to find neighbours in batches (to enable efficient parallelism)
     auto batch_find_process_neighbours =
             [this, find_face_neighbour](const long& start, const long& end) -> void {
         for (auto i = start; i < end; ++i) { find_face_neighbour(i); }
     };
-
-
     // Allocate memory for neighbouring faces and populate them
     _neighbouring_faces.resize(num_faces());
     const auto                batch_size = 1000;
@@ -87,24 +85,36 @@ Mesh::Mesh(const path& file_path) : _file_path(file_path) {
     }
 }
 
-Mesh::CgalMesh::CgalMesh(const path& file_path, SpdLoggerPtr& logger) :
-        _logger(logger), _shortest_path(nullptr) {
-    const bool loaded = CGAL::IO::read_polygon_mesh(file_path.string(), _mesh);
+gsl::owner<Mesh::CgalData*>
+Mesh::CgalData::from_file(const path& file_path) {
+    const std::string file_name = file_path.stem().string();
+    auto              logger    = class_logger_factory("Mesh", file_name, Debug);
+    CgalData::Mesh    mesh;
+    logger->info("Loading mesh from file {}", file_path.string());
+    const bool loaded = CGAL::IO::read_polygon_mesh(file_path.string(), mesh);
     if (!loaded) {
-        _logger->error("Unable to load mesh {}", file_path.string());
+        logger->error("Unable to load mesh {}", file_path.string());
         throw std::runtime_error("Cannot load mesh");
     }
+    return new CgalData(std::move(mesh), std::move(logger), file_name);
+}
 
+Mesh::CgalData::CgalData(
+        const Mesh&& mesh, const SpdLoggerPtr&& logger, const std::string& name
+) :
+        _mesh(mesh), _logger(logger), _name(name) {
     _shortest_path = std::make_unique<ShortestPath>(_mesh);
-    _logger->trace("Initialised shortest path object");
+    this->logger()->trace("Initialised shortest path object");
 
     _shortest_path->build_aabb_tree(_aabb_tree);
-    _logger->trace("Built AABB tree of the mesh");
+    this->logger()->trace("Built AABB tree of the mesh");
+
+    build_vertex_normals_map();
 }
 
 Mesh::~Mesh() {
-    _logger->trace("Releasing CGAL mesh");
-    delete _cgal_data;
+    logger()->trace("Releasing CGAL mesh");
+    delete _data;
 }
 
 //  __  __                _
@@ -114,9 +124,19 @@ Mesh::~Mesh() {
 // |_|  |_|\___|_| |_| |_|_.__/ \___|_|  |___/
 //
 
+mdv::SpdLoggerPtr&
+Mesh::logger() const {
+    return _data->logger();
+}
+
+std::string_view
+Mesh::name() const {
+    return _data->_name;
+}
+
 void
 Mesh::transform(const Eigen::Affine3d& transformation) {
-    _logger->info("Applying transformation to mesh");
+    logger()->info("Applying transformation to mesh");
     const double m11 = transformation(0, 0);
     const double m12 = transformation(0, 1);
     const double m13 = transformation(0, 2);
@@ -130,50 +150,50 @@ Mesh::transform(const Eigen::Affine3d& transformation) {
     const double m33 = transformation(2, 2);
     const double m34 = transformation(2, 3);
 
-    const Mesh::CgalMesh::Transform transform(
+    const Mesh::CgalData::Transform transform(
             m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, 1.0
     );
-    CGAL::Polygon_mesh_processing::transform(transform, _cgal_data->_mesh);
+    CGAL::Polygon_mesh_processing::transform(transform, _data->_mesh);
 }
 
 Mesh::Geodesic
 Mesh::build_geodesic(const Point& from, const Point& to, GeodesicBuilderPolicy policy)
         const {
     auto internal_state_implementation = [this, &from, &to]() -> Geodesic {
-        const auto curr_target = _cgal_data->_current_shortpath_source.value_or(
+        const auto curr_target = _data->_current_shortpath_source.value_or(
                 Mesh::Point::undefined(to.mesh())
         );
         const bool is_close = curr_target.face_id() == to.face_id()
                               && (curr_target.position() - to.position()).norm() < 1e-3;
 
         if (!is_close) {
-            _logger->trace("Updating shortest path source point");
-            if (_cgal_data->_current_shortpath_source.has_value())
-                _cgal_data->_shortest_path->remove_all_source_points();
-            _cgal_data->_shortest_path->add_source_point(location_from_mesh_point(to));
-            _cgal_data->_current_shortpath_source = to;
+            logger()->trace("Updating shortest path source point");
+            if (_data->_current_shortpath_source.has_value())
+                _data->_shortest_path->remove_all_source_points();
+            _data->_shortest_path->add_source_point(location_from_mesh_point(to));
+            _data->_current_shortpath_source = to;
         }
-        return construct_geodesic(*_cgal_data->_shortest_path, from);
+        return construct_geodesic(*_data->_shortest_path, from);
     };
 
     auto exec_local_implementation = [](const Point& from,
                                         const Point& to) -> Geodesic {
-        Mesh::CgalMesh::ShortestPath shpathobj(from.mesh()._cgal_data->_mesh);
+        Mesh::CgalData::ShortestPath shpathobj(from.mesh()._data->_mesh);
         shpathobj.add_source_point(location_from_mesh_point(to));
         return construct_geodesic(shpathobj, from);
     };
 
-    _logger->debug(
+    logger()->debug(
             "Building geodesic from {} to {}",
             eigen_to_str(from.position()),
             eigen_to_str(to.position())
     );
     switch (policy) {
         case InternalState:
-            _logger->trace("Computing geodesic in InternalState mode");
+            logger()->trace("Computing geodesic in InternalState mode");
             return internal_state_implementation();
         case ExecutionLocal:
-            _logger->trace("Computing geodesic in ExecutionLocal mode");
+            logger()->trace("Computing geodesic in ExecutionLocal mode");
             return exec_local_implementation(from, to);
     }
 }
@@ -184,19 +204,15 @@ Mesh::build_geodesic(const Point& from, const Point& to, GeodesicBuilderPolicy p
 // | |_| |  __/ |_| ||  __/ |  \__ \
 //  \____|\___|\__|\__\___|_|  |___/
 //
-std::string
-Mesh::file_name() const {
-    return _file_path.stem().string();
-}
 
 std::size_t
 Mesh::num_vertices() const {
-    return _cgal_data->_mesh.num_vertices();
+    return _data->_mesh.num_vertices();
 }
 
 std::size_t
 Mesh::num_faces() const {
-    return _cgal_data->_mesh.num_faces();
+    return _data->_mesh.num_faces();
 }
 
 Mesh::FaceIterator
@@ -237,10 +253,10 @@ Mesh::vertices() const noexcept {
 //
 void
 Mesh::sync_vertex_data() {
-    _logger->trace("Syncing matrix V");
+    logger()->trace("Syncing matrix V");
     _v_mat.resize(num_vertices());
-    for (const CgalMesh::Mesh::Vertex_index& vertex : _cgal_data->_mesh.vertices()) {
-        const auto cgal_vertex = _cgal_data->_mesh.point(vertex);
+    for (const CgalData::Mesh::Vertex_index& vertex : _data->_mesh.vertices()) {
+        const auto cgal_vertex = _data->_mesh.point(vertex);
         _v_mat[vertex.idx()] =
                 Eigen::Vector3d(cgal_vertex.x(), cgal_vertex.y(), cgal_vertex.z());
     }
@@ -248,12 +264,11 @@ Mesh::sync_vertex_data() {
 
 void
 Mesh::sync_face_data() {
-    _logger->trace("Syncing matrix F");
+    logger()->trace("Syncing matrix F");
     _f_mat.resize(static_cast<long>(num_faces()));
-    for (const CgalMesh::Mesh::Face_index& face : _cgal_data->_mesh.faces()) {
-        const auto vertex_iter = CGAL::vertices_around_face(
-                _cgal_data->_mesh.halfedge(face), _cgal_data->_mesh
-        );
+    for (const CgalData::Mesh::Face_index& face : _data->_mesh.faces()) {
+        const auto vertex_iter =
+                CGAL::vertices_around_face(_data->_mesh.halfedge(face), _data->_mesh);
         int i = 0;
         for (const auto& vi : vertex_iter) {
             Expects(i < 3);

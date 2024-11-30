@@ -19,9 +19,9 @@ using mdv::mesh::Mesh;
 
 Mesh::Point
 Mesh::Point::from_cartesian(const Mesh& m, const Point3d& pt) {
-    const Mesh::CgalMesh::Point3 cgal_pt{pt(0), pt(1), pt(2)};
+    const Mesh::CgalData::Point3 cgal_pt{pt(0), pt(1), pt(2)};
     const auto [id, coords] =
-            m._cgal_data->_shortest_path->locate(cgal_pt, m._cgal_data->_aabb_tree);
+            m._data->_shortest_path->locate(cgal_pt, m._data->_aabb_tree);
 
     const Face face(m, static_cast<Mesh::Face::Index>(id.idx()));
 
@@ -78,7 +78,7 @@ Mesh::Point::barycentric() const noexcept {
     const Eigen::Vector3d b   = position();
     const Eigen::Vector3d sol = A.colPivHouseholderQr().solve(b);
     if (!mdv::condition::is_zero(sol.sum() - 1.0)) {
-        mesh()._logger->error(
+        logger()->error(
                 "When converting from UV coords. to barycentric, sum ({}) is different "
                 "1.0",
                 sol.sum()

@@ -44,7 +44,7 @@ mdv::mesh::rerun_convert::mesh(const Mesh& mesh) {
     using ::rerun::components::Position3D;
     using ::rerun::components::TriangleIndices;
     using ::rerun::components::Vector3D;
-    rr_logger->info("Converting mesh {} to Rerun Mesh3D", mesh.file_name());
+    rr_logger->info("Converting mesh {} to Rerun Mesh3D", mesh.name());
 
     const auto vertices  = internal::retrieve_vertices(mesh);
     const auto triangles = internal::retrieve_triangles(mesh);
