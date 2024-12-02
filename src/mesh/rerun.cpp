@@ -46,9 +46,9 @@ mdv::mesh::rerun_convert::mesh(const Mesh& mesh) {
     using ::rerun::components::Vector3D;
     rr_logger->info("Converting mesh {} to Rerun Mesh3D", mesh.name());
 
-    const auto vertices  = internal::retrieve_vertices(mesh);
-    const auto triangles = internal::retrieve_triangles(mesh);
-    const auto normals   = internal::retrieve_vertex_normals(mesh);
+    auto vertices  = internal::retrieve_vertices(mesh);
+    auto triangles = internal::retrieve_triangles(mesh);
+    auto normals   = internal::retrieve_vertex_normals(mesh);
 
     if (normals.size() != vertices.size())
         rr_logger->warn("Vertex normals count differs from the number of vertices");
@@ -56,9 +56,9 @@ mdv::mesh::rerun_convert::mesh(const Mesh& mesh) {
         rr_logger->warn("Rerun and mdv::Mesh mismatch in vertex count");
 
     rr_logger->debug("Returning Rerun Mesh3D");
-    return rra::Mesh3D(vertices).with_triangle_indices(triangles).with_vertex_normals(
-            normals
-    );
+    return rra::Mesh3D(std::move(vertices))
+            .with_triangle_indices(std::move(triangles))
+            .with_vertex_normals(std::move(normals));
 }
 
 rrc::LineStrip3D
