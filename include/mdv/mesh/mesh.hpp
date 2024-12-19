@@ -15,6 +15,7 @@
 #include <mdv/macros.hpp>
 #include <mdv/mesh/fwd.hpp>
 #include <mdv/mesh/mesh_iterator.hpp>
+#include <mdv/mesh/uv_map.hpp>
 #include <mdv/utils/logging.hpp>
 
 namespace mdv::mesh {
@@ -42,9 +43,9 @@ public:
                 _mesh(&m), _id(id) {};
 
         // clang-format off
-        MDV_NODISCARD Index id() const noexcept { return _id; }
-        MDV_NODISCARD const Mesh& mesh() const noexcept { return *_mesh; }
-        MDV_NODISCARD SpdLoggerPtr& logger() const { return _mesh->logger(); }
+        MDV_NODISCARD Index         id() const noexcept     { return _id; }
+        MDV_NODISCARD const Mesh&   mesh() const noexcept   { return *_mesh; }
+        MDV_NODISCARD SpdLoggerPtr& logger() const          { return _mesh->logger(); }
 
         // clang-format on
 
@@ -73,7 +74,7 @@ public:
         bool operator==(const Vertex& other) const noexcept { return (_mesh == other._mesh) && (_id == other._id); }
 
         MDV_NODISCARD const Point3d&
-        position() const noexcept {return _mesh->_v_mat[_id]; }
+        position() const noexcept { return _mesh->_v_mat[_id]; }
 
         // clang-format on
 
@@ -131,37 +132,30 @@ public:
         friend class MeshIterator<Face, Index>;
         friend class Point;
 
-        void
-        set_id(const Index& id) noexcept {
-            _id = id;
-        }
+        // clang-format off
+        void set_id(const Index& id) noexcept { _id = id; }
 
         /**
          * @brief Return the position of the first vertex within the face.
          *
          */
-        MDV_NODISCARD const Point3d&
-        v1() const noexcept {
-            return _mesh->_v_mat[_mesh->_f_mat[_id][0]];
-        };
+        MDV_NODISCARD const Point3d& v1() const noexcept { return _mesh->_v_mat[_mesh->_f_mat[_id][0]]; };
 
         /**
          * @brief Return the position of the second vertex within the face.
          *
          */
-        MDV_NODISCARD const Point3d&
-        v2() const noexcept {
-            return _mesh->_v_mat[_mesh->_f_mat[_id][1]];
-        };
+        MDV_NODISCARD const Point3d& v2() const noexcept { return _mesh->_v_mat[_mesh->_f_mat[_id][1]]; };
 
         /**
          * @brief Return the position of the third vertex within the face.
          *
          */
-        MDV_NODISCARD const Point3d&
-        v3() const noexcept {
-            return _mesh->_v_mat[_mesh->_f_mat[_id][2]];
-        };
+        MDV_NODISCARD const Point3d& v3() const noexcept { return _mesh->_v_mat[_mesh->_f_mat[_id][2]]; };
+
+        MDV_NODISCARD UvMap compute_uv_map() const noexcept { return {v1(), v2(), v3()}; };
+
+        // clang-format on
     };
 
     //  ____       _       _
@@ -177,8 +171,10 @@ public:
      */
     class Point {
     public:
-        Point(Face face, Eigen::Vector2d uv) :
-                _face(std::move(face)), _uv(std::move(uv)) {}
+        using UvCoord = UvMap::Domain;
+
+        Point(const Face& face, const UvCoord& uv) :
+                _face(face), _uv(uv), _uv_map(_face.compute_uv_map()) {}
 
         /**
          * @brief Retrieves the closes point on the mesh to the given point described in
@@ -219,18 +215,22 @@ public:
         MDV_NODISCARD Point3d position() const noexcept;
 
         // clang-format off
-        MDV_NODISCARD double u() const noexcept { return _uv(0); }
-        MDV_NODISCARD double v() const noexcept { return _uv(1); }
-        MDV_NODISCARD const Face& face() const noexcept { return _face; }
-        MDV_NODISCARD Face::Index face_id() const noexcept { return _face.id(); }
-        MDV_NODISCARD const Mesh& mesh() const noexcept { return _face.mesh(); }
-        MDV_NODISCARD SpdLoggerPtr& logger() const noexcept { return _face.logger(); }
-        MDV_NODISCARD const Eigen::Vector2d& uv() const noexcept { return _uv; }
+        MDV_NODISCARD double         u() const noexcept         { return _uv(0); }
+        MDV_NODISCARD double         v() const noexcept         { return _uv(1); }
+        MDV_NODISCARD const Face&    face() const noexcept      { return _face; }
+        MDV_NODISCARD Face::Index    face_id() const noexcept   { return _face.id(); }
+        MDV_NODISCARD const Mesh&    mesh() const noexcept      { return _face.mesh(); }
+        MDV_NODISCARD SpdLoggerPtr&  logger() const noexcept    { return _face.logger(); }
+        MDV_NODISCARD const UvCoord& uv() const noexcept        { return _uv; }
+        MDV_NODISCARD const UvMap&   uv_map() const noexcept    { return _uv_map; }
 
         // clang-format on
     private:
-        Face            _face;
-        Eigen::Vector2d _uv;
+        Point(const Face& face, const Point3d& pt);
+
+        Face    _face;
+        UvCoord _uv;
+        UvMap   _uv_map;  // Maybe consider caching this variable
     };
 
     //  __  __           _

@@ -23,6 +23,11 @@ is_zero_norm(const auto v) {
 }
 
 bool
+is_unit_norm(const auto v) {
+    return std::abs(v.norm() - 1.0) < internal::zero_th;
+}
+
+bool
 are_parallel(
         const concepts::eigen_vector_like auto& v1,
         const concepts::eigen_vector_like auto& v2

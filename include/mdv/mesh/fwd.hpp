@@ -7,8 +7,7 @@
 namespace mdv::mesh {
 
 class Mesh;
-
-// class MeshPoint;
+class UvMap;
 
 using Point3d  = Eigen::Vector3d;
 using Geodesic = std::vector<Point3d>;
