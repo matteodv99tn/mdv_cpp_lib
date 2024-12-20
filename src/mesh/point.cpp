@@ -32,6 +32,12 @@ Mesh::Point::from_cartesian(const Mesh& m, const Point3d& pt) {
 }
 
 Mesh::Point
+Mesh::Point::from_face_and_position(const Mesh::Face& f, const Point3d& pt) {
+    Expects(mdv::condition::are_orthogonal(f.normal(), pt - f.v1()));
+    return {f, pt};
+}
+
+Mesh::Point
 Mesh::Point::undefined(const Mesh& m) noexcept {
     const Face    face{m, -1};
     const UvCoord uv{-1.0, -1.0};
@@ -83,4 +89,16 @@ Mesh::Point::barycentric() const noexcept {
 mdv::mesh::Point3d
 Mesh::Point::position() const noexcept {
     return uv_map().forward_map(_uv);
+}
+
+bool
+Mesh::Point::operator==(const Point& other) const noexcept {
+    const bool same_face = (this->face() == other.face());
+    const bool same_uv   = mdv::condition::is_zero_norm(this->uv() - other.uv());
+    return same_face && same_uv;
+}
+
+bool
+Mesh::Point::operator!=(const Point& other) const noexcept {
+    return !(*this == other);
 }

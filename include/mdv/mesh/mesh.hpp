@@ -98,6 +98,13 @@ public:
 
         static Face random(const Mesh& m) noexcept;
 
+        Face
+        neighbour_face(const Index& edge_id) const noexcept {
+            assert(edge_id >= 0 && edge_id < 3);
+            const auto new_face_id = mesh()._neighbouring_faces[id()][edge_id];
+            return {mesh(), new_face_id};
+        }
+
         /**
          * @brief Normal vector to the triangle
          *
@@ -184,6 +191,13 @@ public:
         static Point from_cartesian(const Mesh& m, const Point3d& pt);
 
         /**
+         * @brief Initialise the location of a point in 3d space given the face it shall
+         * be parameterised in
+         *
+         */
+        static Point from_face_and_position(const Face& m, const Point3d& pt);
+
+        /**
          * @brief Retrieves the closes point on the mesh to the given point described in
          * 3D space.
          *
@@ -224,6 +238,8 @@ public:
         MDV_NODISCARD const UvCoord& uv() const noexcept        { return _uv; }
         MDV_NODISCARD const UvMap&   uv_map() const noexcept    { return _uv_map; }
 
+        MDV_NODISCARD bool operator==(const Point& other) const noexcept;
+        MDV_NODISCARD bool operator!=(const Point& other) const noexcept;
         // clang-format on
     private:
         Point(const Face& face, const Point3d& pt);

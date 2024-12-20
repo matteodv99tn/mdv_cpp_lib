@@ -2,6 +2,7 @@
 #include <CGAL/Polygon_mesh_processing/transform.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <Eigen/Geometry>
+#include <gsl/assert>
 #include <spdlog/spdlog.h>
 #include <string_view>
 #include <thread>
@@ -159,6 +160,7 @@ Mesh::transform(const Eigen::Affine3d& transformation) {
 Mesh::Geodesic
 Mesh::build_geodesic(const Point& from, const Point& to, GeodesicBuilderPolicy policy)
         const {
+    Expects(&from.mesh() == &to.mesh());
     auto internal_state_implementation = [this, &from, &to]() -> Geodesic {
         const auto curr_target = _data->_current_shortpath_source.value_or(
                 Mesh::Point::undefined(to.mesh())
