@@ -23,7 +23,7 @@ clean:
 
 view: $(HTML_DIR)
 	@echo Opening documentation
-	xdg-open $(HTML_ENTRYPOINT) > /dev/null 2>&1 & disown	
+	@xdg-open $(HTML_ENTRYPOINT) > /dev/null 2>&1 & disown	
 
 # Shortcut for the virtual environment
 venv: $(VENV)/bin/activate
