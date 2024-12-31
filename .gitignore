@@ -8,3 +8,10 @@ trajectories/
 meshes/generated/
 
 include/mesh_manifolds/defines.hpp
+
+
+docs/html
+docs/.venv
+docs/venv
+docs/.env
+docs/env
