@@ -2,7 +2,8 @@
 #define MDV_MESH_CGAL_DATA_HPP
 
 #include <CGAL/AABB_face_graph_triangle_primitive.h>
-#include <CGAL/AABB_traits_3.h>
+#include <CGAL/AABB_traits.h>
+// #include <CGAL/AABB_traits_3.h>   // < Works in arch, not in Ubuntu
 #include <CGAL/AABB_tree.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Surface_mesh.h>

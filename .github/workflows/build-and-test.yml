@@ -1,0 +1,94 @@
+name: C++ Build and Test
+
+on:
+  push:
+    branches:
+      - main
+      - devel
+  pull_request:
+    branches:
+      - main
+      - devel
+
+jobs:
+  build-dependencies:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: sudo ./cmake/install_dependencies.sh
+
+    - name: Build external dependencies
+      run: |
+        mkdir -p cmake/build
+        cmake -S cmake -B cmake/build
+        cmake --build cmake/build/
+        cmake --install cmake/build/
+
+    - name: Upload compiled libraries
+      uses: actions/upload-artifact@v4
+      with:
+        name: "libraries"
+        path: cmake/install
+
+
+  build-and-test:
+    needs: build-dependencies
+    name: Build and Test on ${{ matrix.os }} with ${{ matrix.compiler }} (${{ matrix.build_type }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # os: [ubuntu-22.04, ubuntu-latest, archlinux]
+        os: [ubuntu-22.04, ubuntu-latest]
+        compiler: [gcc, clang]
+        build_type: [Debug, Release]
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Install Build Dependencies
+      run: |
+        if [[ "${{ matrix.os }}" == "archlinux" ]]; then
+          sudo pacman -Sy --noconfirm base-devel cmake gcc clang eigen
+        else
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake gcc clang libeigen3-dev libcgal-dev libspdlog-dev
+        fi
+
+    - name: Fetch external libraries
+      uses: actions/download-artifact@v4
+      with:
+        name: "libraries"
+        path: cmake/install
+
+    - name: Set Up Compiler
+      run: |
+        if [[ "${{ matrix.compiler }}" == "gcc" ]]; then
+          export CC=gcc
+          export CXX=g++
+        else
+          export CC=clang
+          export CXX=clang++
+        fi
+
+    - name: Create Build Directory
+      run: mkdir -p build && cd build
+
+    - name: Configure with CMake
+      working-directory: build
+      run: |
+        cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+
+    - name: Build with CMake
+      working-directory: build
+      run: cmake --build . --config ${{ matrix.build_type }} -- -j$(nproc)
+
+    - name: Run Unit Tests
+      working-directory: build
+      run: ctest --output-on-failure

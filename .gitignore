@@ -3,6 +3,7 @@
 .vscode/
 
 build/
+install/
 json/
 trajectories/
 meshes/generated/
