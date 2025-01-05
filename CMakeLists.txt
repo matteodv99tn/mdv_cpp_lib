@@ -56,6 +56,7 @@ set(MDV_PRIV_INCLUDES_DIRS "")
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/utils)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/mesh)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/dmp)
 
 list(REMOVE_DUPLICATES MDV_SRCS)
 list(REMOVE_DUPLICATES MDV_PUB_LIBS)

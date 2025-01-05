@@ -1,0 +1,10 @@
+set(MDV_SRCS
+    ${MDV_SRCS}
+    ${CMAKE_CURRENT_LIST_DIR}/coordinate_system/exponential_cs.cpp
+    PARENT_SCOPE
+)
+set(MDV_PUB_LIBS
+    ${MDV_PUB_LIBS}
+    Eigen3::Eigen
+    PARENT_SCOPE
+)
