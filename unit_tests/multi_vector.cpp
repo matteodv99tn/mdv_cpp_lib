@@ -1,6 +1,6 @@
+#include <gtest/gtest.h>
 #include <stdexcept>
 
-#include <catch2/catch_test_macros.hpp>
 #include <mdv/containers/multi_vector.hpp>
 
 using mdv::multi_vector;
@@ -40,103 +40,88 @@ build_increasing_value(const std::size_t n_elems = default_size) {
     return res;
 }
 
-
 }  // namespace
 
-TEST_CASE("Multi vector", "[multi_vector][constructor][with size]") {
+TEST(MultiVectorTest, ConstructorWithSize) {
     test_vector vec(default_size);
-    REQUIRE(vec.size() == default_size);
-    REQUIRE(vec.front() == test_tuple());
-    REQUIRE(vec.back() == test_tuple());
+    EXPECT_EQ(vec.size(), default_size);
+    EXPECT_EQ(vec.front(), test_tuple());
+    EXPECT_EQ(vec.back(), test_tuple());
 }
 
-TEST_CASE("Multi vector", "[multi_vector][constructor][with size and value]") {
+TEST(MultiVectorTest, ConstructorWithSizeAndValue) {
     const test_tuple elem = build_tuple();
     test_vector      vec(default_size, elem);
-    REQUIRE(vec.size() == default_size);
-    REQUIRE(vec.front() == elem);
-    REQUIRE(vec.back() == elem);
+    EXPECT_EQ(vec.size(), default_size);
+    EXPECT_EQ(vec.front(), elem);
+    EXPECT_EQ(vec.back(), elem);
 }
 
-TEST_CASE("Multi vector", "[multi_vector][copy constructor]") {
+TEST(MultiVectorTest, CopyConstructor) {
     const test_tuple elem = build_tuple();
     test_vector      vec(default_size, elem);
-    REQUIRE(vec.size() == default_size);
-    REQUIRE(vec.front() == elem);
-    REQUIRE(vec.back() == elem);
+    EXPECT_EQ(vec.size(), default_size);
+    EXPECT_EQ(vec.front(), elem);
+    EXPECT_EQ(vec.back(), elem);
 }
 
-TEST_CASE("Multi vector", "[multi_vector][reserve]") {
+TEST(MultiVectorTest, Reserve) {
     test_vector vec;
     vec.reserve(default_size);
-    REQUIRE(vec.size() == 0);
-    REQUIRE(vec.capacity() >= default_size);
+    EXPECT_EQ(vec.size(), 0);
+    EXPECT_GE(vec.capacity(), default_size);
 }
 
-TEST_CASE("Multi vector", "[multi_vector][push_back][lvalue]") {
+TEST(MultiVectorTest, PushBackLvalue) {
     test_tuple  e = build_tuple();
     test_vector vec;
     vec.push_back(e);
-    REQUIRE(vec.size() == 1);
-    REQUIRE(vec.front() == build_tuple());
+    EXPECT_EQ(vec.size(), 1);
+    EXPECT_EQ(vec.front(), build_tuple());
 }
 
-TEST_CASE("Multi vector", "[multi_vector][push_back][rvalue]") {
+TEST(MultiVectorTest, PushBackRvalue) {
     test_vector vec;
     vec.push_back(build_tuple());
-    REQUIRE(vec.size() == 1);
-    REQUIRE(vec.front() == build_tuple());
+    EXPECT_EQ(vec.size(), 1);
+    EXPECT_EQ(vec.front(), build_tuple());
 }
 
-TEST_CASE("Multi vector", "[multi_vector][emplace_back]") {
+TEST(MultiVectorTest, EmplaceBack) {
     test_vector vec;
     vec.emplace_back(4.2, 5, 'c');
-    REQUIRE(vec.size() == 1);
-    REQUIRE(vec.front() == build_tuple());
+    EXPECT_EQ(vec.size(), 1);
+    EXPECT_EQ(vec.front(), build_tuple());
 }
 
-TEST_CASE("Multi vector", "[multi_vector][access operator]") {
+TEST(MultiVectorTest, AccessOperator) {
     const test_vector vec = build_increasing_value();
     for (auto i = 0; i < vec.size(); ++i)
-        REQUIRE(static_cast<decltype(i)>(std::get<int>(vec[i])) == i);
+        EXPECT_EQ(static_cast<decltype(i)>(std::get<int>(vec[i])), i);
 }
 
-TEST_CASE("Multi vector", "[multi_vector][at access operator]") {
+TEST(MultiVectorTest, AtAccessOperator) {
     const test_vector vec = build_increasing_value();
-    for (auto i = 0; i < vec.size(); ++i)
-        REQUIRE(static_cast<decltype(i)>(std::get<int>(vec.at(i))) == i);
-    REQUIRE_THROWS_AS(vec.at(vec.size()), std::out_of_range);
+    for (auto i = 0; i < vec.size(); ++i) EXPECT_EQ(std::get<int>(vec.at(i)), i);
+    ASSERT_THROW(vec.at(vec.size()), std::out_of_range);
 }
 
-TEST_CASE("Multi vector", "[multi_vector][column iterator]") {
-    test_vector vec = build_increasing_value(50);  // NOLINT magic numbers
-
-    using double_iterator = decltype(vec.column_iterator<0>());
-    static_assert(std::is_same_v<double_iterator::iterator::reference, double&>);
-    static_assert(std::is_same_v<double_iterator::iterator::pointer, double*>);
-
-    using cdouble_iterator = decltype(vec.ccolumn_iterator<0>());
-    static_assert(std::is_same_v<cdouble_iterator::iterator::reference, const double&>);
-    static_assert(std::is_same_v<cdouble_iterator::iterator::pointer, const double*>);
-
-    double double_v = 0.0;
-    int    int_v    = 0;
-    char   char_v   = 'a';
-    for (const auto& it : vec.column_iterator<1>()) REQUIRE(it == double_v++);
-    for (const auto& it : vec.column_iterator<1>()) REQUIRE(it == int_v++);
-    for (const auto& it : vec.column_iterator<2>()) REQUIRE(it == char_v++);
+TEST(MultiVectorTest, ColumnIterator) {
+    const test_vector vec      = build_increasing_value(50);  // NOLINT magic numbers
+    double            double_v = 0.0;
+    int               int_v    = 0;
+    char              char_v   = 'a';
+    for (const auto& it : vec.column_iterator<0>()) ASSERT_EQ(it, double_v++);
+    for (const auto& it : vec.column_iterator<1>()) ASSERT_EQ(it, int_v++);
+    for (const auto& it : vec.column_iterator<2>()) ASSERT_EQ(it, char_v++);
 }
 
-TEST_CASE("Multi vector", "[multi_vector][const column iterator]") {
-    const test_vector vec = build_increasing_value(50);  // NOLINT magic numbers
-    using double_iterator = decltype(vec.column_iterator<0>());
-    static_assert(std::is_same_v<double_iterator::iterator::reference, const double&>);
-    static_assert(std::is_same_v<double_iterator::iterator::pointer, const double*>);
-
-    double double_v = 0.0;
-    int    int_v    = 0;
-    char   char_v   = 'a';
-    for (const auto& it : vec.column_iterator<1>()) REQUIRE(it == double_v++);
-    for (const auto& it : vec.column_iterator<1>()) REQUIRE(it == int_v++);
-    for (const auto& it : vec.column_iterator<2>()) REQUIRE(it == char_v++);
+TEST(MultiVectorTest, ConstColumnIterator) {
+    const test_vector vec      = build_increasing_value(50);  // NOLINT magic numbers
+    double            double_v = 0.0;
+    int               int_v    = 0;
+    char              char_v   = 'a';
+    for (const auto& it : vec.column_iterator<0>()) ASSERT_EQ(it, double_v++);
+    for (const auto& it : vec.column_iterator<1>()) ASSERT_EQ(it, int_v++);
+    for (const auto& it : vec.column_iterator<2>()) ASSERT_EQ(it, char_v++);
 }

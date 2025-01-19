@@ -1,31 +1,27 @@
-#include <catch2/catch_test_macros.hpp>
+#include <gtest/gtest.h>
 #include <mdv/dmp/coordinate_system/coordinate_system.hpp>
 
-TEST_CASE("Testing base coordinate system class", "[dmp][coordinate system]") {
-    /*
-     * Create a "dummy" coordinate system class which uses the time scaling factor tau
-     * to multiply the provided type, and then verify the outputs.
-     */
-    class FakeCoordinateSystem
-            : public mdv::dmp::CoordinateSystemBase<FakeCoordinateSystem> {
-        using Base = mdv::dmp::CoordinateSystemBase<FakeCoordinateSystem>;
-        friend Base;
+class FakeCoordinateSystem
+        : public mdv::dmp::CoordinateSystemBase<FakeCoordinateSystem> {
+    using Base = mdv::dmp::CoordinateSystemBase<FakeCoordinateSystem>;
+    friend Base;
 
-        double
-        eval(const double t) const {
-            return t * tau();
-        }
+    double
+    eval(const double t) const {
+        return t * tau();
+    }
 
-    public:
-        FakeCoordinateSystem(const double* tau) : Base(tau) {}
-    };
+public:
+    FakeCoordinateSystem(const double* tau) : Base(tau) {}
+};
 
+TEST(CoordinateSystemTest, TestingBaseCoordinateSystemClass) {
     double               tau = 2.0;
     FakeCoordinateSystem cs(&tau);
 
-    REQUIRE(cs(1.0) == 2.0);
+    EXPECT_DOUBLE_EQ(cs(1.0), 2.0);
     tau = 3.0;
-    REQUIRE(cs(1.0) == 3.0);
+    EXPECT_DOUBLE_EQ(cs(1.0), 3.0);
 
     const Eigen::VectorXd ts_eigen = Eigen::VectorXd::LinSpaced(100, 0.0, 10.0);
     std::vector<double>   ts_vec_in;
@@ -35,6 +31,7 @@ TEST_CASE("Testing base coordinate system class", "[dmp][coordinate system]") {
         ts_vec_out.push_back(e * tau);
     }
 
-    REQUIRE(cs(ts_eigen) == tau * ts_eigen);
-    REQUIRE(cs(ts_vec_in) == ts_vec_out);
+    EXPECT_EQ(cs(ts_eigen), tau * ts_eigen);
+    EXPECT_EQ(cs(ts_vec_in), ts_vec_out);
 }
+
