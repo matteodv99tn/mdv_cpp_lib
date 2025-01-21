@@ -11,6 +11,7 @@
 #include <rerun/components/line_strip3d.hpp>
 
 #include "mdv/macros.hpp"
+#include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/utils/logging.hpp"
 
 namespace mdv {
@@ -29,6 +30,9 @@ public:
 
     MDV_NODISCARD ::rerun::archetypes::Points3D
     operator()(const std::vector<::mdv::mesh::Mesh::Point>&) const;
+
+    MDV_NODISCARD ::rerun::archetypes::Arrows3D
+    operator()(const std::vector<::mdv::mesh::TangentVector>&) const;
 
 protected:
     MDV_NODISCARD

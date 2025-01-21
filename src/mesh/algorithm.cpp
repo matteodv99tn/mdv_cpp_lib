@@ -40,7 +40,7 @@ mdv::mesh::parallel_transport(const TangentVector& v, const Mesh::Point& p) {
     assert(mdv::condition::is_zero(R1.determinant() - 1.0));
     assert(mdv::condition::is_zero(R2.determinant() - 1.0));
 
-    const Vec3d delta = R2.transpose() * R1 * v.cartesian_vector();
+    const Vec3d delta = R2 * R1.transpose() * v.cartesian_vector();
     return TangentVector::from_tip_position(p, p.position() + delta);
 }
 

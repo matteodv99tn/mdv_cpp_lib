@@ -16,6 +16,7 @@
 #include <rerun/components/vector3d.hpp>
 
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/tangent_vector.hpp"
 
 namespace rra = rerun::archetypes;
 namespace rrc = rerun::components;
@@ -23,6 +24,7 @@ namespace rrd = rerun::datatypes;
 
 using mdv::RerunConverter;
 using mdv::mesh::Mesh;
+using mdv::mesh::TangentVector;
 
 mdv::SpdLoggerPtr RerunConverter::_logger =
         mdv::static_logger_factory("RerunConverter");
@@ -71,6 +73,9 @@ RerunConverter::operator()(const mdv::mesh::Geodesic& geod) const {
 
 rra::Points3D
 RerunConverter::operator()(const Mesh::Point& pt) const {
+    _logger->info(
+            "Exporting points on a mesh at position {}", eigen_to_str(pt.position())
+    );
     return rra::Points3D((*this)(pt.position()));
 }
 
@@ -83,6 +88,32 @@ RerunConverter::operator()(const std::vector<Mesh::Point>& pts) const {
     for (const auto& p : pts) positions.emplace_back(operator()(p.position()));
 
     return rra::Points3D(std::move(positions));
+}
+
+rra::Arrows3D
+RerunConverter::operator()(const std::vector<TangentVector>& vecs) const {
+    _logger->info("Exporting {} vectors tangent to a mesh", vecs.size());
+    std::vector<rrc::Position3D> origins;
+    std::vector<rrc::Vector3D>   tips;
+    origins.reserve(vecs.size());
+    tips.reserve(vecs.size());
+
+    std::transform(
+            vecs.cbegin(),
+            vecs.cend(),
+            std::back_inserter(origins),
+            [this](const TangentVector& v) {
+                return (*this)(v.application_point().position());
+            }
+    );
+    std::transform(
+            vecs.cbegin(),
+            vecs.cend(),
+            std::back_inserter(tips),
+            [this](const TangentVector& v) { return (*this)(v.cartesian_vector()); }
+    );
+    return rra::Arrows3D::from_vectors(std::move(tips))
+            .with_origins(std::move(origins));
 }
 
 //  ____       _            _

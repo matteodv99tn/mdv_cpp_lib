@@ -9,6 +9,8 @@
 #include <rerun.hpp>
 #include <rerun/archetypes/line_strips3d.hpp>
 #include <rerun/recording_stream.hpp>
+#include "mdv/mesh/algorithm.hpp"
+#include "mdv/mesh/tangent_vector.hpp"
 
 using mdv::mesh::Mesh;
 
@@ -43,6 +45,14 @@ main(int argc, char* argv[]) {
 
     auto rr_geod = to_rerun(geodesic);
     rec.log("geodesic", rerun::archetypes::LineStrips3D({rr_geod}));
+
+    const auto tv1a = mdv::mesh::logarithmic_map(pt1, pt2);
+    const auto tv1b = mdv::mesh::TangentVector::unit_random(pt1);
+    const auto tv2a = mdv::mesh::parallel_transport(tv1a, pt2);
+    const auto tv2b = mdv::mesh::parallel_transport(tv1b, pt2);
+
+    rec.log("logarithmic_map", to_rerun(std::vector({tv1a, tv2a})));
+    rec.log("tangent_vectors", to_rerun(std::vector({tv1b, tv2b})));
 
     return 0;
 }
