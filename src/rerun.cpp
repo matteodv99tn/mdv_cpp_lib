@@ -64,11 +64,13 @@ RerunConverter::operator()(const mdv::mesh::Geodesic& geod) const {
         _logger->warn("Geodesic line has no points!");
         throw std::runtime_error("Not enough points");
     }
-    std::vector<rrc::Position3D> points(geod.size());
-    std::transform(geod.begin(), geod.end(), points.begin(), [this](const auto& pt) {
-        return (*this)(pt);
-    });
-    return {points};
+
+    std::vector<rrc::Position3D> points;
+
+    points.reserve(geod.size());
+    for (const auto& pt : geod) points.emplace_back(operator()(pt));
+
+    return {std::move(points)};
 }
 
 rra::Points3D
@@ -95,23 +97,14 @@ RerunConverter::operator()(const std::vector<TangentVector>& vecs) const {
     _logger->info("Exporting {} vectors tangent to a mesh", vecs.size());
     std::vector<rrc::Position3D> origins;
     std::vector<rrc::Vector3D>   tips;
+
     origins.reserve(vecs.size());
     tips.reserve(vecs.size());
+    for (const auto& v : vecs) {
+        origins.emplace_back(operator()(v.application_point().position()));
+        tips.emplace_back(operator()(v.cartesian_vector()));
+    }
 
-    std::transform(
-            vecs.cbegin(),
-            vecs.cend(),
-            std::back_inserter(origins),
-            [this](const TangentVector& v) {
-                return (*this)(v.application_point().position());
-            }
-    );
-    std::transform(
-            vecs.cbegin(),
-            vecs.cend(),
-            std::back_inserter(tips),
-            [this](const TangentVector& v) { return (*this)(v.cartesian_vector()); }
-    );
     return rra::Arrows3D::from_vectors(std::move(tips))
             .with_origins(std::move(origins));
 }
@@ -131,45 +124,33 @@ RerunConverter::operator()(const Eigen::Vector3d& x) const {
 
 std::vector<rrc::Vector3D>
 RerunConverter::mesh_vertex_normals(const Mesh& mesh) const {
-    std::vector<rrc::Vector3D> normals;
-    normals.reserve(mesh.num_vertices());
-    std::transform(
-            mesh.vertices_begin(),
-            mesh.vertices_end(),
-            std::back_inserter(normals),
-            [this](const Mesh::Vertex& v) -> rrd::Vec3D { return (*this)(v.normal()); }
-    );
-    return normals;
+    std::vector<rrc::Vector3D> res;
+
+    res.reserve(mesh.num_vertices());
+    for (const auto& v : mesh.vertices()) res.emplace_back(operator()(v.normal()));
+
+    return res;
 }
 
 std::vector<rrc::TriangleIndices>
 RerunConverter::mesh_triangles(const Mesh& mesh) const {
     std::vector<rrc::TriangleIndices> res;
+
     res.reserve(mesh.num_faces());
-    std::transform(
-            mesh.faces_begin(),
-            mesh.faces_end(),
-            std::back_inserter(res),
-            [](const Mesh::Face& f) -> rrc::TriangleIndices {
-                const auto [id1, id2, id3] = f.vertices_ids();
-                return {static_cast<std::uint32_t>(id1),
-                        static_cast<std::uint32_t>(id2),
-                        static_cast<std::uint32_t>(id3)};
-            }
-    );
+    for (const auto& f : mesh.faces()) {
+        const auto [id1, id2, id3] = f.vertices_ids();
+        res.emplace_back(id1, id2, id3);
+    }
     return res;
 }
 
 std::vector<rrc::Position3D>
 RerunConverter::mesh_vertices(const Mesh& mesh) const {
     _logger->debug("Converting vertices");
-    std::vector<rrc::Position3D> vertices;
-    vertices.reserve(mesh.num_vertices());
-    std::transform(
-            mesh.vertices_begin(),
-            mesh.vertices_end(),
-            std::back_inserter(vertices),
-            [this](const Mesh::Vertex& v) { return (*this)(v.position()); }
-    );
-    return vertices;
+    std::vector<rrc::Position3D> res;
+
+    res.reserve(mesh.num_vertices());
+    for (const auto& v : mesh.vertices()) res.emplace_back(operator()(v.position()));
+
+    return res;
 };

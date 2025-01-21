@@ -119,3 +119,30 @@ TangentVector::default_trim_projection_function(const Point& pt, const Vec3d& ve
     const auto  vec_proj = P * vec;
     return vec_proj.normalized() * vec.norm();
 }
+
+void
+TangentVector::scale(const double& factor) {
+    _uv *= factor;
+}
+
+void
+TangentVector::normalise() {
+    const double len = (jac() * _uv).norm();
+    scale(1.0 / len);
+}
+
+TangentVector
+TangentVector::normalised() & {
+    TangentVector res(*this);
+    assert(uv() == res._uv);
+    const double len = (jac() * uv()).norm();
+    res.scale(1.0 / len);
+    return res;
+}
+
+TangentVector
+TangentVector::normalised() && {
+    const double len = (jac() * uv()).norm();
+    scale(1.0 / len);
+    return *this;
+}

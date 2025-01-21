@@ -50,6 +50,27 @@ public:
             const TrimProjectionFunction& projector = default_trim_projection_function
     );
 
+    /**
+     * @brief Scales the tangent vector length by the provided factor, i.e.
+     *      v_new = factor * v
+     *
+     */
+    void scale(const double& factor);
+
+    /**
+     * @brief Normalise the vector to make sure it has unitary norm (in cartesian
+     * space).
+     *
+     */
+    void normalise();
+
+    /**
+     * @brief Returns a (new) normalised tangent vector.
+     *
+     */
+    TangentVector normalised() &;
+    TangentVector normalised() &&;
+
     // clang-format off
     MDV_NODISCARD const UvCoord& uv() const                { return _uv; }
     MDV_NODISCARD const UvMap&   uv_map() const            { return _application_point.uv_map(); }

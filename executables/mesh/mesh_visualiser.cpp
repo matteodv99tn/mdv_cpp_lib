@@ -46,7 +46,7 @@ main(int argc, char* argv[]) {
     auto rr_geod = to_rerun(geodesic);
     rec.log("geodesic", rerun::archetypes::LineStrips3D({rr_geod}));
 
-    const auto tv1a = mdv::mesh::logarithmic_map(pt1, pt2);
+    const auto tv1a = mdv::mesh::logarithmic_map(pt1, pt2).normalised();
     const auto tv1b = mdv::mesh::TangentVector::unit_random(pt1);
     const auto tv2a = mdv::mesh::parallel_transport(tv1a, pt2);
     const auto tv2b = mdv::mesh::parallel_transport(tv1b, pt2);
