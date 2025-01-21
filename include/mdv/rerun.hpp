@@ -1,6 +1,8 @@
 #ifndef MDV_RERUN_INTEGRATION_HPP
 #define MDV_RERUN_INTEGRATION_HPP
 
+#include <utility>
+
 #include <mdv/mesh/fwd.hpp>
 #include <mdv/mesh/mesh.hpp>
 #include <rerun/archetypes/arrows3d.hpp>
@@ -8,27 +10,48 @@
 #include <rerun/archetypes/points3d.hpp>
 #include <rerun/components/line_strip3d.hpp>
 
-namespace mdv::rerun_convert {
+#include "mdv/macros.hpp"
+#include "mdv/utils/logging.hpp"
 
-namespace rra = ::rerun::archetypes;
-namespace rrc = ::rerun::components;
+namespace mdv {
 
-using ::mdv::mesh::Mesh;
 
-//  __  __           _                           _       _
-// |  \/  | ___  ___| |__    _ __ ___   ___   __| |_   _| | ___
-// | |\/| |/ _ \/ __| '_ \  | '_ ` _ \ / _ \ / _` | | | | |/ _ \
-// | |  | |  __/\__ \ | | | | | | | | | (_) | (_| | |_| | |  __/
-// |_|  |_|\___||___/_| |_| |_| |_| |_|\___/ \__,_|\__,_|_|\___|
-//
-rra::Mesh3D      mesh(const Mesh& mesh);
-rrc::LineStrip3D geodesic(const ::mdv::mesh::Geodesic& geodesic);
+class RerunConverter {
+public:
+    MDV_NODISCARD
+    ::rerun::archetypes::Mesh3D operator()(const ::mdv::mesh::Mesh&) const;
 
-rra::Arrows3D vertex_normals(const Mesh& mesh);
-rra::Points3D point(const Mesh::Point& pt);
-rra::Points3D points(const std::vector<Mesh::Point>& pt);
+    MDV_NODISCARD ::rerun::components::LineStrip3D
+    operator()(const ::mdv::mesh::Geodesic&) const;
 
-}  // namespace mdv::rerun_convert
+    MDV_NODISCARD ::rerun::archetypes::Points3D
+    operator()(const ::mdv::mesh::Mesh::Point&) const;
 
+    MDV_NODISCARD ::rerun::archetypes::Points3D
+    operator()(const std::vector<::mdv::mesh::Mesh::Point>&) const;
+
+protected:
+    MDV_NODISCARD
+    std::vector<::rerun::components::Vector3D>
+    mesh_vertex_normals(const ::mdv::mesh::Mesh&) const;
+
+    MDV_NODISCARD
+    std::vector<::rerun::components::Position3D> mesh_vertices(const ::mdv::mesh::Mesh&)
+            const;
+
+    MDV_NODISCARD
+    std::vector<::rerun::components::TriangleIndices>
+    mesh_triangles(const ::mdv::mesh::Mesh&) const;
+
+
+    MDV_NODISCARD
+    ::rerun::datatypes::Vec3D operator()(const Eigen::Vector3d&) const;
+
+    static SpdLoggerPtr _logger;
+};
+
+class MeshRerunConverter : public RerunConverter {};
+
+}  // namespace mdv
 
 #endif  // MDV_RERUN_INTEGRATION_HPP
