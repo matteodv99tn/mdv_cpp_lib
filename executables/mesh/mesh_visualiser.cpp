@@ -15,7 +15,7 @@ using mdv::mesh::Mesh;
 int
 main(int argc, char* argv[]) {
     std::srand(std::time(nullptr));
-    std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus.off";
+    std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus_simple.off";
     if (argc > 1) mesh_path = std::string(argv[1]);
     std::cout << "Selected mesh path: " << mesh_path << std::endl;
 
@@ -36,6 +36,7 @@ main(int argc, char* argv[]) {
     std::cout << "Computing the geodesic between the points\n";
     const auto geodesic = mesh.build_geodesic(pt1, pt2);
     if (geodesic.empty()) return 1;
+
     auto rr_geod = mdv::rerun_convert::geodesic(geodesic);
     rec.log("geodesic", rerun::archetypes::LineStrips3D({rr_geod}));
 

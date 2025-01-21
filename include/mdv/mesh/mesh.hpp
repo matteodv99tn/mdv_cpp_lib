@@ -160,7 +160,7 @@ public:
          */
         MDV_NODISCARD const Point3d& v3() const noexcept { return _mesh->_v_mat[_mesh->_f_mat[_id][2]]; };
 
-        MDV_NODISCARD UvMap compute_uv_map() const noexcept { return {v1(), v2(), v3()}; };
+        MDV_NODISCARD UvMap compute_uv_map() const;// { assert(_id != -1); return {v1(), v2(), v3()}; };
 
         // clang-format on
     };

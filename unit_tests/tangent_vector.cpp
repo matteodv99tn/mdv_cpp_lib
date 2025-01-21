@@ -9,7 +9,7 @@ using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;
 
 TEST_CASE("Unit random initialisation", "[mesh][tangent_vector]") {
-    const std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus.off";
+    const std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus_simple.off";
     const auto        mesh      = Mesh::from_file(mesh_path);
 
     for (int i{0}; i < 256; ++i) {
@@ -29,7 +29,7 @@ TEST_CASE("From tip initialisation", "[mesh][tangent_vector]") {
      */
     using Vec3                  = Eigen::Vector3d;
     using Mat3                  = Eigen::Matrix3d;
-    const std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus.off";
+    const std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus_simple.off";
     const auto        mesh      = Mesh::from_file(mesh_path);
     const auto        pref_dir  = Vec3::UnitX();
 
@@ -49,7 +49,7 @@ TEST_CASE("From tip initialisation", "[mesh][tangent_vector]") {
 TEST_CASE("Vector difference", "[mesh][tangent_vector]") {
     using Vec3                  = Eigen::Vector3d;
     using Mat3                  = Eigen::Matrix3d;
-    const std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus.off";
+    const std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus_simple.off";
     const auto        mesh      = Mesh::from_file(mesh_path);
     const auto        pref_dir  = Vec3::UnitX();
 

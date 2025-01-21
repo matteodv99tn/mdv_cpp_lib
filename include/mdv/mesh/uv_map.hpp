@@ -21,6 +21,9 @@ public:
     using Transform = Eigen::Matrix<double, 3, 2>;
 
     UvMap(const CoDomain& v1, const CoDomain& v2, const CoDomain& v3) : _origin(v1) {
+        assert(v1 != v2);
+        assert(v1 != v3);
+        assert(v2 != v3);
         _transform.col(0) = v2 - v1;
         _transform.col(1) = v3 - v1;
     }

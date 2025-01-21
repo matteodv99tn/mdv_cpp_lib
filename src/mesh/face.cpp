@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <gsl/assert>
 #include <random>
+#include <spdlog/spdlog.h>
 
 #include <mdv/eigen_defines.hpp>
 #include <mdv/mesh/fwd.hpp>
@@ -35,4 +36,17 @@ Mesh::Face::VertexTriplet
 Mesh::Face::vertices() const {
     const auto ids = vertices_ids();
     return {Vertex(*_mesh, ids[0]), Vertex(*_mesh, ids[1]), Vertex(*_mesh, ids[2])};
+}
+
+mdv::mesh::UvMap 
+Mesh::Face::compute_uv_map() const{
+    if (id() == -1) {
+        logger()->trace("Initialised UV map on undefined face!");
+        return {
+            {0.0, 0.0, 0.0},
+            {0.0, 1.0, 0.0},
+            {1.0, 0.0, 0.0}
+        };
+    }
+    return {v1(), v2(), v3()};
 }

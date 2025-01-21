@@ -165,10 +165,11 @@ Mesh::build_geodesic(const Point& from, const Point& to, GeodesicBuilderPolicy p
         const auto curr_target = _data->_current_shortpath_source.value_or(
                 Mesh::Point::undefined(to.mesh())
         );
+
         const bool is_close = curr_target.face_id() == to.face_id()
                               && (curr_target.position() - to.position()).norm() < 1e-3;
 
-        if (!is_close) {
+        if (!is_close || curr_target.is_undefined()) {
             logger()->trace("Updating shortest path source point");
             if (_data->_current_shortpath_source.has_value())
                 _data->_shortest_path->remove_all_source_points();
