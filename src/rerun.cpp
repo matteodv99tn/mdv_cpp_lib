@@ -57,7 +57,7 @@ RerunConverter::operator()(const Mesh& mesh) const {
             .with_vertex_normals(std::move(normals));
 }
 
-rrc::LineStrip3D
+rra::LineStrips3D
 RerunConverter::operator()(const mdv::mesh::Geodesic& geod) const {
     _logger->info("Exporting geodesic line");
     if (geod.empty()) {
@@ -70,7 +70,7 @@ RerunConverter::operator()(const mdv::mesh::Geodesic& geod) const {
     points.reserve(geod.size());
     for (const auto& pt : geod) points.emplace_back(operator()(pt));
 
-    return {std::move(points)};
+    return rra::LineStrips3D({rrc::LineStrip3D(std::move(points))});
 }
 
 rra::Points3D

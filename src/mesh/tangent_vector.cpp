@@ -3,6 +3,7 @@
 #include <mdv/mesh/tangent_vector.hpp>
 
 #include "mdv/eigen_defines.hpp"
+#include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/conditions.hpp"
@@ -55,9 +56,23 @@ TangentVector::cartesian_vector() const noexcept {
 }
 
 std::optional<TangentVector>
-TangentVector::trim(const TrimProjectionFunction& projector) {
-    const UvCoord new_uv = _application_point.uv() + uv();
+TangentVector::trim() {
+    using mdv::condition::are_orthogonal;
+    logger()->trace(
+            "Trimming tangent vector with origin '{}', uv: {}",
+            _application_point.describe(),
+            eigen_to_str(uv())
+    );
 
+    /**
+     * @brief Computes the intersection of two lines given by points and vectors
+     *
+     * First point (and vector) is always assumed to be current point position and
+     * tangent vector direction.
+     *
+     * Second point and vector are provided as arguments and will represent the
+     * different edges of the unitary triangle.
+     */
     auto compute_intersection = [p1 = _application_point.uv(), v1 = uv()](
                                         const UvCoord&& p2, const UvCoord&& v2
                                 ) -> std::pair<double, double> {
@@ -68,10 +83,14 @@ TangentVector::trim(const TrimProjectionFunction& projector) {
 
         if (mdv::condition::is_zero(A.determinant())) [[unlikely]]
             return {-1.0, -1.0};
-        UvCoord res = A.householderQr().solve(b);
+        // householderQr shall be faster, but has lower accuracy that is required for
+        // the problem
+        // UvCoord res = A.householderQr().solve(b);
+        UvCoord res = A.colPivHouseholderQr().solve(b);
         return {res(0), res(1)};
     };
 
+    // Compute all possible intersections
     const auto& [t1, s1] = compute_intersection({0.0, 0.0}, {1.0, 0.0});
     const auto& [t2, s2] = compute_intersection({0.0, 0.0}, {0.0, 1.0});
     const auto& [t3, s3] = compute_intersection({0.0, 1.0}, {1.0, -1.0});
@@ -80,9 +99,10 @@ TangentVector::trim(const TrimProjectionFunction& projector) {
     int    edge_id = 3;
     double t       = -1.0;
 
+    // Select valid intersection
     if ((s1 >= zero_th) && (s1 <= 1.0) && (t1 > zero_th)) {
-        edge_id = 1;
-        t       = t2;
+        edge_id = 0;
+        t       = t1;
     } else if ((s2 >= zero_th) && (s2 <= 1.0) && (t2 > zero_th)) {
         assert(edge_id == 3);
         edge_id = 1;
@@ -92,32 +112,64 @@ TangentVector::trim(const TrimProjectionFunction& projector) {
         edge_id = 2;
         t       = t3;
     }
-    assert(edge_id != 3);
-    assert(t != -1.0);
+
+    // Validate
+    if ((edge_id == 3) || (t == -1.0)) {
+        logger()->error(
+                "TangentVector::trim failed! Could not find a valid intersection to "
+                "project remainder of TangentVector"
+        );
+        logger()->debug("Edge id: {}, parameter t = {}", edge_id, t);
+        logger()->debug(
+                "Current application point uv: {} (sum = {})",
+                eigen_to_str(_application_point.uv()),
+                _application_point.uv().sum()
+        );
+        logger()->debug("Tangent vector uv: {}", eigen_to_str(uv()));
+        logger()->debug("t1 = {}, s1 = {}", t1, s1);
+        logger()->debug("t2 = {}, s2 = {}", t2, s2);
+        logger()->debug("t3 = {}, s3 = {}", t3, s3);
+        throw std::runtime_error("TangentVector::trim failed; check log");
+    }
 
     if (t >= 1.0)
         return std::nullopt;  // Intersection appears ad a distance greater then the
                               // motion by the vector
 
+    // Retrieve new point on the boarder
     const auto boarder_uv  = _application_point.uv() + t * uv();
     const auto boarder_pos = _application_point.uv_map().forward_map(boarder_uv);
     const auto new_face    = _application_point.face().neighbour_face(edge_id);
     const auto new_app_point =
-            Mesh::Point::from_face_and_position(new_face, boarder_pos);
+            Mesh::Point::from_face_and_position(new_face, boarder_pos)
+                    .constrain_inside_triangle();
 
-    const auto  uv_delta         = (1.0 - t) * uv();
-    const Vec3d cartesian_delta  = uv_map().forward_map_jacobian() * uv_delta;
-    const Vec3d projected_vector = projector(new_app_point, cartesian_delta);
+    // Compute vector that shall be projected onto the new face
+    const auto uv_delta        = (1.0 - t) * uv();
+    const auto cartesian_delta = uv_map().forward_map_jacobian() * uv_delta;
+
+    // Compute conformal mapping of cartesian_delta vector
+    //  1. find shared edge -> will be the rotation axis
+    //  2. find rotation angle based on faces normals (theta)
+    //  3. chose between clockwise / counter-clocwise rotation
+
+    const auto [v_shared1, v_shared2] =
+            mdv::mesh::shared_vertices(_application_point.face(), new_face);
+    const auto edge = (v_shared1.position() - v_shared2.position()).normalized();
+
+    const auto   n1        = _application_point.face().normal();
+    const auto   n2        = new_face.normal();
+    const auto   cos_theta = n1.dot(n2);
+    const double theta     = std::acos(cos_theta);
+
+    const Eigen::AngleAxis rot1(theta, edge);
+    const Eigen::AngleAxis rot2(-theta, edge);
+    const auto             res1             = rot1 * cartesian_delta;
+    const auto             res2             = rot2 * cartesian_delta;
+    const auto             projected_vector = are_orthogonal(res1, n2) ? res1 : res2;
+    assert(are_orthogonal(projected_vector, n2));
 
     return TangentVector(new_app_point, projected_vector);
-}
-
-mdv::Vec3d
-TangentVector::default_trim_projection_function(const Point& pt, const Vec3d& vec) {
-    const auto& n = pt.face().normal();
-    const auto  P = (mdv::Mat3d::Identity() - n * n.transpose());  // projection matrix
-    const auto  vec_proj = P * vec;
-    return vec_proj.normalized() * vec.norm();
 }
 
 void

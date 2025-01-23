@@ -2,11 +2,13 @@
 #include <cstdlib>
 #include <spdlog/spdlog.h>
 
+#include <mdv/mesh/algorithm.hpp>
 #include <mdv/mesh/mesh.hpp>
 #include <mdv/utils/conditions.hpp>
 
 #include "cgal_data.hpp"
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/utils/logging_extras.hpp"
 
 using mdv::mesh::Mesh;
 
@@ -33,7 +35,8 @@ Mesh::Point::from_cartesian(const Mesh& m, const Point3d& pt) {
 
 Mesh::Point
 Mesh::Point::from_face_and_position(const Mesh::Face& f, const Point3d& pt) {
-    Expects(mdv::condition::are_orthogonal(f.normal(), pt - f.v1()));
+    const double d = distance(f, pt);
+    assert(condition::is_zero(d));
     return {f, pt};
 }
 
@@ -51,9 +54,7 @@ Mesh::Point::random(const Mesh& m) noexcept {
     // Worst case scenario: uv_val = (2, 2) -> uv = (0.5, 0.5)
     // so, divide by 8
     const UvCoord uv = uv_val / 8;
-    Ensures(uv.sum() <= 1.0);
-    Ensures(uv(0) >= 0.0);
-    Ensures(uv(1) >= 0.0);
+    Ensures(uv_in_unitary_triangle(uv));
     return {face, uv};
 }
 
@@ -89,6 +90,34 @@ Mesh::Point::barycentric() const noexcept {
 mdv::mesh::Point3d
 Mesh::Point::position() const noexcept {
     return uv_map().forward_map(_uv);
+}
+
+void
+Mesh::Point::constrain_inside_triangle() & {
+    if (u() < 0.0) _uv(0) = 0.0;
+    if (v() < 0.0) _uv(1) = 0.0;
+
+    // To reduce numerical approximation error, I slightly reduce the length of the uv
+    // vector (in this case with a factor 1e-5) which shall be negligible in all cases.
+    const double uv_sum = uv().sum();
+    if (uv_sum > 1.0) _uv /= uv_sum * (1 + 1e-5);  // NOLINT
+    assert(uv_in_unitary_triangle(uv()));
+}
+
+Mesh::Point
+Mesh::Point::constrain_inside_triangle() && {
+    if (u() < 0.0) _uv(0) = 0.0;
+    if (v() < 0.0) _uv(1) = 0.0;
+
+    const double uv_sum = uv().sum();
+    if (uv_sum > 1.0) _uv /= uv_sum * (1 + 1e-5);  // NOLINT
+    assert(uv_in_unitary_triangle(uv()));
+    return *this;
+}
+
+std::string
+Mesh::Point::describe() const {
+    return fmt::format("point at face #{}, uv: {}", face().id(), eigen_to_str(uv()));
 }
 
 bool

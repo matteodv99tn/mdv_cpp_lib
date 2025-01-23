@@ -19,7 +19,7 @@ mdv::eigen_to_str(const Eigen::VectorXd& vec) {
     const std::string original_str = ss.str();
     const auto        formatted_string =
             original_str | rv::split(' ')
-            | rv::filter([](const auto& rng) { return rs::distance(rng) > 1; })
+            | rv::filter([](const auto& rng) { return rs::distance(rng) > 0; })
             | rv::join(", ") | rs::to<std::string>;
     return fmt::format("({})", formatted_string);
 }

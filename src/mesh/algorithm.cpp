@@ -1,9 +1,12 @@
+#include <spdlog/spdlog.h>
+
 #include <mdv/eigen_defines.hpp>
 #include <mdv/mesh/algorithm.hpp>
 #include <mdv/mesh/fwd.hpp>
 #include <mdv/mesh/mesh.hpp>
 #include <mdv/mesh/tangent_vector.hpp>
 #include <mdv/utils/conditions.hpp>
+#include <mdv/utils/logging_extras.hpp>
 
 using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;
@@ -25,6 +28,13 @@ mdv::mesh::parallel_transport(const TangentVector& v, const Mesh::Point& p) {
         res.col(1) = res.col(2).cross(res.col(0));
         return res;
     };
+    p.logger()->debug(
+            "Computing parallel transport of vector {} applied in {} to target point "
+            "{}",
+            eigen_to_str(v.application_point().position()),
+            eigen_to_str(v.cartesian_vector()),
+            eigen_to_str(p.position())
+    );
 
     if (v.application_point().face_id() == p.face_id()) return {p, v.uv()};
 
@@ -47,6 +57,11 @@ mdv::mesh::parallel_transport(const TangentVector& v, const Mesh::Point& p) {
 TangentVector
 mdv::mesh::logarithmic_map(const Mesh::Point& p, const Mesh::Point& y) {
     assert(&p.mesh() == &y.mesh());
+    p.logger()->debug(
+            "Computing logarithmic map of point {} w.r.t. point {}",
+            eigen_to_str(y.position()),
+            eigen_to_str(p.position())
+    );
 
     if (p.face_id() == y.face_id()) return {p, Mesh::Point::UvCoord(y.uv() - p.uv())};
 
@@ -55,4 +70,77 @@ mdv::mesh::logarithmic_map(const Mesh::Point& p, const Mesh::Point& y) {
     auto        log_map_dir = (geod[1] - geod[0]).normalized();
     auto        log_map_len = length(geod);
     return {p, Vec3d(log_map_len * log_map_dir)};
+}
+
+Mesh::Point
+mdv::mesh::exponential_map(TangentVector v, Geodesic* geod) {
+    v.logger()->debug(
+            "Computing the exponential map from point {} with tangent vector {}",
+            eigen_to_str(v.application_point().position()),
+            eigen_to_str(v.cartesian_vector())
+    );
+
+    if (geod) geod->emplace_back(v.application_point().position());
+
+    std::size_t count = 0;
+    while (!condition::is_zero_norm(v.uv()) || (count < 1000)) {
+        if (geod) geod->emplace_back(v.application_point().position());
+        const auto trimmed_vec = v.trim();
+
+        // Check if trimming did not went to another face
+        if (trimmed_vec == std::nullopt) {
+            if (geod) geod->emplace_back(v.tip());
+            const TangentVector::UvCoord target_uv =
+                    v.application_point().uv() + v.uv();
+            return Mesh::Point(v.application_point().face(), target_uv);
+        }
+
+        v = trimmed_vec.value();
+        ++count;
+    }
+
+    throw std::runtime_error("Exceeded iteration limit");
+}
+
+double
+mdv::mesh::distance(const Mesh::Face& f, const Point3d& pt) {
+    const auto delta = pt - f.vertex(0).position();
+    return std::abs(delta.dot(f.normal()));
+}
+
+std::pair<Mesh::Vertex, Mesh::Vertex>
+mdv::mesh::shared_vertices(const Mesh::Face& f1, const Mesh::Face& f2) {
+    if (&f1.mesh() != &f2.mesh()) {
+        throw std::runtime_error(
+                "Cannot retrieve shared vertices of faces coming from different meshes."
+        );
+    }
+
+    std::vector<Mesh::Vertex::Index> indices;
+    indices.reserve(3);
+
+    const auto f2_vbeg = f2.vertices_ids().begin();
+    const auto f2_vend = f2.vertices_ids().end();
+
+    const auto v1_check = std::find(f2_vbeg, f2_vend, f1.vertex(0).id());
+    if (v1_check != f2_vend) indices.emplace_back(*v1_check);
+
+    const auto v2_check = std::find(f2_vbeg, f2_vend, f1.vertex(1).id());
+    if (v2_check != f2_vend) indices.emplace_back(*v2_check);
+
+    const auto v3_check = std::find(f2_vbeg, f2_vend, f1.vertex(2).id());
+    if (v3_check != f2_vend) indices.emplace_back(*v3_check);
+
+    if (indices.size() != 2) {
+        throw std::runtime_error(
+                "yield_shared_vertices: expecting 2 matches, found "
+                + std::to_string(indices.size())
+        );
+    }
+    return {Mesh::Vertex(f1.mesh(), indices[0]), Mesh::Vertex(f1.mesh(), indices[1])};
+}
+
+bool
+mdv::mesh::uv_in_unitary_triangle(const Eigen::Vector2d& uv) {
+    return (uv.sum() <= 1.0) && (uv(0) >= 0.0) && (uv(1) >= 0.0);
 }

@@ -11,11 +11,13 @@
 #include <mdv/mesh/mesh.hpp>
 #include <mdv/utils/logging.hpp>
 #include <mdv/utils/logging_extras.hpp>
+#include <range/v3/algorithm/contains.hpp>
 
 #include "cgal_data.hpp"
 
-using mdv::mesh::Mesh;
+namespace rs = ranges;
 
+using mdv::mesh::Mesh;
 using std::filesystem::path;
 
 //   ____                _                   _
@@ -31,6 +33,8 @@ Mesh::from_file(const std::filesystem::path& file_path) {
 }
 
 Mesh::Mesh(gsl::owner<CgalData*> data) : _data(data) {
+    using Index        = Face::Index;
+    using IndexTriplet = Face::IndexTriplet;
     Ensures(_data != nullptr);
     logger()->info("Number of vertices: {}", _data->_mesh.num_vertices());
     logger()->info("Number of faces: {}", _data->_mesh.num_faces());
@@ -39,39 +43,45 @@ Mesh::Mesh(gsl::owner<CgalData*> data) : _data(data) {
     sync_face_data();
 
     logger()->trace("Finding neighbouring faces");
-    _neighbouring_faces.resize(_data->_mesh.num_faces());
     // Helper function that checks if two vertices are neighbours of a given face
-    auto is_neighbour = [](const std::array<long, 3>& face,
-                           const long&                v1_id,
-                           const long&                v2_id) -> bool {
-        const bool v1_found = std::find(face.begin(), face.end(), v1_id) != face.end();
-        const bool v2_found = std::find(face.begin(), face.end(), v2_id) != face.end();
+    auto is_neighbour = [](const IndexTriplet& face,
+                           const Index&        v1_id,
+                           const Index&        v2_id) -> bool {
+        const bool v1_found = rs::contains(face, v1_id);
+        const bool v2_found = rs::contains(face, v2_id);
         return v1_found && v2_found;
     };
-    // Helper function that find the neighbouring faces of a given face
-    auto find_face_neighbour = [this](const Face::Index& face_id) -> void {
-        std::array<long, 3> face_neighs = {-1, -1, -1};
-        int                 i           = 0;
 
-        // Use CGAL's halfedge circulator to find adjacent faces
-        const auto half_edge = _data->_mesh.halfedge(
-                _data->_mesh.face(static_cast<CGAL::SM_Halfedge_index>(face_id))
-        );
-        for (const auto edge : _data->_mesh.halfedges_around_face(half_edge)) {
-            const auto opposite = _data->_mesh.opposite(edge);
-            if (!_data->_mesh.is_border(opposite))
-                face_neighs[i] = _data->_mesh.face(opposite).idx();
-            i++;
+    // Iterates all faces looking for neighbour faces
+    auto find_face_neighbour = [this, is_neighbour](const Index& face_id) -> void {
+        const auto [v1_id, v2_id, v3_id] = _f_mat[face_id];
+        assert(_neighbouring_faces[face_id] == IndexTriplet({-1, -1, -1}));
+        for (Index i = 0; i < _f_mat.size(); ++i) {
+            if (i == face_id) continue;
+
+            if (is_neighbour(_f_mat[i], v1_id, v2_id)) {
+                assert(_neighbouring_faces[face_id][0] == -1);
+                _neighbouring_faces[face_id][0] = i;
+            }
+            if (is_neighbour(_f_mat[i], v1_id, v3_id)) {
+                assert(_neighbouring_faces[face_id][1] == -1);
+                _neighbouring_faces[face_id][1] = i;
+            }
+            if (is_neighbour(_f_mat[i], v2_id, v3_id)) {
+                assert(_neighbouring_faces[face_id][2] == -1);
+                _neighbouring_faces[face_id][2] = i;
+            }
         }
-        _neighbouring_faces.at(face_id) = face_neighs;
     };
+
     // Helper function to find neighbours in batches (to enable efficient parallelism)
     auto batch_find_process_neighbours =
-            [this, find_face_neighbour](const long& start, const long& end) -> void {
-        for (auto i = start; i < end; ++i) { find_face_neighbour(i); }
+            [this, find_face_neighbour](const Index& start, const Index& end) -> void {
+        for (auto i = start; i < end; ++i) find_face_neighbour(i);
     };
+
     // Allocate memory for neighbouring faces and populate them
-    _neighbouring_faces.resize(num_faces());
+    _neighbouring_faces.resize(num_faces(), IndexTriplet({-1, -1, -1}));
     const auto                batch_size = 1000;
     std::vector<std::jthread> threads;
     for (Face::Index i = 0; i * batch_size < num_faces(); i++) {

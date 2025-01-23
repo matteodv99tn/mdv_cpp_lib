@@ -6,6 +6,7 @@
 
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/utils/logging.hpp"
 
 namespace mdv::mesh {
 
@@ -13,11 +14,6 @@ class TangentVector {
 public:
     using Point   = Mesh::Point;
     using UvCoord = Mesh::Point::UvCoord;
-
-    using TrimProjectionFunction = std::function<Vec3d(const Point&, const Vec3d&)>;
-
-    static Vec3d default_trim_projection_function(const Point& pt, const Vec3d& vec);
-
 
     TangentVector(const Point& app_point, const UvCoord& uv) :
             _application_point(app_point), _uv(uv) {};
@@ -42,13 +38,13 @@ public:
      *
      * Generally, a tangent vector could extend outside the boarder of the face.
      * This function virtually "cuts" the vector at the edge, and return the remainder
-     * of the vector projected on the contiguous face based on the provided projector
-     * function.
+     * of the vector projected on the contiguous face based on conformal mappings.
+     *
+     * Note that if the vector was able to fit within the triangular face, it is left
+     * unchanged.
      *
      */
-    std::optional<TangentVector> trim(
-            const TrimProjectionFunction& projector = default_trim_projection_function
-    );
+    std::optional<TangentVector> trim();
 
     /**
      * @brief Scales the tangent vector length by the provided factor, i.e.
@@ -75,6 +71,8 @@ public:
     MDV_NODISCARD const UvCoord& uv() const                { return _uv; }
     MDV_NODISCARD const UvMap&   uv_map() const            { return _application_point.uv_map(); }
     MDV_NODISCARD const Point&   application_point() const { return _application_point; }
+
+    MDV_NODISCARD SpdLoggerPtr&  logger() const            { return application_point().logger(); }
 
     // clang-format on
 

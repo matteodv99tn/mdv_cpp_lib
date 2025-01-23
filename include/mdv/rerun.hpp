@@ -1,14 +1,12 @@
 #ifndef MDV_RERUN_INTEGRATION_HPP
 #define MDV_RERUN_INTEGRATION_HPP
 
-#include <utility>
-
 #include <mdv/mesh/fwd.hpp>
 #include <mdv/mesh/mesh.hpp>
 #include <rerun/archetypes/arrows3d.hpp>
+#include <rerun/archetypes/line_strips3d.hpp>
 #include <rerun/archetypes/mesh3d.hpp>
 #include <rerun/archetypes/points3d.hpp>
-#include <rerun/components/line_strip3d.hpp>
 
 #include "mdv/macros.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
@@ -22,7 +20,7 @@ public:
     MDV_NODISCARD
     ::rerun::archetypes::Mesh3D operator()(const ::mdv::mesh::Mesh&) const;
 
-    MDV_NODISCARD ::rerun::components::LineStrip3D
+    MDV_NODISCARD ::rerun::archetypes::LineStrips3D
     operator()(const ::mdv::mesh::Geodesic&) const;
 
     MDV_NODISCARD ::rerun::archetypes::Points3D

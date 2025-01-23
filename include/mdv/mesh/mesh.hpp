@@ -78,6 +78,9 @@ public:
 
         // clang-format on
 
+        MDV_NODISCARD
+        std::string describe() const;
+
     private:
         friend class MeshIterator<Vertex, Index>;
     };
@@ -227,6 +230,12 @@ public:
          *
          */
         MDV_NODISCARD Point3d position() const noexcept;
+
+        void  constrain_inside_triangle() &;
+        Point constrain_inside_triangle() &&;
+
+        MDV_NODISCARD
+        std::string describe() const;
 
         // clang-format off
         MDV_NODISCARD double         u() const noexcept         { return _uv(0); }

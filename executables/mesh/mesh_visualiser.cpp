@@ -1,16 +1,21 @@
-#include <chrono>
 #include <cstdlib>
+#include <fmt/os.h>
 #include <iostream>
 #include <string>
 
 #include <mdv/config.hpp>
 #include <mdv/mesh/mesh.hpp>
 #include <mdv/rerun.hpp>
+#include <mdv/utils/conditions.hpp>
 #include <rerun.hpp>
 #include <rerun/archetypes/line_strips3d.hpp>
 #include <rerun/recording_stream.hpp>
+
+#include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"
+#include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
+#include "mdv/utils/logging_extras.hpp"
 
 using mdv::mesh::Mesh;
 
@@ -43,16 +48,20 @@ main(int argc, char* argv[]) {
         return 1;
     }
 
-    auto rr_geod = to_rerun(geodesic);
-    rec.log("geodesic", rerun::archetypes::LineStrips3D({rr_geod}));
+    rec.log("geodesic", to_rerun(geodesic));
 
+    const auto log  = mdv::mesh::logarithmic_map(pt1, pt2);
     const auto tv1a = mdv::mesh::logarithmic_map(pt1, pt2).normalised();
     const auto tv1b = mdv::mesh::TangentVector::unit_random(pt1);
     const auto tv2a = mdv::mesh::parallel_transport(tv1a, pt2);
     const auto tv2b = mdv::mesh::parallel_transport(tv1b, pt2);
 
+    mdv::mesh::Geodesic exp_geodesic;
+    const auto          pt2computed = mdv::mesh::exponential_map(log, &exp_geodesic);
+
     rec.log("logarithmic_map", to_rerun(std::vector({tv1a, tv2a})));
     rec.log("tangent_vectors", to_rerun(std::vector({tv1b, tv2b})));
+    rec.log("exponential_map", to_rerun(exp_geodesic));
 
     return 0;
 }

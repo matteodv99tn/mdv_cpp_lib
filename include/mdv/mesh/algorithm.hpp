@@ -21,6 +21,42 @@ TangentVector parallel_transport(const TangentVector& v, const Mesh::Point& p);
  */
 TangentVector logarithmic_map(const Mesh::Point& p, const Mesh::Point& y);
 
+/**
+ * @brief Computes the exponential map.
+ *
+ * Note that v already contains information about the position as well as of the vector
+ * itself.
+ *
+ * Optionally, it can yield the geodesic retrieved when "unfolding" the vector v.
+ *
+ */
+Mesh::Point exponential_map(TangentVector v, Geodesic* geod = nullptr);
+
+
+/**
+ * @brief Computes the point-to-face distance
+ *
+ */
+double distance(const Mesh::Face& f, const Point3d& pt);
+
+/**
+ * @brief Given two faces, it yields the pair of shared vertices from the 2 faces.
+ *
+ * This function implicitly assumes that faces are neighbouring. If this is not the
+ * case, an exception will be thrown.
+ */
+std::pair<Mesh::Vertex, Mesh::Vertex> shared_vertices(
+        const Mesh::Face& f1, const Mesh::Face& f2
+);
+
+/**
+ * @brief Checks wether the provided UV coordinates are within the "unitary" triangle
+ * with vertices
+ *   (0, 0)
+ *   (1, 0)
+ *   (0, 1)
+ */
+bool uv_in_unitary_triangle(const Eigen::Vector2d& uv);
 
 }  // namespace mdv::mesh
 
