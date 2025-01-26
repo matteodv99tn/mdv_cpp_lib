@@ -70,7 +70,7 @@ RerunConverter::operator()(const mdv::mesh::Geodesic& geod) const {
     points.reserve(geod.size());
     for (const auto& pt : geod) points.emplace_back(operator()(pt));
 
-    return rra::LineStrips3D({rrc::LineStrip3D(std::move(points))});
+    return rra::LineStrips3D(std::vector({rrc::LineStrip3D(std::move(points))}));
 }
 
 rra::Points3D

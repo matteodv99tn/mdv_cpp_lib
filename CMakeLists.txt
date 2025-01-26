@@ -17,7 +17,6 @@ list(PREPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake/install)
 macro(find_and_log package)
     find_package(${package} REQUIRED)
     message(STATUS "Package ${package} found at ${${package}_DIR}")
-
 endmacro()
 
 # find_package(Eigen3     REQUIRED)
@@ -28,7 +27,9 @@ find_and_log(fmt)
 find_and_log(range-v3)
 find_and_log(rerun_sdk)
 find_and_log(Microsoft.GSL)
-find_and_log(Catch2 3)
+find_and_log(GTest)
+
+add_compile_definitions(MDV_CGAL_VERSION=${CGAL_VERSION_MAJOR})
 
 # find_program(CLANGTIDY clang-tidy)
 # set(CMAKE_CXX_CLANG_TIDY
@@ -114,19 +115,20 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/mesh)
 if(BUILD_TESTING)
     file(GLOB UNIT_TEST_SRCS unit_tests/*.cpp)
     add_executable(
-        catch2_tests
+        mdv_gtests
         ${UNIT_TEST_SRCS}
     )
     target_include_directories(
-        catch2_tests
+        mdv_gtests
         PUBLIC
         ${MDV_PRIV_INCLUDES_DIRS}
     )
     target_link_libraries(
-        catch2_tests
+        mdv_gtests
         PRIVATE
-        Catch2::Catch2WithMain
+        GTest::GTest
+        gtest_main
         mdvlib
     )
-    add_test(catch2 catch2_tests --skip-benchmarks)
+    add_test(gtest mdv_gtests)
 endif()

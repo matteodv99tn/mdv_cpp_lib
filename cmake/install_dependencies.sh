@@ -6,12 +6,12 @@ echo "FOUND os: $os"
 
 case "$os" in
     arch)
-
+        pacman -Sy --noconfirm git cmake base-devel clang eigen fmt spdlog cgal gtest;
         ;;
 
     ubuntu)
         apt-get update -y;
-        apt-get install -y git cmake libeigen3-dev libfmt-dev libspdlog-dev libcgal-dev catch2;
+        apt-get install -y git cmake  build-essential libeigen3-dev libfmt-dev libspdlog-dev libcgal-dev libgtest-dev;
         ;;
     *)
         echo "UNRECOGNISED OS!"

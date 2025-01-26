@@ -8,7 +8,7 @@ json/
 trajectories/
 meshes/generated/
 
-include/mesh_manifolds/defines.hpp
+include/mdv/config.hpp
 
 
 docs/html

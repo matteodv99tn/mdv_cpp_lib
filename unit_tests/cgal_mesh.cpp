@@ -1,6 +1,5 @@
 #include <iostream>
 
-#include <catch2/catch_test_macros.hpp>
 #include <mdv/config.hpp>
 #include <mdv/mesh/mesh.hpp>
 #include <mdv/utils/conditions.hpp>

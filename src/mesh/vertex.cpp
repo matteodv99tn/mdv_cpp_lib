@@ -15,10 +15,15 @@ Eigen::Vector3d
 Mesh::Vertex::normal() const noexcept {
     using VertexDescriptor = Mesh::CgalData::VertexDescriptor;
     using Vec3             = Mesh::CgalData::Vec3;
-    // _mesh->_cgal_data->build_vertex_normals_map();
+#if MDV_CGAL_VERSION ==  5
+    const auto normals =
+            _mesh->_data->_mesh.property_map<VertexDescriptor, Vec3>("v:normal")
+                    .first;
+#elif MDV_CGAL_VERSION == 6
     const auto normals =
             _mesh->_data->_mesh.property_map<VertexDescriptor, Vec3>("v:normal")
                     .value();
+#endif
     return convert(normals[VertexDescriptor(_id)]);
 }
 

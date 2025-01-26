@@ -2,15 +2,19 @@
 #define MDV_MESH_CGAL_DATA_HPP
 
 #include <CGAL/AABB_face_graph_triangle_primitive.h>
-#include <CGAL/AABB_traits.h>
-// #include <CGAL/AABB_traits_3.h>   // < Works in arch, not in Ubuntu
-#include <CGAL/AABB_tree.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Surface_mesh.h>
 #include <CGAL/Surface_mesh_shortest_path/Surface_mesh_shortest_path.h>
 #include <CGAL/Surface_mesh_shortest_path/Surface_mesh_shortest_path_traits.h>
 #include <filesystem>
 #include <optional>
+
+
+#if MDV_CGAL_VERSION == 5
+#include <CGAL/AABB_traits.h>
+#elif MDV_CGAL_VERSION == 6
+#include <CGAL/AABB_traits_3.h>
+#endif
 
 #include <mdv/mesh/mesh.hpp>
 #include <mdv/utils/logging.hpp>
@@ -37,8 +41,12 @@ struct Mesh::CgalData {
 
     // CGAL typedefs - AABB tree
     using AabbPrimitive = CGAL::AABB_face_graph_triangle_primitive<Mesh>;
-    using AabbTraits    = CGAL::AABB_traits_3<Kernel, AabbPrimitive>;
-    using AabbTree      = CGAL::AABB_tree<AabbTraits>;
+#if MDV_CGAL_VERSION == 5
+    using AabbTraits = CGAL::AABB_traits<Kernel, AabbPrimitive>;
+#elif MDV_CGAL_VERSION == 6
+    using AabbTraits = CGAL::AABB_traits_3<Kernel, AabbPrimitive>;
+#endif
+    using AabbTree = CGAL::AABB_tree<AabbTraits>;
 
     // CGAL typedefs - variable access
     using CgalVertexIndex = Mesh::Vertex_index;
