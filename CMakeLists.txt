@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.10)
 project(mdvlib)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+option(MDV_VERBOSE_DMP "Includes verbose DMP logging in learning/executing")
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -56,6 +58,7 @@ set(MDV_PRIV_INCLUDES_DIRS "")
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/utils)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/mesh)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/riemann_geometry)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/dmp)
 
 list(REMOVE_DUPLICATES MDV_SRCS)
@@ -95,6 +98,13 @@ target_link_libraries(
     PUBLIC ${MDV_PUB_LIBS}
     PRIVATE ${MDV_PRIV_LIBS}
 )
+if(${MDV_VERBOSE_DMP})
+    target_compile_definitions(
+        mdvlib
+        PUBLIC
+        MDV_VERBOSE_DMP    
+    )
+endif()
 
 
 #  _____                     _        _     _           
@@ -105,6 +115,7 @@ target_link_libraries(
 #                                                       
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/mesh)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/dmp)
 
 
 #  _   _       _ _     _____         _       
@@ -126,10 +137,11 @@ if(BUILD_TESTING)
     )
     target_link_libraries(
         mdv_gtests
-        PRIVATE
-        GTest::GTest
-        gtest_main
         mdvlib
+        GTest::GTest
+        GTest::Main
     )
     add_test(gtest mdv_gtests)
+    # include(GoogleTest)
+    # gtest_discover_tests(mdv_gtests)
 endif()

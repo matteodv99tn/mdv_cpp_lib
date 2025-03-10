@@ -5,6 +5,7 @@
 #include <concepts>
 #include <fmt/format.h>
 #include <functional>
+#include <tuple>
 
 #include "mdv/macros.hpp"
 #include "mdv/riemann_geometry/manifold.hpp"
@@ -63,6 +64,13 @@ public:
     using BaseTuple = internal::sample<TangentVector, Order, Time, Point>::type;
     using Container = std::vector<Sample>;
 
+    MDV_NODISCARD static Demonstration
+    empty(const std::size_t size) {
+        Demonstration res;
+        res._data.reserve(size);
+        return res;
+    }
+
     MDV_NODISCARD static DemonstrationBuilder
     builder(std::size_t initial_size = 0) {
         return DemonstrationBuilder(initial_size);
@@ -94,8 +102,23 @@ public:
 
     // clang-format on
 
+    std::vector<Point>
+    get_position_vector() const {
+        return construct_data_vector<1>();
+    };
+
 private:
     Container _data;
+
+    template <size_t Index>
+    std::vector<std::tuple_element_t<Index, BaseTuple>>
+    construct_data_vector() const {
+        std::vector<std::tuple_element_t<Index, BaseTuple>> res;
+        res.reserve(_data.size());
+        for (const auto& sample : _data)
+            res.push_back(sample.template get_element<Index>());
+        return res;
+    }
 };
 
 //  ____                        _
@@ -201,19 +224,30 @@ public:
                 const double dt   = seconds(next.t() - curr.t());
                 curr.yd()         = M::logarithmic_map(curr.y(), next.y()) / dt;
             }
-            data(data_size - 1).yd() = data(data_size - 2).yd();
+            auto&       last_sample       = data(data_size - 1);
+            const auto& secondlast_sample = data(data_size - 2);
+
+            last_sample.yd() =
+                    M::covariant_derivative(last_sample.y(), secondlast_sample.yd());
         }
 
         if (_acc_autodiff) {
             for (long i = 0; i < data_size - 1; ++i) {
-                auto&        curr = data(i);
-                const auto&  next = data(i + 1);
-                const double dt   = seconds(next.t() - curr.t());
+                auto&        curr    = data(i);
+                const auto&  next    = data(i + 1);
+                const auto&  next_y  = next.y();
+                const auto&  next_yd = next.yd();
+                const auto&  curr_y  = curr.y();
+                const auto&  curr_yd = curr.yd();
+                const double dt      = seconds(next.t() - curr.t());
                 const auto&  yd_next_transp =
-                        M::parallel_transport(next.y(), curr.y(), next.yd());
+                        M::parallel_transport(next_y, curr_y, next_yd);
                 curr.ydd() = (yd_next_transp - curr.yd()) / dt;
             }
-            data(data_size - 1).ydd() = data(data_size - 2).ydd();
+            auto&       last_sample       = data(data_size - 1);
+            const auto& secondlast_sample = data(data_size - 2);
+            last_sample.ydd() =
+                    M::covariant_derivative(last_sample.y(), secondlast_sample.ydd());
         }
         return std::move(_dem);
     }

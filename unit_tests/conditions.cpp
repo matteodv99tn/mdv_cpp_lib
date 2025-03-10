@@ -60,7 +60,7 @@ TEST(MdvCondition, Orthogonal3dVectors) {
 
     EXPECT_FALSE(are_orthogonal(v1, v1));
     EXPECT_FALSE(are_orthogonal(v1, v2));
-    EXPECT_FALSE(are_orthogonal(v1, v3));
+    EXPECT_TRUE(are_orthogonal(v1, v3));
     EXPECT_TRUE(are_orthogonal(v1, v4));
     EXPECT_TRUE(are_orthogonal(v1, v5));
 }

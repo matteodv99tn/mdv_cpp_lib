@@ -2,7 +2,11 @@
 #include <gtest/gtest.h>
 
 #include <mdv/containers/demonstration.hpp>
+#include <mdv/dmp/dmp.hpp>
+#include <mdv/dmp/dmp_utilities.hpp>
 #include <mdv/riemann_geometry/manifold.hpp>
+
+#include "mdv/utils/conversions.hpp"
 
 using mdv::Demonstration;
 using mdv::riemann::S3;
@@ -66,6 +70,40 @@ TEST(Demonstration2Assertions, DemonstrationBuilder) {
     }
 }
 
+TEST(Demonstration, PositionRetriever) {
+    const auto      demonstration = mdv::build_exact_scalar_demonstration();
+    Eigen::VectorXd ts(demonstration.size());
+    std::transform(
+            demonstration.begin(),
+            demonstration.end(),
+            ts.begin(),
+            [](const auto& sample) -> double {
+                return mdv::convert::seconds(sample.t());
+            }
+    );
+    const auto dem_pos  = demonstration.get_position_vector();
+    const auto poly_pos = mdv::poly_5th(ts);
+
+    EXPECT_EQ(dem_pos.size(), poly_pos.size());
+    for (auto i = 0; i < dem_pos.size(); ++i) EXPECT_FLOAT_EQ(dem_pos[i], poly_pos[i]);
+}
+
+TEST(Demonstration, NumericDifferentiation) {
+    using Demo                = Demonstration<Scalar>;
+    const Demo reference_demo = mdv::build_exact_scalar_demonstration();
+
+    const auto constructed_demo =
+            Demo::builder(reference_demo.size())
+                    .set_sampling_period(reference_demo[1].t())
+                    .assign_position(reference_demo.get_position_vector())
+                    .velocity_automatic_differentiation()
+                    .acceleration_automatic_differentiation()
+                    .create();
+
+    for (auto i = 0; i < reference_demo.size(); ++i)
+        EXPECT_NEAR(reference_demo[i].yd(), constructed_demo[i].yd(), 1e-5);
+}
+
 class TestableDemonstration : public Demonstration<Scalar> {
 public:
     using Demo = Demonstration<Scalar>;
@@ -93,11 +131,11 @@ concept is_demonstration = requires {
 
 // static_assert(is_demonstration<Scalar> Demonstration<Scalar>);
 
-template <mdv::manifold_demonstration<Scalar> Demo>
-static void process_demo(Demo& dem) {};
+// template <mdv::manifold_demonstration<Scalar> Demo>
+// static void process_demo(Demo& dem) {};
 
-int
-main() {
-    Demonstration<Scalar> d;
-    process_demo(d);
-}
+// int
+// main() {
+//     Demonstration<Scalar> d;
+//     process_demo(d);
+// }

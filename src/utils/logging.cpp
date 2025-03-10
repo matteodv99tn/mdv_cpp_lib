@@ -48,8 +48,10 @@ mdv::class_logger_factory(
 
 SpdLoggerPtr
 mdv::static_logger_factory(const std::string& logger_name, const LogLevel& level) {
-    SpdLoggerPtr      logger = spdlog::stdout_color_st(logger_name);
-    const std::string fmt    = fmt::format("[%l][{}] %v", logger_name);
+    SpdLoggerPtr logger = spdlog::get(logger_name);
+    if (!logger) logger = spdlog::stdout_color_st(logger_name);
+
+    const std::string fmt = fmt::format("[%l][{}] %v", logger_name);
     logger->set_pattern(fmt);
     logger->set_level(to_spdlog_level(level));
     return logger;

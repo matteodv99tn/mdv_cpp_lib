@@ -9,7 +9,7 @@
 namespace mdv::condition {
 
 namespace internal {
-    constexpr double zero_th = 1e-9;
+    constexpr double zero_th = 1e-6;
 }  // namespace internal
 
 bool
@@ -28,6 +28,14 @@ is_unit_norm(const auto v) {
 }
 
 bool
+are_equal(
+        const concepts::eigen_vector_like auto& v1,
+        const concepts::eigen_vector_like auto& v2
+) {
+    return is_zero_norm(v1 - v2);
+}
+
+bool
 are_parallel(
         const concepts::eigen_vector_like auto& v1,
         const concepts::eigen_vector_like auto& v2
@@ -40,7 +48,7 @@ are_orthogonal(
         const concepts::eigen_vector_like auto& v1,
         const concepts::eigen_vector_like auto& v2
 ) {
-    return is_zero(v1.dot(v2)) && !is_zero_norm(v1) && !is_zero_norm(v2);
+    return is_zero(v1.dot(v2));
 }
 
 
