@@ -1,6 +1,6 @@
-#include <spdlog/spdlog.h>
+#include "mdv/mesh/tangent_vector.hpp"
 
-#include <mdv/mesh/tangent_vector.hpp>
+#include <spdlog/spdlog.h>
 
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"

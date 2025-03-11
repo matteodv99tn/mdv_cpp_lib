@@ -3,17 +3,19 @@
 #include <sstream>
 #include <string>
 
-#include <mdv/containers/demonstration.hpp>
-#include <mdv/dmp/dmp.hpp>
-#include <mdv/dmp/dmp_utilities.hpp>
-#include <mdv/riemann_geometry/manifold.hpp>
-#include <mdv/utils/conversions.hpp>
+#ifdef MDV_WITH_RERUN_SDK
 #include <rerun.hpp>
 #include <rerun/archetypes/series_line.hpp>
 #include <rerun/archetypes/series_point.hpp>
 #include <rerun/recording_stream.hpp>
+#endif  // MDV_WITH_RERUN_SDK
 
+#include "mdv/containers/demonstration.hpp"
+#include "mdv/dmp/dmp.hpp"
+#include "mdv/dmp/dmp_utilities.hpp"
 #include "mdv/rerun.hpp"
+#include "mdv/riemann_geometry/manifold.hpp"
+#include "mdv/utils/conversions.hpp"
 
 using Quat = Eigen::Quaterniond;
 
@@ -43,6 +45,7 @@ main() {
         f_lrnd(i) = dmp.eval_weighted_basis(dmp.time_to_s(dem[i].t()));
 
 
+#ifdef MDV_WITH_RERUN_SDK
     //  ____  _       _   _   _
     // |  _ \| | ___ | |_| |_(_)_ __   __ _
     // | |_) | |/ _ \| __| __| | '_ \ / _` |
@@ -102,16 +105,7 @@ main() {
 
     }
     // clang-format on
-
-
-    // std::cout << "v[-1]: " << dem[dem.size() - 1].yd().transpose() << '\n';
-    // std::cout << "v[-2]: " << dem[dem.size() - 2].yd().transpose() << '\n';
-    // std::cout << "v[-3]: " << dem[dem.size() - 3].yd().transpose() << '\n';
-    // std::cout << "v[-4]: " << dem[dem.size() - 4].yd().transpose() << '\n';
-    // std::cout << "a[-1]: " << dem[dem.size() - 1].ydd().transpose() << '\n';
-    // std::cout << "a[-2]: " << dem[dem.size() - 2].ydd().transpose() << '\n';
-    // std::cout << "a[-3]: " << dem[dem.size() - 3].ydd().transpose() << '\n';
-    // std::cout << "a[-4]: " << dem[dem.size() - 4].ydd().transpose() << '\n';
+#endif  // MDV_WITH_RERUN_SDK
 
 
     return 0;

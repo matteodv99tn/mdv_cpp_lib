@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
-#include <mdv/config.hpp>
-#include <mdv/mesh/mesh.hpp>
-#include <mdv/utils/conditions.hpp>
+#include "mdv/config.hpp"
+#include "mdv/mesh/mesh.hpp"
+#include "mdv/utils/conditions.hpp"
 
 using mdv::mesh::Mesh;
 

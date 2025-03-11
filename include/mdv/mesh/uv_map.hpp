@@ -3,8 +3,8 @@
 
 #include <Eigen/Dense>
 
-#include <mdv/macros.hpp>
-#include <mdv/mesh/fwd.hpp>
+#include "mdv/macros.hpp"
+#include "mdv/mesh/fwd.hpp"
 
 namespace mdv::mesh {
 

@@ -1,15 +1,18 @@
+#include "mdv/mesh/tangent_vector.hpp"
+
 #include <gtest/gtest.h>
-#include <mdv/config.hpp>
-#include <mdv/mesh/mesh.hpp>
-#include <mdv/mesh/tangent_vector.hpp>
-#include <mdv/utils/conditions.hpp>
+
+#include "mdv/config.hpp"
+#include "mdv/mesh/mesh.hpp"
+#include "mdv/utils/conditions.hpp"
 
 using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;
 
 TEST(MdvMesh, TangentVectorUnitRandomInitialisation) {
-    const std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus_simple.off";
-    const auto        mesh      = Mesh::from_file(mesh_path);
+    const std::string mesh_path =
+            std::string(mdv::config::mesh_dir) + "/torus_simple.off";
+    const auto mesh = Mesh::from_file(mesh_path);
 
     for (int i{0}; i < 256; ++i) {
         const auto pt  = Mesh::Point::random(mesh);
@@ -19,11 +22,12 @@ TEST(MdvMesh, TangentVectorUnitRandomInitialisation) {
 }
 
 TEST(MdvMesh, TangentVectorFromTipInitialisation) {
-    using Vec3                  = Eigen::Vector3d;
-    using Mat3                  = Eigen::Matrix3d;
-    const std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus_simple.off";
-    const auto        mesh      = Mesh::from_file(mesh_path);
-    const auto        pref_dir  = Vec3::UnitX();
+    using Vec3 = Eigen::Vector3d;
+    using Mat3 = Eigen::Matrix3d;
+    const std::string mesh_path =
+            std::string(mdv::config::mesh_dir) + "/torus_simple.off";
+    const auto mesh     = Mesh::from_file(mesh_path);
+    const auto pref_dir = Vec3::UnitX();
 
     for (int i{0}; i < 256; ++i) {
         const auto pt    = Mesh::Point::random(mesh);
@@ -39,11 +43,12 @@ TEST(MdvMesh, TangentVectorFromTipInitialisation) {
 }
 
 TEST(MdvMesh, TangentVectorDifference) {
-    using Vec3                  = Eigen::Vector3d;
-    using Mat3                  = Eigen::Matrix3d;
-    const std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus_simple.off";
-    const auto        mesh      = Mesh::from_file(mesh_path);
-    const auto        pref_dir  = Vec3::UnitX();
+    using Vec3 = Eigen::Vector3d;
+    using Mat3 = Eigen::Matrix3d;
+    const std::string mesh_path =
+            std::string(mdv::config::mesh_dir) + "/torus_simple.off";
+    const auto mesh     = Mesh::from_file(mesh_path);
+    const auto pref_dir = Vec3::UnitX();
 
     for (int i{0}; i < 256; ++i) {
         const auto pt = Mesh::Point::random(mesh);
@@ -60,4 +65,3 @@ TEST(MdvMesh, TangentVectorDifference) {
         ASSERT_TRUE(mdv::condition::is_zero_norm(vec.tip() - tip));
     }
 }
-

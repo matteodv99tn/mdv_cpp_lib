@@ -3,24 +3,27 @@
 #include <iostream>
 #include <string>
 
-#include <mdv/config.hpp>
-#include <mdv/mesh/mesh.hpp>
-#include <mdv/rerun.hpp>
-#include <mdv/utils/conditions.hpp>
+#ifdef MDV_WITH_RERUN_SDK
 #include <rerun.hpp>
 #include <rerun/archetypes/line_strips3d.hpp>
 #include <rerun/recording_stream.hpp>
+#endif  // MDV_WITH_RERUN_SDK
 
+#include "mdv/config.hpp"
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
+#include "mdv/rerun.hpp"
+#include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
 using mdv::mesh::Mesh;
 
 int
 main(int argc, char* argv[]) {
+#ifdef MDV_WITH_RERUN_SDK
     std::srand(std::time(nullptr));
     std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus_simple.off";
     if (argc > 1) mesh_path = std::string(argv[1]);
@@ -63,5 +66,6 @@ main(int argc, char* argv[]) {
     rec.log("tangent_vectors", to_rerun(std::vector({tv1b, tv2b})));
     rec.log("exponential_map", to_rerun(exp_geodesic));
 
+#endif  // MDV_WITH_RERUN_SDK
     return 0;
 }

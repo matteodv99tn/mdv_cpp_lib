@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
-#include <mdv/dmp/coordinate_system/coordinate_system.hpp>
+
+#include "mdv/dmp/coordinate_system/coordinate_system.hpp"
 
 class FakeCoordinateSystem
         : public mdv::dmp::CoordinateSystemBase<FakeCoordinateSystem> {
@@ -34,4 +35,3 @@ TEST(CoordinateSystemTest, TestingBaseCoordinateSystemClass) {
     EXPECT_EQ(cs(ts_eigen), tau * ts_eigen);
     EXPECT_EQ(cs(ts_vec_in), ts_vec_out);
 }
-

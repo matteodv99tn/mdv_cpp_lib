@@ -1,12 +1,13 @@
+#include "mdv/mesh/algorithm.hpp"
+
 #include <spdlog/spdlog.h>
 
-#include <mdv/eigen_defines.hpp>
-#include <mdv/mesh/algorithm.hpp>
-#include <mdv/mesh/fwd.hpp>
-#include <mdv/mesh/mesh.hpp>
-#include <mdv/mesh/tangent_vector.hpp>
-#include <mdv/utils/conditions.hpp>
-#include <mdv/utils/logging_extras.hpp>
+#include "mdv/eigen_defines.hpp"
+#include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/tangent_vector.hpp"
+#include "mdv/utils/conditions.hpp"
+#include "mdv/utils/logging_extras.hpp"
 
 using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;

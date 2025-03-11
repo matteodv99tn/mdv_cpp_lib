@@ -29,6 +29,28 @@ for this reason, a convienient [``CMakeLists.txt``](cmake/CMakeLists.txt) file i
 These libraries will be installed at `cmake/install`, and such path will be automatically added by `cmake` to its path within the main [`CMakeLists.txt`](./CMakeLists.txt) of the library.
 
 
+### Rosdep
+
+This library can also be built as a ROS2 package. 
+This means that you may install all external dependencies using [rosdep](https://wiki.ros.org/rosdep). 
+On a machine with ROS2 installed, you may simply:
+
+0. If you don't have `rosdep` on the machine, you can install it through `apt` and then initialise it:
+   ``` bash
+   sudo apt-get update && sudo apt-get install -y python3-rosdep
+   sudo rosdep init
+   ```
+   **Note:** the `sudo rosdep init` shall be called only once after the installation.
+1. update the `rosdep` package list:
+   ``` bash
+   rosdep update
+   ```
+1. install the dependencies
+   ``` bash
+   rosdep install --from-paths <path/to/mdvcpplib> --ignore-src -r -y
+   ```
+
+
 ## Local testing of changes
 
 This library provides some minimal CI/CD checks using [Github Actions](https://github.com/features/actions) to ensure that the code is always in a working state. 

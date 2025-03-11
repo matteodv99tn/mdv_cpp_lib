@@ -2,9 +2,8 @@
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <spdlog/spdlog.h>
 
-#include <mdv/mesh/mesh.hpp>
-
-#include "cgal_data.hpp"
+#include "mdv/mesh/cgal_data.hpp"
+#include "mdv/mesh/mesh.hpp"
 
 using ::mdv::mesh::Mesh;
 

@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(mdvlib)
+project(mdvcpplib)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+option(BUILD_TESTING "" OFF)
 option(MDV_VERBOSE_DMP "Includes verbose DMP logging in learning/executing")
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -16,20 +17,27 @@ set(CGAL_DO_NOT_WARN_ABOUT_CMAKE_BUILD_TYPE TRUE)
 
 list(PREPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake/install)
 
-macro(find_and_log package)
+macro(find_and_log_required package)
     find_package(${package} REQUIRED)
     message(STATUS "Package ${package} found at ${${package}_DIR}")
 endmacro()
 
-# find_package(Eigen3     REQUIRED)
-find_and_log(Eigen3)
-find_and_log(spdlog)
-find_and_log(CGAL)
-find_and_log(fmt)
-find_and_log(range-v3)
+macro(find_and_log package)
+    find_package(${package})
+    if(${package}_FOUND)
+        message(STATUS "Package ${package} found at ${${package}_DIR}")
+    else()
+        message(STATUS "Package ${package} not found!")
+    endif()
+endmacro()
+
+find_and_log_required(Eigen3)
+find_and_log_required(spdlog)
+find_and_log_required(CGAL)
+find_and_log_required(fmt)
+find_and_log_required(range-v3)
+find_and_log_required(Microsoft.GSL)
 find_and_log(rerun_sdk)
-find_and_log(Microsoft.GSL)
-find_and_log(GTest)
 
 add_compile_definitions(MDV_CGAL_VERSION=${CGAL_VERSION_MAJOR})
 
@@ -50,57 +58,66 @@ configure_file(
 # | |  | | (_| | | | | | | |___| | |_) | | | (_| | |  | |_| |
 # |_|  |_|\__,_|_|_| |_| |_____|_|_.__/|_|  \__,_|_|   \__, |
 #                                                      |___/ 
-set(MDV_SRCS "")
-set(MDV_PUB_LIBS "")
-set(MDV_PRIV_LIBS "")
-set(MDV_PRIV_INCLUDES_DIRS "")
-
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/utils)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/mesh)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/riemann_geometry)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/dmp)
-
-list(REMOVE_DUPLICATES MDV_SRCS)
-list(REMOVE_DUPLICATES MDV_PUB_LIBS)
-list(REMOVE_DUPLICATES MDV_PRIV_LIBS)
-list(REMOVE_DUPLICATES MDV_PRIV_INCLUDES_DIRS)
-
-message(VERBOSE "Library sources:")
-foreach(SRC ${MDV_SRCS})
-    message(VERBOSE "  ${SRC}")
-endforeach()
-message(VERBOSE "Private includes directories:")
-foreach(DIR ${MDV_PRIV_INCLUDES_DIRS})
-    message(VERBOSE "  ${DIR}")
-endforeach()
-message(VERBOSE "Library publicly linked libraries:")
-foreach(LIB ${MDV_PUB_LIBS})
-    message(VERBOSE "  ${LIB}")
-endforeach()
-message(VERBOSE "Library privately linked libraries:")
-foreach(LIB ${MDV_PRIV_LIBS})
-    message(VERBOSE "  ${LIB}")
-endforeach()
-
-# Build the library target
 add_library(
-    mdvlib
-    ${MDV_SRCS}
+    mdvcpplib
+
+    # General purpose
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/logging.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/logging_extras.cpp
+
+    # Mesh
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/cgal_mesh.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/algorithm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/face.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/point.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/vertex.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/tangent_vector.cpp
+
+    # Riemann geometry
+    ${CMAKE_CURRENT_LIST_DIR}/src/riemann_geometry/s3.cpp
+
+    # DMP
+    ${CMAKE_CURRENT_LIST_DIR}/src/dmp/dmp.cpp
 )
+
+if(rerun_sdk_FOUND)
+    target_link_libraries(
+        mdvcpplib
+        PUBLIC 
+        rerun_sdk
+    )
+    target_sources(
+        mdvcpplib
+        PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/src/rerun.cpp
+    )
+    target_compile_definitions(
+        mdvcpplib
+        PUBLIC
+        MDV_WITH_RERUN_SDK
+    )
+endif()
+
 target_include_directories(
-    mdvlib
-    PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
-    PRIVATE ${MDV_PRIV_INCLUDES_DIRS}
+    mdvcpplib
+    PUBLIC 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(
-    mdvlib
-    PUBLIC ${MDV_PUB_LIBS}
-    PRIVATE ${MDV_PRIV_LIBS}
+    mdvcpplib
+    PUBLIC 
+    Eigen3::Eigen
+    CGAL::CGAL
+    Microsoft.GSL::GSL
+    spdlog::spdlog
+    PRIVATE 
+    range-v3
 )
 if(${MDV_VERBOSE_DMP})
     target_compile_definitions(
-        mdvlib
+        mdvcpplib
         PUBLIC
         MDV_VERBOSE_DMP    
     )
@@ -113,7 +130,6 @@ endif()
 # | |___ >  <  __/ (__| |_| | || (_| | |_) | |  __/\__ \
 # |_____/_/\_\___|\___|\__,_|\__\__,_|_.__/|_|\___||___/
 #                                                       
-
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/mesh)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/dmp)
 
@@ -125,23 +141,56 @@ add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/dmp)
 #  \___/|_| |_|_|\__|   |_|\___||___/\__|___/
 #                                            
 if(BUILD_TESTING)
+    find_and_log_required(GTest)
     file(GLOB UNIT_TEST_SRCS unit_tests/*.cpp)
     add_executable(
         mdv_gtests
         ${UNIT_TEST_SRCS}
     )
-    target_include_directories(
-        mdv_gtests
-        PUBLIC
-        ${MDV_PRIV_INCLUDES_DIRS}
-    )
     target_link_libraries(
         mdv_gtests
-        mdvlib
+        mdvcpplib
         GTest::GTest
         GTest::Main
     )
     add_test(gtest mdv_gtests)
-    # include(GoogleTest)
-    # gtest_discover_tests(mdv_gtests)
+endif()
+
+
+#  ____   ___  ____ ____    ___           _        _ _ 
+# |  _ \ / _ \/ ___|___ \  |_ _|_ __  ___| |_ __ _| | |
+# | |_) | | | \___ \ __) |  | || '_ \/ __| __/ _` | | |
+# |  _ <| |_| |___) / __/   | || | | \__ \ || (_| | | |
+# |_| \_\\___/|____/_____| |___|_| |_|___/\__\__,_|_|_|
+#                                                      
+find_package(ament_cmake QUIET)
+if(ament_cmake_FOUND)
+    install(
+        TARGETS mdvcpplib
+        EXPORT mdvcpplib
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
+    )
+    install(
+        DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include
+    )
+
+    ament_export_targets(mdvcpplib)
+    ament_export_dependencies(
+        Eigen3
+        fmt
+        spdlog
+        CGAL
+        range-v3
+        Microsoft.GSL
+    )
+    if(rerun_sdk_FOUND)
+        ament_export_dependencies(rerun_sdk)
+    endif()
+
+    ament_package()
+else()
+    message(STATUS "ament_cmake not found, skipping ROS2 installation")
 endif()

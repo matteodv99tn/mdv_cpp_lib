@@ -4,7 +4,7 @@
 #include <concepts>
 #include <Eigen/Dense>
 
-#include <mdv/utils/concepts.hpp>
+#include "mdv/utils/concepts.hpp"
 
 namespace mdv::condition {
 

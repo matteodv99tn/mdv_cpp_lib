@@ -1,7 +1,7 @@
 #ifndef MDV_MESH_ITERATOR_BASE_HPP
 #define MDV_MESH_ITERATOR_BASE_HPP
 
-#include <mdv/mesh/fwd.hpp>
+#include "mdv/mesh/fwd.hpp"
 
 namespace mdv::mesh {
 

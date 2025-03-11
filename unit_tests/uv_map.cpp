@@ -1,9 +1,10 @@
+#include "mdv/mesh/uv_map.hpp"
+
 #include <gtest/gtest.h>
 
-#include <mdv/config.hpp>
-#include <mdv/mesh/fwd.hpp>
-#include <mdv/mesh/uv_map.hpp>
-#include <mdv/utils/conditions.hpp>
+#include "mdv/config.hpp"
+#include "mdv/mesh/fwd.hpp"
+#include "mdv/utils/conditions.hpp"
 
 using UvMap   = mdv::mesh::UvMap;
 using Point3d = mdv::mesh::Point3d;

@@ -1,19 +1,20 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-#include <iostream>
 #include <sstream>
 #include <string>
 
-#include <mdv/containers/demonstration.hpp>
-#include <mdv/dmp/dmp.hpp>
-#include <mdv/dmp/dmp_utilities.hpp>
-#include <mdv/riemann_geometry/manifold.hpp>
-#include <mdv/utils/conversions.hpp>
+#ifdef MDV_WITH_RERUN_SDK
 #include <rerun.hpp>
 #include <rerun/archetypes/series_line.hpp>
 #include <rerun/archetypes/series_point.hpp>
+#endif  // MDV_WITH_RERUN_SDK
 
+#include "mdv/containers/demonstration.hpp"
+#include "mdv/dmp/dmp.hpp"
+#include "mdv/dmp/dmp_utilities.hpp"
 #include "mdv/rerun.hpp"
+#include "mdv/riemann_geometry/manifold.hpp"
+#include "mdv/utils/conversions.hpp"
 
 using Quat = Eigen::Quaterniond;
 
@@ -49,6 +50,7 @@ main() {
     for (auto i = 0; i < dem.size(); ++i)
         f_lrnd.row(i) = dmp.eval_weighted_basis(dmp.time_to_s(dem[i].t()));
 
+#ifdef MDV_WITH_RERUN_SDK
     //  ____  _       _   _   _
     // |  _ \| | ___ | |_| |_(_)_ __   __ _
     // | |_) | |/ _ \| __| __| | '_ \ / _` |
@@ -163,6 +165,7 @@ main() {
 
     }
     // clang-format on
+#endif  // MDV_WITH_RERUN_SDK
 
     return 0;
 }

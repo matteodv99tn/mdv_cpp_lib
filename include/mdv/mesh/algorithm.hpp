@@ -1,9 +1,9 @@
 #ifndef MDV_MESH_ALGORITHM_HPP
 #define MDV_MESH_ALGORITHM_HPP
 
-#include <mdv/mesh/fwd.hpp>
-#include <mdv/mesh/mesh.hpp>
-#include <mdv/mesh/tangent_vector.hpp>
+#include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/tangent_vector.hpp"
 
 namespace mdv::mesh {
 

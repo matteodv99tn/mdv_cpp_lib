@@ -1,11 +1,11 @@
+#include "mdv/containers/demonstration.hpp"
+
 #include <array>
 #include <gtest/gtest.h>
 
-#include <mdv/containers/demonstration.hpp>
-#include <mdv/dmp/dmp.hpp>
-#include <mdv/dmp/dmp_utilities.hpp>
-#include <mdv/riemann_geometry/manifold.hpp>
-
+#include "mdv/dmp/dmp.hpp"
+#include "mdv/dmp/dmp_utilities.hpp"
+#include "mdv/riemann_geometry/manifold.hpp"
 #include "mdv/utils/conversions.hpp"
 
 using mdv::Demonstration;

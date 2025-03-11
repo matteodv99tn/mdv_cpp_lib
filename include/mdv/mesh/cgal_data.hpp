@@ -16,8 +16,8 @@
 #include <CGAL/AABB_traits_3.h>
 #endif
 
-#include <mdv/mesh/mesh.hpp>
-#include <mdv/utils/logging.hpp>
+#include "mdv/mesh/mesh.hpp"
+#include "mdv/utils/logging.hpp"
 
 namespace mdv::mesh {
 

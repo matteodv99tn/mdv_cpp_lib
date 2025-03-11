@@ -1,0 +1,20 @@
+name: ROS2 humble package build
+
+on:
+  push:
+    branches:
+      - main
+      - devel
+          
+jobs:
+  humble_source:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: humble
+
+      - uses: ros-tooling/action-ros-ci@v0.3
+        with:
+          package-name: mdvcpplib
+          target-ros2-distro: humble

@@ -1,7 +1,7 @@
+#include "mdv/containers/multi_vector.hpp"
+
 #include <gtest/gtest.h>
 #include <stdexcept>
-
-#include <mdv/containers/multi_vector.hpp>
 
 using mdv::multi_vector;
 

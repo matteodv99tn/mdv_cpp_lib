@@ -4,7 +4,7 @@ add_executable(
 )
 target_link_libraries(
     s3_test
-    mdvlib
+    mdvcpplib
 )
 
 add_executable(
@@ -13,5 +13,5 @@ add_executable(
 )
 target_link_libraries(
     scalar_test
-    mdvlib
+    mdvcpplib
 )

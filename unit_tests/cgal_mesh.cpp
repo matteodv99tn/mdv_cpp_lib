@@ -1,10 +1,9 @@
 #include <iostream>
 
-#include <mdv/config.hpp>
-#include <mdv/mesh/mesh.hpp>
-#include <mdv/utils/conditions.hpp>
-
-#include "cgal_data.hpp"
+#include "mdv/config.hpp"
+#include "mdv/mesh/cgal_data.hpp"
+#include "mdv/mesh/mesh.hpp"
+#include "mdv/utils/conditions.hpp"
 
 using mdv::mesh::Mesh;
 

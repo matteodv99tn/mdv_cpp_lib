@@ -11,12 +11,13 @@
 
 #include <boost/range/iterator_range.hpp>
 #include <boost/range/iterator_range_core.hpp>
-#include <mdv/eigen_defines.hpp>
-#include <mdv/macros.hpp>
-#include <mdv/mesh/fwd.hpp>
-#include <mdv/mesh/mesh_iterator.hpp>
-#include <mdv/mesh/uv_map.hpp>
-#include <mdv/utils/logging.hpp>
+
+#include "mdv/eigen_defines.hpp"
+#include "mdv/macros.hpp"
+#include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/mesh_iterator.hpp"
+#include "mdv/mesh/uv_map.hpp"
+#include "mdv/utils/logging.hpp"
 
 namespace mdv::mesh {
 
@@ -359,7 +360,7 @@ private:
     std::vector<Face::IndexTriplet> _neighbouring_faces;
 };
 
-// #include <mdv/mesh/face_iterator.hpp>
+// #include "mdv/mesh/face_iterator.hpp"
 
 }  // namespace mdv::mesh
 

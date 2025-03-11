@@ -4,9 +4,9 @@
 #include <random>
 #include <spdlog/spdlog.h>
 
-#include <mdv/eigen_defines.hpp>
-#include <mdv/mesh/fwd.hpp>
-#include <mdv/mesh/mesh.hpp>
+#include "mdv/eigen_defines.hpp"
+#include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/mesh.hpp"
 
 using mdv::mesh::Mesh;
 
@@ -38,14 +38,14 @@ Mesh::Face::vertices() const {
     return {Vertex(*_mesh, ids[0]), Vertex(*_mesh, ids[1]), Vertex(*_mesh, ids[2])};
 }
 
-mdv::mesh::UvMap 
-Mesh::Face::compute_uv_map() const{
+mdv::mesh::UvMap
+Mesh::Face::compute_uv_map() const {
     if (id() == -1) {
         logger()->trace("Initialised UV map on undefined face!");
         return {
-            {0.0, 0.0, 0.0},
-            {0.0, 1.0, 0.0},
-            {1.0, 0.0, 0.0}
+                {0.0, 0.0, 0.0},
+                {0.0, 1.0, 0.0},
+                {1.0, 0.0, 0.0}
         };
     }
     return {v1(), v2(), v3()};

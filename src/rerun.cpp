@@ -1,13 +1,11 @@
+#include "mdv/rerun.hpp"
+
 #include <algorithm>
 #include <cstdint>
 #include <iterator>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 
-#include <mdv/mesh/mesh.hpp>
-#include <mdv/rerun.hpp>
-#include <mdv/utils/logging.hpp>
-#include <mdv/utils/logging_extras.hpp>
 #include <rerun/archetypes/mesh3d.hpp>
 #include <rerun/archetypes/points3d.hpp>
 #include <rerun/collection.hpp>
@@ -16,7 +14,10 @@
 #include <rerun/components/vector3d.hpp>
 
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
+#include "mdv/utils/logging.hpp"
+#include "mdv/utils/logging_extras.hpp"
 
 namespace rra = rerun::archetypes;
 namespace rrc = rerun::components;

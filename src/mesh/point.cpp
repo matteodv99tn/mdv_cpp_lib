@@ -2,12 +2,11 @@
 #include <cstdlib>
 #include <spdlog/spdlog.h>
 
-#include <mdv/mesh/algorithm.hpp>
-#include <mdv/mesh/mesh.hpp>
-#include <mdv/utils/conditions.hpp>
-
-#include "cgal_data.hpp"
+#include "mdv/mesh/algorithm.hpp"
+#include "mdv/mesh/cgal_data.hpp"
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/mesh.hpp"
+#include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
 using mdv::mesh::Mesh;

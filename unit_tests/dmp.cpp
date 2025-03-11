@@ -1,11 +1,12 @@
+#include "mdv/dmp/dmp.hpp"
+
 #include <cmath>
 #include <Eigen/Dense>
 #include <gtest/gtest.h>
 
-#include <mdv/containers/demonstration.hpp>
-#include <mdv/dmp/dmp.hpp>
-#include <mdv/dmp/dmp_utilities.hpp>
-#include <mdv/riemann_geometry/scalar.hpp>
+#include "mdv/containers/demonstration.hpp"
+#include "mdv/dmp/dmp_utilities.hpp"
+#include "mdv/riemann_geometry/scalar.hpp"
 
 TEST(Dmp, ScalarDmp) {
     using mdv::Dmp;

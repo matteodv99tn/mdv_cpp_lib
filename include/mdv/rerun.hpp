@@ -1,14 +1,15 @@
+#ifdef MDV_WITH_RERUN_SDK
 #ifndef MDV_RERUN_INTEGRATION_HPP
 #define MDV_RERUN_INTEGRATION_HPP
 
-#include <mdv/mesh/fwd.hpp>
-#include <mdv/mesh/mesh.hpp>
 #include <rerun/archetypes/arrows3d.hpp>
 #include <rerun/archetypes/line_strips3d.hpp>
 #include <rerun/archetypes/mesh3d.hpp>
 #include <rerun/archetypes/points3d.hpp>
 
 #include "mdv/macros.hpp"
+#include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/utils/logging.hpp"
 
@@ -57,3 +58,4 @@ class MeshRerunConverter : public RerunConverter {};
 }  // namespace mdv
 
 #endif  // MDV_RERUN_INTEGRATION_HPP
+#endif  // MDV_WITH_RERUN_SDK

@@ -1,7 +1,8 @@
+#include "mdv/utils/conditions.hpp"
+
 #include <gtest/gtest.h>
 
-#include <mdv/utils/concepts.hpp>
-#include <mdv/utils/conditions.hpp>
+#include "mdv/utils/concepts.hpp"
 
 TEST(MdvCondition, Parallel3dCheck) {
     using mdv::condition::are_parallel;

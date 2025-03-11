@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
+#include "mdv/utils/conversions.hpp"
 
-#include <mdv/utils/conversions.hpp>
+#include <gtest/gtest.h>
 
 TEST(Conversions, ToSecond) {
     using mdv::convert::seconds;

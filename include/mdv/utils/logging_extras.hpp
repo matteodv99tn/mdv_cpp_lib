@@ -3,7 +3,7 @@
 
 #include <Eigen/Dense>
 
-#include <mdv/utils/logging.hpp>
+#include "mdv/utils/logging.hpp"
 
 namespace mdv {
 

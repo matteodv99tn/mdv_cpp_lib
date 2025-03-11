@@ -1,3 +1,5 @@
+#include "mdv/mesh/mesh.hpp"
+
 #include <algorithm>
 #include <CGAL/Polygon_mesh_processing/transform.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
@@ -7,13 +9,12 @@
 #include <string_view>
 #include <thread>
 
-#include <mdv/mesh/fwd.hpp>
-#include <mdv/mesh/mesh.hpp>
-#include <mdv/utils/logging.hpp>
-#include <mdv/utils/logging_extras.hpp>
 #include <range/v3/algorithm/contains.hpp>
 
-#include "cgal_data.hpp"
+#include "mdv/mesh/cgal_data.hpp"
+#include "mdv/mesh/fwd.hpp"
+#include "mdv/utils/logging.hpp"
+#include "mdv/utils/logging_extras.hpp"
 
 namespace rs = ranges;
 

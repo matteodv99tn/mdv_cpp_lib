@@ -1,11 +1,10 @@
 #ifndef MDV_MESH_TANGENT_VECTOR_HPP
 #define MDV_MESH_TANGENT_VECTOR_HPP
 
-#include <mdv/mesh/mesh.hpp>
-#include <mdv/mesh/uv_map.hpp>
-
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/uv_map.hpp"
 #include "mdv/utils/logging.hpp"
 
 namespace mdv::mesh {
