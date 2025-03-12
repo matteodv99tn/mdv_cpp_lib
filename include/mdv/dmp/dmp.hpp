@@ -52,6 +52,8 @@ public:
         logger().debug("  beta  = {}", _beta);
         logger().debug("  gamma = {}", _gamma);
         logger().debug("  number of basis: {}", _n_basis);
+
+        _ws = Eigen::MatrixXd::Zero(_n_basis, type_elems_size_v<TangentVector>);
     }
 
     template <typename Demonstration>
@@ -106,7 +108,6 @@ public:
         assert(phi.cols() == _n_basis);
         assert(f_des.rows() == demo.size());
         assert(f_des.cols() == type_elems_size_v<TangentVector>);
-        _ws = Eigen::MatrixXd::Zero(_n_basis, type_elems_size_v<TangentVector>);
         _ws = phi.fullPivHouseholderQr().solve(f_des);
         logger().info("DMP succesfully learned");
 
