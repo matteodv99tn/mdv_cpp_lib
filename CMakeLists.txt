@@ -174,7 +174,8 @@ if(ament_cmake_FOUND)
         INCLUDES DESTINATION include
     )
     install(
-        DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include
+        DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
+        DESTINATION include
     )
 
     ament_export_targets(mdvcpplib)
@@ -185,6 +186,7 @@ if(ament_cmake_FOUND)
         CGAL
         range-v3
         Microsoft.GSL
+        rerun_sdk
     )
     if(rerun_sdk_FOUND)
         ament_export_dependencies(rerun_sdk)
