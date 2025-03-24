@@ -83,6 +83,8 @@ mdv::mesh::exponential_map(TangentVector v, Geodesic* geod) {
 
     if (geod) geod->emplace_back(v.application_point().position());
 
+    if(condition::is_zero_norm(v.uv())) return v.application_point();
+
     std::size_t count = 0;
     while (!condition::is_zero_norm(v.uv()) || (count < 1000)) {
         if (geod) geod->emplace_back(v.application_point().position());

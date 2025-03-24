@@ -40,19 +40,22 @@ public:
     public:
         using Index = long;
 
+        IndexBasedElement() : _mesh(nullptr), _id(-1) {};
+
         IndexBasedElement(const Mesh& m, const Index& id) noexcept :
                 _mesh(&m), _id(id) {};
 
         // clang-format off
-        MDV_NODISCARD Index         id() const noexcept     { return _id; }
-        MDV_NODISCARD const Mesh&   mesh() const noexcept   { return *_mesh; }
-        MDV_NODISCARD SpdLoggerPtr& logger() const          { return _mesh->logger(); }
+        MDV_NODISCARD bool          is_valid() const noexcept { return _mesh != nullptr;}
+        MDV_NODISCARD Index         id() const noexcept       { return _id; }
+        MDV_NODISCARD const Mesh&   mesh() const noexcept     { assert(is_valid()); return *_mesh; }
+        MDV_NODISCARD SpdLoggerPtr& logger() const            { assert(is_valid()); return _mesh->logger(); }
 
         // clang-format on
 
     protected:
-        gsl::not_null<const Mesh*> _mesh;
-        Index                      _id;
+        const Mesh* _mesh;
+        Index       _id;
     };
 
     // __     __        _
@@ -98,6 +101,8 @@ public:
         using IndexTriplet  = std::array<Index, 3>;
         using Iterator      = MeshIterator<Face, Index>;
         using VertexTriplet = std::array<Vertex, 3>;
+
+        Face() : IndexBasedElement() {};
         Face(const Mesh& m, const Index& id) noexcept : IndexBasedElement(m, id) {};
 
         static Face random(const Mesh& m) noexcept;
@@ -183,6 +188,8 @@ public:
     class Point {
     public:
         using UvCoord = UvMap::Domain;
+
+        Point() : _face(), _uv(0.0, 0.0), _uv_map() {};
 
         Point(const Face& face, const UvCoord& uv) :
                 _face(face), _uv(uv), _uv_map(_face.compute_uv_map()) {}

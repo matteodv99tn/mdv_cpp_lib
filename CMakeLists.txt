@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(mdvcpplib)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(FIND_LIBRARY_USE_LIB64_PATHS OFF)
 
 option(BUILD_TESTING "" OFF)
 option(MDV_VERBOSE_DMP "Includes verbose DMP logging in learning/executing")
@@ -76,6 +77,7 @@ add_library(
 
     # Riemann geometry
     ${CMAKE_CURRENT_LIST_DIR}/src/riemann_geometry/s3.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/riemann_geometry/mesh.cpp
 
     # DMP
     ${CMAKE_CURRENT_LIST_DIR}/src/dmp/dmp.cpp
@@ -186,7 +188,7 @@ if(ament_cmake_FOUND)
         CGAL
         range-v3
         Microsoft.GSL
-        rerun_sdk
+        # rerun_sdk
     )
     if(rerun_sdk_FOUND)
         ament_export_dependencies(rerun_sdk)

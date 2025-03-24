@@ -15,3 +15,12 @@ target_link_libraries(
     scalar_test
     mdvcpplib
 )
+
+add_executable(
+    meshdmp_test
+    ${CMAKE_CURRENT_LIST_DIR}/mesh_dmp.cpp
+)
+target_link_libraries(
+    meshdmp_test
+    mdvcpplib
+)

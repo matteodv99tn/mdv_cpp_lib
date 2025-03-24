@@ -76,8 +76,8 @@ RerunConverter::operator()(const mdv::mesh::Geodesic& geod) const {
 
 rra::Points3D
 RerunConverter::operator()(const Mesh::Point& pt) const {
-    _logger->info(
-            "Exporting points on a mesh at position {}", eigen_to_str(pt.position())
+    _logger->debug(
+            "Exporting point on a mesh at position {}", eigen_to_str(pt.position())
     );
     return rra::Points3D((*this)(pt.position()));
 }

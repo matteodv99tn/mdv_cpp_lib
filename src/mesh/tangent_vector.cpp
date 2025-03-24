@@ -100,18 +100,22 @@ TangentVector::trim() {
     double t       = -1.0;
 
     // Select valid intersection
-    if ((s1 >= zero_th) && (s1 <= 1.0) && (t1 > zero_th)) {
+    if ((s1 > 0) && (s1 <= 1.0) && (t1 > zero_th)) {
         edge_id = 0;
         t       = t1;
-    } else if ((s2 >= zero_th) && (s2 <= 1.0) && (t2 > zero_th)) {
+    } else if ((s2 > 0) && (s2 <= 1.0) && (t2 > zero_th)) {
         assert(edge_id == 3);
         edge_id = 1;
         t       = t2;
-    } else if ((s3 >= zero_th) && (s3 <= 1.0) && (t3 > zero_th)) {
+    } else if ((s3 > 0) && (s3 <= 1.0) && (t3 > zero_th)) {
         assert(edge_id == 3);
         edge_id = 2;
         t       = t3;
     }
+
+    // Ensure uv is not numerically zero, as this could have lead to numerical
+    // instability in the computaion of tX and sX
+    if (_uv.cwiseAbs().maxCoeff() < 1e-5) return std::nullopt;
 
     // Validate
     if ((edge_id == 3) || (t == -1.0)) {
@@ -119,16 +123,16 @@ TangentVector::trim() {
                 "TangentVector::trim failed! Could not find a valid intersection to "
                 "project remainder of TangentVector"
         );
-        logger()->debug("Edge id: {}, parameter t = {}", edge_id, t);
-        logger()->debug(
+        logger()->warn("Edge id: {}, parameter t = {}", edge_id, t);
+        logger()->warn(
                 "Current application point uv: {} (sum = {})",
                 eigen_to_str(_application_point.uv()),
                 _application_point.uv().sum()
         );
-        logger()->debug("Tangent vector uv: {}", eigen_to_str(uv()));
-        logger()->debug("t1 = {}, s1 = {}", t1, s1);
-        logger()->debug("t2 = {}, s2 = {}", t2, s2);
-        logger()->debug("t3 = {}, s3 = {}", t3, s3);
+        logger()->warn("Tangent vector uv: {}", eigen_to_str(uv()));
+        logger()->warn("t1 = {}, s1 = {}", t1, s1);
+        logger()->warn("t2 = {}, s2 = {}", t2, s2);
+        logger()->warn("t3 = {}, s3 = {}", t3, s3);
         throw std::runtime_error("TangentVector::trim failed; check log");
     }
 
