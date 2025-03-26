@@ -1,15 +1,21 @@
+#include "mdv/mesh/point.hpp"
+
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <cstdlib>
 #include <spdlog/spdlog.h>
 
 #include "mdv/mesh/algorithm.hpp"
-#include "mdv/mesh/cgal_data.hpp"
+#include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
+using mdv::mesh::CartesianPoint;
+using mdv::mesh::Face;
 using mdv::mesh::Mesh;
+using mdv::mesh::Point;
+using mdv::mesh::internal::CgalImpl;
 
 //   ____                _                   _
 //  / ___|___  _ __  ___| |_ _ __ _   _  ___| |_ ___  _ __ ___
@@ -18,22 +24,22 @@ using mdv::mesh::Mesh;
 //  \____\___/|_| |_|___/\__|_|   \__,_|\___|\__\___/|_|  |___/
 //
 
-Mesh::Point::Point(const Face& face, const Point3d& pt) :
+Point::Point(const Face& face, const CartesianPoint& pt) :
         _face(face), _uv_map(_face.compute_uv_map()) {
     _uv = uv_map().inverse_map(pt);
 }
 
 Mesh::Point
-Mesh::Point::from_cartesian(const Mesh& m, const Point3d& pt) {
-    const Mesh::CgalData::Point3 cgal_pt{pt(0), pt(1), pt(2)};
+Mesh::Point::from_cartesian(const Mesh& m, const CartesianPoint& pt) {
+    const CgalImpl::Point3 cgal_pt{pt(0), pt(1), pt(2)};
     const auto [id, coords] =
-            m._data->_shortest_path->locate(cgal_pt, m._data->_aabb_tree);
-    const Face face(m, static_cast<Mesh::Face::Index>(id.idx()));
+            m.data().impl->_shortest_path->locate(cgal_pt, m.data().impl->_aabb_tree);
+    const Face face(m.data(), static_cast<Mesh::Face::Index>(id.idx()));
     return {face, pt};
 }
 
 Mesh::Point
-Mesh::Point::from_face_and_position(const Mesh::Face& f, const Point3d& pt) {
+Mesh::Point::from_face_and_position(const Mesh::Face& f, const CartesianPoint& pt) {
     const double d = distance(f, pt);
     assert(condition::is_zero(d));
     return {f, pt};
@@ -41,7 +47,7 @@ Mesh::Point::from_face_and_position(const Mesh::Face& f, const Point3d& pt) {
 
 Mesh::Point
 Mesh::Point::undefined(const Mesh& m) noexcept {
-    const Face    face{m, -1};
+    const Face    face{m.data(), -1};
     const UvCoord uv{-1.0, -1.0};
     return {face, uv};
 }
@@ -76,7 +82,7 @@ Mesh::Point::barycentric() const noexcept {
     const Eigen::Vector3d b   = position();
     const Eigen::Vector3d sol = A.colPivHouseholderQr().solve(b);
     if (!mdv::condition::is_zero(sol.sum() - 1.0)) {
-        logger()->error(
+        logger().error(
                 "When converting from UV coords. to barycentric, sum ({}) is different "
                 "1.0",
                 sol.sum()
@@ -86,7 +92,7 @@ Mesh::Point::barycentric() const noexcept {
     return sol;
 };
 
-mdv::mesh::Point3d
+mdv::mesh::CartesianPoint
 Mesh::Point::position() const noexcept {
     return uv_map().forward_map(_uv);
 }

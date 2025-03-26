@@ -39,7 +39,7 @@ main() {
     fmt::print("Selected mesh path: {}\n", mesh_path);
     const auto mesh = Mesh::from_file(mesh_path);
     fmt::print("Mesh loaded\n");
-    mesh.logger()->set_level(spdlog::level::info);
+    mesh.logger().set_level(spdlog::level::info);
 
 
     using namespace std::chrono_literals;

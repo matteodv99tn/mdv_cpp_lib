@@ -67,13 +67,18 @@ add_library(
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/logging_extras.cpp
 
     # Mesh
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/cgal_mesh.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/algorithm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/vertex.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/face.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/point.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/vertex.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/tangent_vector.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/cgal_impl.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh_data.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/vertex.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/face.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/point.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/tangent_vector.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/algorithm.cpp
 
     # Riemann geometry
     ${CMAKE_CURRENT_LIST_DIR}/src/riemann_geometry/s3.cpp

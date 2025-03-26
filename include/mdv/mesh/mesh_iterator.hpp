@@ -8,6 +8,8 @@ namespace mdv::mesh {
 template <typename Element, typename Index = long>
 class MeshIterator {
 public:
+    using MeshData = ::mdv::mesh::internal::MeshData;
+
     // NOLINTBEGIN  naming conventions
     using iterator_category = std::bidirectional_iterator_tag;
     using difference_type   = std::ptrdiff_t;
@@ -17,7 +19,8 @@ public:
 
     // NOLINTEND
 
-    MeshIterator(const Mesh* mesh, const Index& index) noexcept : _v(*mesh, index) {}
+    MeshIterator(const MeshData* mesh, const Index& index) noexcept :
+            _v(*mesh, index) {}
 
     Element&
     operator*() noexcept {
@@ -52,7 +55,7 @@ public:
 
     bool
     operator==(const MeshIterator<Element, Index>& other) const noexcept {
-        return (_v._mesh == other._v._mesh) && (_v._id == other._v._id);
+        return (&_v.data() == &other._v.data()) && (_v._id == other._v._id);
     }
 
     bool

@@ -1,11 +1,12 @@
 #ifndef MDV_MESH_TANGENT_VECTOR_HPP
 #define MDV_MESH_TANGENT_VECTOR_HPP
 
+#include <optional>
+
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/uv_map.hpp"
-#include "mdv/utils/logging.hpp"
 
 namespace mdv::mesh {
 
@@ -16,21 +17,21 @@ public:
 
     TangentVector(const Point& app_point, const UvCoord& uv) :
             _application_point(app_point), _uv(uv) {};
-    TangentVector(const Point& app_point, const Vec3d& v);
+    TangentVector(const Point& app_point, const Eigen::Vector3d& v);
 
     /**
      * @brief Constructs a tangent vector given its application point and the
      * "tip" position of the vector.
      */
     static TangentVector from_tip_position(
-            const Mesh::Point& application_point, const Point3d& tip
+            const Mesh::Point& application_point, const CartesianPoint& tip
     );
 
     static TangentVector unit_random(const Mesh::Point& application_point);
 
-    MDV_NODISCARD Point3d tip() const noexcept;
+    MDV_NODISCARD CartesianPoint tip() const noexcept;
 
-    MDV_NODISCARD Vec3d cartesian_vector() const noexcept;
+    MDV_NODISCARD Eigen::Vector3d cartesian_vector() const noexcept;
 
     /**
      * @brief Trims a vector and return the "remainder" projected.
@@ -67,11 +68,10 @@ public:
     TangentVector normalised() &&;
 
     // clang-format off
-    MDV_NODISCARD const UvCoord& uv() const                { return _uv; }
-    MDV_NODISCARD const UvMap&   uv_map() const            { return _application_point.uv_map(); }
-    MDV_NODISCARD const Point&   application_point() const { return _application_point; }
-
-    MDV_NODISCARD SpdLoggerPtr&  logger() const            { return application_point().logger(); }
+    MDV_NODISCARD const UvCoord&  uv() const                { return _uv; }
+    MDV_NODISCARD const UvMap&    uv_map() const            { return _application_point.uv_map(); }
+    MDV_NODISCARD const Point&    application_point() const { return _application_point; }
+    MDV_NODISCARD spdlog::logger& logger() const            { return application_point().logger(); }
 
     // clang-format on
 

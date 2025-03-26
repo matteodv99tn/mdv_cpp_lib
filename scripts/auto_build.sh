@@ -3,8 +3,8 @@
 # Update these parameters as needed
 WATCH_DIRS="./src ./include ./unit_tests ./executables"
 BUILD_DIR=build
-# EXECUTABLE="./build/executables/dmp/s3_test"
-EXECUTABLE=""
+EXECUTABLE="./build/executables/dmp/meshdmp_test"
+# EXECUTABLE=""
 
 
 START_BUILD_ICON=applications-system-symbolic

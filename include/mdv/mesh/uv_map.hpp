@@ -17,7 +17,7 @@ namespace mdv::mesh {
 class UvMap {
 public:
     using Domain    = Eigen::Vector2d;
-    using CoDomain  = Point3d;
+    using CoDomain  = CartesianPoint;
     using Transform = Eigen::Matrix<double, 3, 2>;
 
     UvMap() : _origin(CoDomain::Zero()), _transform(Transform::Zero()) {};

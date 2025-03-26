@@ -3,12 +3,14 @@
 #include <spdlog/spdlog.h>
 
 #include "mdv/eigen_defines.hpp"
+#include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
+using mdv::mesh::Geodesic;
 using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;
 
@@ -29,7 +31,7 @@ mdv::mesh::parallel_transport(const TangentVector& v, const Mesh::Point& p) {
         res.col(1) = res.col(2).cross(res.col(0));
         return res;
     };
-    p.logger()->debug(
+    p.logger().debug(
             "Computing parallel transport of vector {} applied in {} to target point "
             "{}",
             eigen_to_str(v.application_point().position()),
@@ -39,9 +41,11 @@ mdv::mesh::parallel_transport(const TangentVector& v, const Mesh::Point& p) {
 
     if (v.application_point().face_id() == p.face_id()) return {p, v.uv()};
 
-    const Mesh::Point& o    = v.application_point();
-    const auto&        mesh = o.mesh();
-    const Geodesic     geod = mesh.build_geodesic(v.application_point(), p);
+    const Mesh::Point& o = v.application_point();
+    assert(o.data().impl);
+    const Geodesic geod =
+            internal::construct_geodesic(*o.data().impl, v.application_point(), p);
+
 
     const auto  n  = geod.size();
     const auto& x1 = (geod[1] - geod[0]).normalized();
@@ -57,8 +61,8 @@ mdv::mesh::parallel_transport(const TangentVector& v, const Mesh::Point& p) {
 
 TangentVector
 mdv::mesh::logarithmic_map(const Mesh::Point& p, const Mesh::Point& y) {
-    assert(&p.mesh() == &y.mesh());
-    p.logger()->debug(
+    assert(&p.data() == &y.data());
+    p.logger().debug(
             "Computing logarithmic map of point {} w.r.t. point {}",
             eigen_to_str(y.position()),
             eigen_to_str(p.position())
@@ -66,16 +70,16 @@ mdv::mesh::logarithmic_map(const Mesh::Point& p, const Mesh::Point& y) {
 
     if (p.face_id() == y.face_id()) return {p, Mesh::Point::UvCoord(y.uv() - p.uv())};
 
-    const auto& mesh        = p.mesh();
-    const auto  geod        = mesh.build_geodesic(p, y);
-    auto        log_map_dir = (geod[1] - geod[0]).normalized();
-    auto        log_map_len = length(geod);
+    assert(p.data().impl);
+    const auto geod        = internal::construct_geodesic(*p.data().impl, p, y);
+    auto       log_map_dir = (geod[1] - geod[0]).normalized();
+    auto       log_map_len = length(geod);
     return {p, Vec3d(log_map_len * log_map_dir)};
 }
 
 Mesh::Point
 mdv::mesh::exponential_map(TangentVector v, Geodesic* geod) {
-    v.logger()->debug(
+    v.logger().debug(
             "Computing the exponential map from point {} with tangent vector {}",
             eigen_to_str(v.application_point().position()),
             eigen_to_str(v.cartesian_vector())
@@ -83,7 +87,7 @@ mdv::mesh::exponential_map(TangentVector v, Geodesic* geod) {
 
     if (geod) geod->emplace_back(v.application_point().position());
 
-    if(condition::is_zero_norm(v.uv())) return v.application_point();
+    if (condition::is_zero_norm(v.uv())) return v.application_point();
 
     std::size_t count = 0;
     while (!condition::is_zero_norm(v.uv()) || (count < 1000)) {
@@ -106,14 +110,19 @@ mdv::mesh::exponential_map(TangentVector v, Geodesic* geod) {
 }
 
 double
-mdv::mesh::distance(const Mesh::Face& f, const Point3d& pt) {
+mdv::mesh::distance(const Mesh::Face& f, const CartesianPoint& pt) {
     const auto delta = pt - f.vertex(0).position();
     return std::abs(delta.dot(f.normal()));
 }
 
+double
+mdv::mesh::distance(const Mesh::Point& p1, const Mesh::Point& p2) {
+    return (p1.position() - p2.position()).norm();
+}
+
 std::pair<Mesh::Vertex, Mesh::Vertex>
 mdv::mesh::shared_vertices(const Mesh::Face& f1, const Mesh::Face& f2) {
-    if (&f1.mesh() != &f2.mesh()) {
+    if (&f1.data() != &f2.data()) {
         throw std::runtime_error(
                 "Cannot retrieve shared vertices of faces coming from different meshes."
         );
@@ -140,7 +149,7 @@ mdv::mesh::shared_vertices(const Mesh::Face& f1, const Mesh::Face& f2) {
                 + std::to_string(indices.size())
         );
     }
-    return {Mesh::Vertex(f1.mesh(), indices[0]), Mesh::Vertex(f1.mesh(), indices[1])};
+    return {Mesh::Vertex(f1.data(), indices[0]), Mesh::Vertex(f1.data(), indices[1])};
 }
 
 bool

@@ -9,8 +9,8 @@
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
+using mdv::mesh::CartesianPoint;
 using mdv::mesh::Mesh;
-using mdv::mesh::Point3d;
 using mdv::mesh::TangentVector;
 
 //  _____                            _ __     __        _
@@ -26,7 +26,7 @@ TangentVector::TangentVector(const Point& app_point, const Vec3d& v) :
 }
 
 TangentVector
-TangentVector::from_tip_position(const Mesh::Point& origin, const Point3d& tip) {
+TangentVector::from_tip_position(const Mesh::Point& origin, const CartesianPoint& tip) {
     const auto p0  = origin.position();
     const auto vec = tip - p0;
     const auto n   = origin.face().normal();
@@ -45,7 +45,7 @@ TangentVector::unit_random(const Mesh::Point& application_point) {
     return {application_point, uv};
 }
 
-Point3d
+Eigen::Vector3d
 TangentVector::tip() const noexcept {
     return _application_point.position() + cartesian_vector();
 }
@@ -58,7 +58,7 @@ TangentVector::cartesian_vector() const noexcept {
 std::optional<TangentVector>
 TangentVector::trim() {
     using mdv::condition::are_orthogonal;
-    logger()->trace(
+    logger().trace(
             "Trimming tangent vector with origin '{}', uv: {}",
             _application_point.describe(),
             eigen_to_str(uv())
@@ -119,20 +119,20 @@ TangentVector::trim() {
 
     // Validate
     if ((edge_id == 3) || (t == -1.0)) {
-        logger()->error(
+        logger().error(
                 "TangentVector::trim failed! Could not find a valid intersection to "
                 "project remainder of TangentVector"
         );
-        logger()->warn("Edge id: {}, parameter t = {}", edge_id, t);
-        logger()->warn(
+        logger().warn("Edge id: {}, parameter t = {}", edge_id, t);
+        logger().warn(
                 "Current application point uv: {} (sum = {})",
                 eigen_to_str(_application_point.uv()),
                 _application_point.uv().sum()
         );
-        logger()->warn("Tangent vector uv: {}", eigen_to_str(uv()));
-        logger()->warn("t1 = {}, s1 = {}", t1, s1);
-        logger()->warn("t2 = {}, s2 = {}", t2, s2);
-        logger()->warn("t3 = {}, s3 = {}", t3, s3);
+        logger().warn("Tangent vector uv: {}", eigen_to_str(uv()));
+        logger().warn("t1 = {}, s1 = {}", t1, s1);
+        logger().warn("t2 = {}, s2 = {}", t2, s2);
+        logger().warn("t3 = {}, s3 = {}", t3, s3);
         throw std::runtime_error("TangentVector::trim failed; check log");
     }
 

@@ -37,7 +37,13 @@ Mesh::Point exponential_map(TangentVector v, Geodesic* geod = nullptr);
  * @brief Computes the point-to-face distance
  *
  */
-double distance(const Mesh::Face& f, const Point3d& pt);
+double distance(const Mesh::Face& f, const CartesianPoint& pt);
+
+/**
+ * @brief Computes the point-to-point distance
+ *
+ */
+double distance(const Point& p1, const Point& p2);
 
 /**
  * @brief Given two faces, it yields the pair of shared vertices from the 2 faces.

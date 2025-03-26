@@ -7,7 +7,7 @@
 #include "mdv/utils/conditions.hpp"
 
 using UvMap   = mdv::mesh::UvMap;
-using Point3d = mdv::mesh::Point3d;
+using Point3d = mdv::mesh::CartesianPoint;
 using UvCoord = UvMap::Domain;
 
 TEST(MdvMesh, UvForwardInverseMappings) {

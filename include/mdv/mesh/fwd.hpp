@@ -9,8 +9,30 @@ namespace mdv::mesh {
 class Mesh;
 class UvMap;
 
-using Point3d  = Eigen::Vector3d;
-using Geodesic = std::vector<Point3d>;
+class Vertex;
+class Face;
+class Point;
+class TangentSpace;
+
+using Index = long;
+using IndexTriplet = std::array<Index, 3>; 
+// Note: preferred std::array over Eigen::Vector to leverage unpacking features
+
+using CartesianPoint = Eigen::Vector3d;
+using Geodesic       = std::vector<CartesianPoint>;
+
+// Constants
+constexpr Index invalid_index = -1;
+
+// Internals
+namespace internal {
+
+    class MeshData;
+    class EigenData;
+    class CgalImpl;
+
+
+}  // namespace internal
 
 }  // namespace mdv::mesh
 
