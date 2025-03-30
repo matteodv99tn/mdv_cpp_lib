@@ -13,9 +13,34 @@ To install the dependencies on your machine, you may call the [`install_dependen
 ``` bash
 ./cmake/install_dependencies.sh
 ```
+On ubuntu system, this is equivalent to updating the APT package list and installing the following packages:
+```
+apt-get install -y \
+        cmake build-essential \
+        libeigen3-dev libfmt-dev \
+        libspdlog-dev libcgal-dev libgtest-dev \
+        librange-v3-dev libmsgsl-dev
+```
 
-Still, some library cannot be installed throug package managers (``apt``, ``pacman``); 
-for this reason, a convienient [``CMakeLists.txt``](cmake/CMakeLists.txt) file is provided in order to preliminary fetch those library using cmake's [``ExternalProject``](https://cmake.org/cmake/help/latest/module/ExternalProject.html) functionalities. 
+The lonely (optional) dependency which cannot be installed by APT is the [rerun](https://github.com/rerun-io/rerun) C++ SDK. 
+For convenience, the [matteodv99tn/rerun-sdk-precompiled](https://github.com/matteodv99tn/rerun-sdk-precompiled) repository hosts the precompiled binaries of the SDK as a [prerelease](https://github.com/matteodv99tn/rerun-sdk-precompiled/releases/tag/prerelease).
+
+On Ubuntu 22.04, you may install the precompiled debian package by first fetching it
+``` bash
+curl -LO https://github.com/matteodv99tn/rerun-sdk-precompiled/releases/download/prerelease/rerun-cpp-sdk_0.20_3.deb
+```
+and then installing it
+``` bash
+dpkg -i rerun-cpp-sdk*.deb
+```
+
+
+**Note:** this is tested to work only on Ubuntu 22.04 machine. Installing this package on other system may not work, due to ABI breaking of the arrow library which is bundled with rerun.
+For instance, installing on Arch linux may couse problems.
+
+### Build from source
+
+If you want to build the external dependencies from source, a convenient [``CMakeLists.txt``](cmake/CMakeLists.txt) file is provided in order to preliminary fetch those library using cmake's [``ExternalProject``](https://cmake.org/cmake/help/latest/module/ExternalProject.html) functionalities. 
 
 - Configure the project
   ``` bash
