@@ -2,6 +2,7 @@
 #define MDV_MESH_DATA_HPP
 
 #include <gsl/pointers>
+#include <string>
 
 #include "mdv/mesh/eigen_data.hpp"
 #include "mdv/mesh/fwd.hpp"
@@ -24,6 +25,7 @@ public:
     EigenData             eigen_data;
     gsl::owner<CgalImpl*> impl   = nullptr;
     SpdLoggerPtr          logger = nullptr;
+    std::string           name;
 };
 
 }  // namespace mdv::mesh::internal

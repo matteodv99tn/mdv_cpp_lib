@@ -3,21 +3,21 @@
 
 #include "mdv/mesh/face.hpp"
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/index_element.hpp"
 #include "mdv/mesh/mesh_data.hpp"
 #include "mdv/mesh/uv_map.hpp"
 
 namespace mdv::mesh {
 
-class Point {
+class Point : private Face {
 public:
     using Face     = ::mdv::mesh::Face;
     using UvCoord  = UvMap::Domain;
     using MeshData = ::mdv::mesh::internal::MeshData;
 
-    Point() : _face(), _uv(0.0, 0.0), _uv_map() {};
+    Point() = default;
 
-    Point(const Face& face, const UvCoord& uv) :
-            _face(face), _uv(uv), _uv_map(_face.compute_uv_map()) {}
+    Point(const Face& face, const UvCoord& uv) : Face(face), _uv(uv) {}
 
     /**
      * @brief Retrieves the closes point on the mesh to the given point described in
@@ -70,25 +70,24 @@ public:
     MDV_NODISCARD
     std::string describe() const;
 
+    using Face::uv_map;
+    using internal::MeshElement::cgal;
+    using internal::MeshElement::data;
+    using internal::MeshElement::eigen_data;
+    using internal::MeshElement::logger;
+
     // clang-format off
     MDV_NODISCARD double          u() const noexcept         { return _uv(0); }
     MDV_NODISCARD double          v() const noexcept         { return _uv(1); }
-    MDV_NODISCARD const Face&     face() const noexcept      { return _face; }
-    MDV_NODISCARD Face::Index     face_id() const noexcept   { return _face.id(); }
-    MDV_NODISCARD const MeshData& data() const noexcept      { return _face.data(); }
-    MDV_NODISCARD spdlog::logger& logger() const noexcept    { return _face.logger(); }
+    MDV_NODISCARD const Face&     face() const noexcept      { return *this; }
     MDV_NODISCARD const UvCoord&  uv() const noexcept        { return _uv; }
-    MDV_NODISCARD const UvMap&    uv_map() const noexcept    { return _uv_map; }
 
     MDV_NODISCARD bool operator==(const Point& other) const noexcept;
     MDV_NODISCARD bool operator!=(const Point& other) const noexcept;
     // clang-format on
 private:
     Point(const Face& face, const CartesianPoint& pt);
-
-    Face    _face;
     UvCoord _uv;
-    UvMap   _uv_map;  // Maybe consider caching this variable
 };
 
 

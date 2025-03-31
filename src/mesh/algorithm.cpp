@@ -4,6 +4,7 @@
 
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
+#include "mdv/mesh/conditions.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
@@ -20,6 +21,34 @@ mdv::mesh::length(const Geodesic& geod) {
     for (auto it = geod.cbegin(); it != geod.cend() - 1; ++it)
         res += (*it - *(it + 1)).norm();
     return res;
+}
+
+mdv::mesh::CartesianPoint
+mdv::mesh::point_from_geodesic(
+        const Geodesic& geod, const double s_input, const double* len
+) {
+    double       internal_len = 0.0;
+    const double s_target     = std::clamp(s_input, 0.0, 1.0);
+
+    if (len == nullptr) {
+        internal_len = length(geod);
+        len          = &internal_len;
+    }
+
+    double s_travelled = 0.0;
+
+    for (auto i = 0; i < geod.size() - 1; ++i) {
+        const Eigen::Vector3d delta = geod[i + 1] - geod[i];
+        const double          si    = delta.norm() / (*len);
+        if (s_travelled + si < s_target) {
+            s_travelled += si;
+        } else {
+            const double s_left = s_target - s_travelled;
+            return geod[i] + delta * s_left / si;
+        }
+    }
+
+    return geod.back();
 }
 
 TangentVector
@@ -39,7 +68,7 @@ mdv::mesh::parallel_transport(const TangentVector& v, const Mesh::Point& p) {
             eigen_to_str(p.position())
     );
 
-    if (v.application_point().face_id() == p.face_id()) return {p, v.uv()};
+    if (v.application_point().face() == p.face()) return {p, v.uv()};
 
     const Mesh::Point& o = v.application_point();
     assert(o.data().impl);
@@ -61,17 +90,18 @@ mdv::mesh::parallel_transport(const TangentVector& v, const Mesh::Point& p) {
 
 TangentVector
 mdv::mesh::logarithmic_map(const Mesh::Point& p, const Mesh::Point& y) {
-    assert(&p.data() == &y.data());
+    require_on_same_mesh(p.face(), y.face());
+
     p.logger().debug(
             "Computing logarithmic map of point {} w.r.t. point {}",
             eigen_to_str(y.position()),
             eigen_to_str(p.position())
     );
 
-    if (p.face_id() == y.face_id()) return {p, Mesh::Point::UvCoord(y.uv() - p.uv())};
+    if (p.face().id() == y.face().id())
+        return {p, Mesh::Point::UvCoord(y.uv() - p.uv())};
 
-    assert(p.data().impl);
-    const auto geod        = internal::construct_geodesic(*p.data().impl, p, y);
+    const auto geod        = internal::construct_geodesic(p.cgal(), p, y);
     auto       log_map_dir = (geod[1] - geod[0]).normalized();
     auto       log_map_len = length(geod);
     return {p, Vec3d(log_map_len * log_map_dir)};
@@ -122,11 +152,7 @@ mdv::mesh::distance(const Mesh::Point& p1, const Mesh::Point& p2) {
 
 std::pair<Mesh::Vertex, Mesh::Vertex>
 mdv::mesh::shared_vertices(const Mesh::Face& f1, const Mesh::Face& f2) {
-    if (&f1.data() != &f2.data()) {
-        throw std::runtime_error(
-                "Cannot retrieve shared vertices of faces coming from different meshes."
-        );
-    }
+    require_on_same_mesh(f1, f2);
 
     std::vector<Mesh::Vertex::Index> indices;
     indices.reserve(3);

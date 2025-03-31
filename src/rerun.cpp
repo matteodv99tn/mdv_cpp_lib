@@ -1,13 +1,11 @@
 #include "mdv/rerun.hpp"
 
-#include <algorithm>
-#include <cstdint>
-#include <iterator>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 
 #include <rerun/archetypes/mesh3d.hpp>
 #include <rerun/archetypes/points3d.hpp>
+#include <rerun/archetypes/series_point.hpp>
 #include <rerun/collection.hpp>
 #include <rerun/components/position3d.hpp>
 #include <rerun/components/triangle_indices.hpp>
@@ -110,6 +108,32 @@ RerunConverter::operator()(const std::vector<TangentVector>& vecs) const {
             .with_origins(std::move(origins));
 }
 
+rra::Arrows3D
+RerunConverter::operator()(
+        const Eigen::Vector3d& pos, const Eigen::Quaterniond& ori, const double scale
+) const {
+    rrd::Vec3D dx = operator()(ori* Eigen::Vector3d::UnitX() * scale);
+    rrd::Vec3D dy = operator()(ori* Eigen::Vector3d::UnitY() * scale);
+    rrd::Vec3D dz = operator()(ori* Eigen::Vector3d::UnitZ() * scale);
+    rrd::Vec3D o  = operator()(pos);
+
+    return rra::Arrows3D::from_vectors({dx, dy, dz})
+            .with_origins({o, o, o})
+            .with_colors(
+                    {rrc::Color(255, 0, 0, 255),
+                     rrc::Color(0, 255, 0, 255),
+                     rrc::Color(0, 0, 255, 255)}
+            );
+}
+
+rra::Points3D
+RerunConverter::as_points(const std::vector<Eigen::Vector3d>& pts) const {
+    std::vector<rrc::Position3D> pos;
+    pos.reserve(pts.size());
+    for (const auto& p : pts) pos.emplace_back(operator()(p));
+    return rra::Points3D(std::move(pos));
+}
+
 //  ____       _            _
 // |  _ \ _ __(_)_   ____ _| |_ ___
 // | |_) | '__| \ \ / / _` | __/ _ \
@@ -119,8 +143,9 @@ RerunConverter::operator()(const std::vector<TangentVector>& vecs) const {
 
 rrd::Vec3D
 RerunConverter::operator()(const Eigen::Vector3d& x) const {
-    return {static_cast<float>(x(0)), static_cast<float>(x(1)), static_cast<float>(x(2))
-    };
+    return {static_cast<float>(x(0)),
+            static_cast<float>(x(1)),
+            static_cast<float>(x(2))};
 }
 
 std::vector<rrc::Vector3D>

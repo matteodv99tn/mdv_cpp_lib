@@ -14,8 +14,8 @@ class Face;
 class Point;
 class TangentSpace;
 
-using Index = long;
-using IndexTriplet = std::array<Index, 3>; 
+using Index        = long;
+using IndexTriplet = std::array<Index, 3>;
 // Note: preferred std::array over Eigen::Vector to leverage unpacking features
 
 using CartesianPoint = Eigen::Vector3d;

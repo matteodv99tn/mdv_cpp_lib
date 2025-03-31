@@ -20,9 +20,9 @@ using mdv::mesh::TangentVector;
 //   |_|\__,_|_| |_|\__, |\___|_| |_|\__| \_/ \___|\___|\__\___/|_|
 //                  |___/
 TangentVector::TangentVector(const Point& app_point, const Vec3d& v) :
-        _application_point(app_point) {
+        Point(app_point) {
     assert(mdv::condition::are_orthogonal(app_point.face().normal(), v));
-    _uv = jac().householderQr().solve(v);
+    _uv = jac().colPivHouseholderQr().solve(v);
 }
 
 TangentVector
@@ -47,7 +47,7 @@ TangentVector::unit_random(const Mesh::Point& application_point) {
 
 Eigen::Vector3d
 TangentVector::tip() const noexcept {
-    return _application_point.position() + cartesian_vector();
+    return application_point().position() + cartesian_vector();
 }
 
 mdv::Vec3d
@@ -60,7 +60,7 @@ TangentVector::trim() {
     using mdv::condition::are_orthogonal;
     logger().trace(
             "Trimming tangent vector with origin '{}', uv: {}",
-            _application_point.describe(),
+            application_point().describe(),
             eigen_to_str(uv())
     );
 
@@ -73,7 +73,7 @@ TangentVector::trim() {
      * Second point and vector are provided as arguments and will represent the
      * different edges of the unitary triangle.
      */
-    auto compute_intersection = [p1 = _application_point.uv(), v1 = uv()](
+    auto compute_intersection = [p1 = application_point().uv(), v1 = uv()](
                                         const UvCoord&& p2, const UvCoord&& v2
                                 ) -> std::pair<double, double> {
         Eigen::Matrix2d A;  // NOLINT
@@ -126,8 +126,8 @@ TangentVector::trim() {
         logger().warn("Edge id: {}, parameter t = {}", edge_id, t);
         logger().warn(
                 "Current application point uv: {} (sum = {})",
-                eigen_to_str(_application_point.uv()),
-                _application_point.uv().sum()
+                eigen_to_str(application_point().uv()),
+                application_point().uv().sum()
         );
         logger().warn("Tangent vector uv: {}", eigen_to_str(uv()));
         logger().warn("t1 = {}, s1 = {}", t1, s1);
@@ -141,9 +141,9 @@ TangentVector::trim() {
                               // motion by the vector
 
     // Retrieve new point on the boarder
-    const auto boarder_uv  = _application_point.uv() + t * uv();
-    const auto boarder_pos = _application_point.uv_map().forward_map(boarder_uv);
-    const auto new_face    = _application_point.face().neighbour_face(edge_id);
+    const auto boarder_uv  = application_point().uv() + t * uv();
+    const auto boarder_pos = application_point().uv_map().forward_map(boarder_uv);
+    const auto new_face    = application_point().face().neighbour_face(edge_id);
     const auto new_app_point =
             Mesh::Point::from_face_and_position(new_face, boarder_pos)
                     .constrain_inside_triangle();
@@ -158,10 +158,10 @@ TangentVector::trim() {
     //  3. chose between clockwise / counter-clocwise rotation
 
     const auto [v_shared1, v_shared2] =
-            mdv::mesh::shared_vertices(_application_point.face(), new_face);
+            mdv::mesh::shared_vertices(application_point().face(), new_face);
     const auto edge = (v_shared1.position() - v_shared2.position()).normalized();
 
-    const auto   n1        = _application_point.face().normal();
+    const auto   n1        = application_point().face().normal();
     const auto   n2        = new_face.normal();
     const auto   cos_theta = n1.dot(n2);
     const double theta     = std::acos(cos_theta);

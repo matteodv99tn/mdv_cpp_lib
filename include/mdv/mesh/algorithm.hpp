@@ -9,6 +9,20 @@ namespace mdv::mesh {
 
 double length(const Geodesic& geod);
 
+
+/**
+ * @brief Retrieves the point at a given normalised curvilinear coordinate "s" on a
+ * geodesic.
+ *
+ * s is assumed to be in the range 0 (beginning of geodesic) to 1 (end of geodesic).
+ * To avoid recomputation of the geodesic length, the parameter can be passed as
+ * pointer. If not provided, the value is computed.
+ *
+ */
+CartesianPoint point_from_geodesic(
+        const Geodesic& geod, double s, const double* len = nullptr
+);
+
 /**
  * @brief Computes the parallel transport of vector v on point p
  *

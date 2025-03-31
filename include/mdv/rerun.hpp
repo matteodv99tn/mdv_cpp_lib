@@ -2,10 +2,14 @@
 #ifndef MDV_RERUN_INTEGRATION_HPP
 #define MDV_RERUN_INTEGRATION_HPP
 
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
+
 #include <rerun/archetypes/arrows3d.hpp>
 #include <rerun/archetypes/line_strips3d.hpp>
 #include <rerun/archetypes/mesh3d.hpp>
 #include <rerun/archetypes/points3d.hpp>
+#include <rerun/archetypes/series_point.hpp>
 
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
@@ -30,8 +34,18 @@ public:
     MDV_NODISCARD ::rerun::archetypes::Points3D
     operator()(const std::vector<::mdv::mesh::Mesh::Point>&) const;
 
+
     MDV_NODISCARD ::rerun::archetypes::Arrows3D
     operator()(const std::vector<::mdv::mesh::TangentVector>&) const;
+
+    MDV_NODISCARD ::rerun::archetypes::Arrows3D operator()(
+            const Eigen::Vector3d&    position,
+            const Eigen::Quaterniond& orientation,
+            double                    scale = 0.4
+    ) const;
+
+    MDV_NODISCARD ::rerun::archetypes::Points3D
+    as_points(const std::vector<Eigen::Vector3d>&) const;
 
 protected:
     MDV_NODISCARD

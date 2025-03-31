@@ -65,7 +65,11 @@ public:
     // Getters
     MDV_NODISCARD std::size_t num_vertices() const;
     MDV_NODISCARD std::size_t num_faces() const;
-    MDV_NODISCARD std::string_view name() const;
+
+    MDV_NODISCARD std::string_view
+                  name() const {
+                      return data().name;
+    };
 
     // clang-format off
     MDV_NODISCARD Face            face(const Index& id) const   { return {_data, id}; }
@@ -105,22 +109,10 @@ public:
 
 
 private:
-    Mesh(gsl::owner<CgalImpl*> data);
-
-    /**
-     * @brief Syncs internal vertex data storage with the one of CGAL.
-     */
-    void sync_vertex_data();
-
-    /**
-     * @brief Syncs internal face data storage with the one of CGAL.
-     */
-    void sync_face_data();
-
+    Mesh(gsl::owner<CgalImpl*> data, const std::string& name);
 
     // Members
-    MeshData    _data;
-    std::string _name;
+    MeshData _data;
 };
 
 }  // namespace mdv::mesh

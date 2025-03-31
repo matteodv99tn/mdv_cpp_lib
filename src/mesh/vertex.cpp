@@ -28,5 +28,14 @@ Vertex::normal() const {
 
 std::string
 Vertex::describe() const {
-    return fmt::format("ID #{}: {}", id(), eigen_to_str(position()));
+    if (_mesh_data == nullptr) return "Vertex object of unspecified mesh";
+    if (id() == invalid_index)
+        return fmt::format("Invalid vertex on mesh '{}'", data().name);
+
+    return fmt::format(
+            "Vertex ID #{} (position: {}) on mesh '{}'",
+            id(),
+            eigen_to_str(position()),
+            data().name
+    );
 }

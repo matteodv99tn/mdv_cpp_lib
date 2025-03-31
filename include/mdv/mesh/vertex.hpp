@@ -8,7 +8,7 @@
 
 namespace mdv::mesh {
 
-class Vertex : public internal::IndexBasedElement {
+class Vertex : public internal::IndexBasedMeshElement {
 public:
     using Index     = ::mdv::mesh::Index;
     using MeshData  = ::mdv::mesh::internal::MeshData;
@@ -16,14 +16,9 @@ public:
     using Iterator  = MeshIterator<Vertex, Index>;
 
     Vertex(const MeshData& data, const Index& id) noexcept :
-            IndexBasedElement(data, id) {};
+            IndexBasedMeshElement(data, id){};
 
     MDV_NODISCARD Eigen::Vector3d normal() const;
-
-    bool
-    operator==(const Vertex& other) const noexcept {
-        return (_mesh_data == other._mesh_data) && (_id == other._id);
-    }
 
     MDV_NODISCARD const CartesianPoint&
     position() const noexcept {
@@ -32,7 +27,7 @@ public:
     }
 
     MDV_NODISCARD
-    std::string describe() const;
+    std::string describe() const override;
 
 private:
     friend class MeshIterator<Vertex, Index>;

@@ -1,13 +1,16 @@
 #ifndef MDV_MESH_FACE_HPP
 #define MDV_MESH_FACE_HPP
 
+#include <optional>
+
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/index_element.hpp"
 #include "mdv/mesh/mesh_iterator.hpp"
+#include "mdv/mesh/uv_map.hpp"
 
 namespace mdv::mesh {
-class Face : public internal::IndexBasedElement {
+class Face : public internal::IndexBasedMeshElement {
 public:
     using Index         = long;
     using IndexTriplet  = ::mdv::mesh::IndexTriplet;
@@ -15,7 +18,7 @@ public:
     using VertexTriplet = std::array<Vertex, 3>;
 
     Face() = default;
-    Face(const internal::MeshData& m, const Index& id) : IndexBasedElement(m, id) {};
+    Face(const internal::MeshData& m, const Index& id) : IndexBasedMeshElement(m, id){};
 
     static Face random(const Mesh& m);
 
@@ -53,38 +56,43 @@ public:
         return eigen_data().faces[_id];
     }
 
-    bool
-    operator==(const Face& other) const noexcept {
-        return (_mesh_data == other._mesh_data) && (_id == other._id);
+    MDV_NODISCARD const UvMap&
+    uv_map() const {
+        assert(is_valid());
+        if (!_uv_map.has_value()) _uv_map = UvMap(v1(), v2(), v3());
+        assert(_uv_map.has_value());
+        return _uv_map.value();
     }
+
+    MDV_NODISCARD std::string describe() const override;
 
 
 private:
     friend class MeshIterator<Face, Index>;
     friend class Point;
 
+    mutable std::optional<UvMap> _uv_map = std::nullopt;
+
     // clang-format off
-        void set_id(const Index& id) noexcept { _id = id; }
+    void set_id(const Index& id) noexcept { _id = id; }
 
-        /**
-         * @brief Return the position of the first vertex within the face.
-         *
-         */
-        MDV_NODISCARD const CartesianPoint& v1() const noexcept { return eigen_data().vertices[eigen_data().faces[_id][0]]; };
+    /**
+     * @brief Return the position of the first vertex within the face.
+     *
+     */
+    MDV_NODISCARD const CartesianPoint& v1() const noexcept { return eigen_data().vertices[eigen_data().faces[_id][0]]; };
 
-        /**
-         * @brief Return the position of the second vertex within the face.
-         *
-         */
-        MDV_NODISCARD const CartesianPoint& v2() const noexcept { return eigen_data().vertices[eigen_data().faces[_id][1]]; };
+    /**
+     * @brief Return the position of the second vertex within the face.
+     *
+     */
+    MDV_NODISCARD const CartesianPoint& v2() const noexcept { return eigen_data().vertices[eigen_data().faces[_id][1]]; };
 
-        /**
-         * @brief Return the position of the third vertex within the face.
-         *
-         */
-        MDV_NODISCARD const CartesianPoint& v3() const noexcept { return eigen_data().vertices[eigen_data().faces[_id][2]]; };
-
-        MDV_NODISCARD UvMap compute_uv_map() const;// { assert(_id != -1); return {v1(), v2(), v3()}; };
+    /**
+     * @brief Return the position of the third vertex within the face.
+     *
+     */
+    MDV_NODISCARD const CartesianPoint& v3() const noexcept { return eigen_data().vertices[eigen_data().faces[_id][2]]; };
 
     // clang-format on
 };

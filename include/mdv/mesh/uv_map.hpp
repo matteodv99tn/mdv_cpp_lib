@@ -20,7 +20,7 @@ public:
     using CoDomain  = CartesianPoint;
     using Transform = Eigen::Matrix<double, 3, 2>;
 
-    UvMap() : _origin(CoDomain::Zero()), _transform(Transform::Zero()) {};
+    UvMap() : _origin(CoDomain::Zero()), _transform(Transform::Zero()){};
 
     UvMap(const CoDomain& v1, const CoDomain& v2, const CoDomain& v3) : _origin(v1) {
         assert(v1 != v2);
@@ -43,7 +43,7 @@ public:
 
     MDV_NODISCARD Domain
     inverse_map(const CoDomain& in) const {
-        return _transform.householderQr().solve(in - _origin);
+        return _transform.colPivHouseholderQr().solve(in - _origin);
     }
 
 private:

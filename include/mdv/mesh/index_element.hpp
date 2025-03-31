@@ -6,30 +6,60 @@
 #include "mdv/mesh/mesh_data.hpp"
 
 namespace mdv::mesh::internal {
-class IndexBasedElement {
+
+class MeshElement {
 public:
-    using Index     = ::mdv::mesh::Index;
     using MeshData  = ::mdv::mesh::internal::MeshData;
     using EigenData = ::mdv::mesh::internal::EigenData;
+    using CgalImpl  = ::mdv::mesh::internal::CgalImpl;
 
-    IndexBasedElement() = default;
+    MeshElement() = default;
 
-    IndexBasedElement(const MeshData& data, const Index& id) noexcept :
-            _mesh_data(&data), _id(id) {};
+    MeshElement(const MeshData& data) noexcept : _mesh_data(&data) {}
 
     // clang-format off
-    MDV_NODISCARD bool             is_valid() const noexcept   { return (_mesh_data != nullptr) && (_id != invalid_index);}
-    MDV_NODISCARD Index            id() const noexcept         { return _id; }
+    MDV_NODISCARD virtual bool     is_valid() const noexcept   { return (_mesh_data != nullptr); }
 
     MDV_NODISCARD const MeshData&  data() const noexcept       { assert(is_valid()); return *_mesh_data; }
     MDV_NODISCARD const EigenData& eigen_data() const noexcept { assert(is_valid()); return _mesh_data->eigen_data; }
     MDV_NODISCARD spdlog::logger&  logger() const noexcept     { assert(is_valid()); return *_mesh_data->logger.get(); };
+    MDV_NODISCARD const CgalImpl&  cgal() const noexcept       { assert(is_valid()); return *_mesh_data->impl; }
 
     // clang-format on
 
+    MDV_NODISCARD virtual std::string describe() const = 0;
+
+    MDV_NODISCARD const MeshData*
+    data_ptr() const {
+        return _mesh_data;
+    }
+
 protected:
     const MeshData* _mesh_data = nullptr;
-    Index           _id        = invalid_index;
+};
+
+class IndexBasedMeshElement : public MeshElement {
+public:
+    using Index = ::mdv::mesh::Index;
+
+    IndexBasedMeshElement() = default;
+
+    IndexBasedMeshElement(const MeshData& data, const Index& id) noexcept :
+            MeshElement(data), _id(id){};
+
+    // clang-format off
+    MDV_NODISCARD bool  is_valid() const noexcept override { return MeshElement::is_valid() && (_id != invalid_index);}
+    MDV_NODISCARD Index id() const noexcept                { return _id; }
+
+    // clang-format on
+
+    bool
+    operator==(const IndexBasedMeshElement& other) const noexcept {
+        return (_mesh_data == other._mesh_data) && (_id == other._id);
+    }
+
+protected:
+    Index _id = invalid_index;
 };
 
 

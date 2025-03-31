@@ -2,6 +2,7 @@
 #define MDV_MESH_EIGEN_DATA_HPP
 
 #include <Eigen/Dense>
+#include <spdlog/fwd.h>
 #include <vector>
 
 #include "mdv/mesh/fwd.hpp"
@@ -18,6 +19,13 @@ class EigenData {
 public:
     using Vector3d     = Eigen::Vector3d;
     using IndexTriplet = ::mdv::mesh::IndexTriplet;
+
+    EigenData() = default;
+
+    /**
+     * @brief Construct the Eigen-based data from a Cgal implementation.
+     */
+    EigenData(const CgalImpl&, spdlog::logger& logger);
 
     /**
      * @brief Vertices of the mesh represented as a vector of 3D vectors.

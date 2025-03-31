@@ -24,8 +24,7 @@ using mdv::mesh::internal::CgalImpl;
 //  \____\___/|_| |_|___/\__|_|   \__,_|\___|\__\___/|_|  |___/
 //
 
-Point::Point(const Face& face, const CartesianPoint& pt) :
-        _face(face), _uv_map(_face.compute_uv_map()) {
+Point::Point(const Face& face, const CartesianPoint& pt) : Face(face) {
     _uv = uv_map().inverse_map(pt);
 }
 
@@ -65,14 +64,14 @@ Mesh::Point::random(const Mesh& m) noexcept {
 
 bool
 Mesh::Point::is_undefined() const noexcept {
-    return face_id() == -1 && _uv == UvCoord(-1.0, -1.0);
+    return !Face::is_valid() && _uv == UvCoord(-1.0, -1.0);
 }
 
 Eigen::Vector3d
 Mesh::Point::barycentric() const noexcept {
-    const auto& v1 = _face.v1();
-    const auto& v2 = _face.v2();
-    const auto& v3 = _face.v3();
+    const auto& v1 = face().v1();
+    const auto& v2 = face().v2();
+    const auto& v3 = face().v3();
 
     Eigen::Matrix3d A;
     A.col(0) = v1;

@@ -2,6 +2,7 @@
 
 #include <CGAL/boost/graph/iterator.h>
 #include <cstdlib>
+#include <fmt/format.h>
 #include <gsl/assert>
 #include <random>
 #include <spdlog/spdlog.h>
@@ -43,15 +44,19 @@ Face::vertices() const {
     return {Vertex(data(), ids[0]), Vertex(data(), ids[1]), Vertex(data(), ids[2])};
 }
 
-mdv::mesh::UvMap
-Face::compute_uv_map() const {
-    if (id() == -1) {
-        logger().trace("Initialised UV map on undefined face!");
-        return {
-                {0.0, 0.0, 0.0},
-                {0.0, 1.0, 0.0},
-                {1.0, 0.0, 0.0}
-        };
-    }
-    return {v1(), v2(), v3()};
+std::string
+Face::describe() const {
+    if (_mesh_data == nullptr) return "Face object of unspecified mesh";
+    if (id() == invalid_index)
+        return fmt::format("Invalid face on mesh '{}'", data().name);
+
+    const auto [v1, v2, v3] = vertices_ids();
+    return fmt::format(
+            "Face ID #{} (vertices {}, {}, {}) of mesh '{}'",
+            id(),
+            v1,
+            v2,
+            v3,
+            data().name
+    );
 }

@@ -1,18 +1,51 @@
+#include "mdv/mesh/cgal_impl.hpp"
+
 #include <CGAL/Polygon_mesh_processing/compute_normal.h>
+#include <CGAL/Polygon_mesh_processing/IO/polygon_mesh_io.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
+#include <filesystem>
 #include <spdlog/spdlog.h>
 
 #include <range/v3/algorithm/transform.hpp>
 
 #include "mdv/mesh/algorithm.hpp"
-#include "mdv/mesh/cgal_impl.hpp"
+#include "mdv/mesh/conditions.hpp"
 #include "mdv/mesh/point.hpp"
+
+using std::filesystem::path;
 
 namespace rs = ranges;
 using ::mdv::mesh::internal::CgalImpl;
 
+CgalImpl::CgalImpl(const Mesh&& mesh, SpdLoggerPtr&& logger) :
+        _mesh(mesh), _logger(std::move(logger)) {
+    _shortest_path = std::make_unique<ShortestPath>(_mesh);
+    this->logger().trace("Initialised shortest path object");
+
+    _shortest_path->build_aabb_tree(_aabb_tree);
+    this->logger().trace("Built AABB tree of the mesh");
+
+    build_vertex_normals_map();
+}
+
 CgalImpl::~CgalImpl() {
     delete _current_shortpath_source;
+}
+
+gsl::owner<CgalImpl*>
+CgalImpl::from_file(const path& file_path, SpdLoggerPtr&& logger) {
+    assert(logger != nullptr);
+    CgalImpl::Mesh mesh;
+    logger->info("Loading mesh from file {}", file_path.string());
+    // const bool loaded = CGAL::IO::read_polygon_mesh(file_path.string(), mesh);
+    const bool loaded = CGAL::Polygon_mesh_processing::IO::read_polygon_mesh(
+            file_path.string(), mesh
+    );
+    if (!loaded) {
+        logger->error("Unable to load mesh {}", file_path.string());
+        throw std::runtime_error("Cannot load mesh");
+    }
+    return new CgalImpl(std::move(mesh), std::move(logger));
 }
 
 CgalImpl::FaceLocation
@@ -21,7 +54,7 @@ mdv::mesh::internal::location_from_mesh_point(const ::mdv::mesh::Point& pt) noex
     // appears coorect w.r.t. to Cgal internal data alignment
     const Eigen::Vector3d b = pt.barycentric();
     std::array<double, 3> bar_coords{b(2), b(0), b(1)};
-    return {static_cast<CGAL::SM_Face_index>(pt.face_id()), bar_coords};
+    return {static_cast<CGAL::SM_Face_index>(pt.face().id()), bar_coords};
 }
 
 ::mdv::mesh::Geodesic
@@ -50,7 +83,7 @@ mdv::mesh::internal::construct_geodesic(
         const ::mdv::mesh::Point& from,
         const ::mdv::mesh::Point& to
 ) {
-    Expects(&from.data() == &to.data());
+    require_on_same_mesh(from.face(), to.face());
 
     auto& curr_target = cgal_data._current_shortpath_source;
 

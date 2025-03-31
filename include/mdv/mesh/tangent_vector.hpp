@@ -5,18 +5,18 @@
 
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
-#include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/index_element.hpp"
+#include "mdv/mesh/point.hpp"
 #include "mdv/mesh/uv_map.hpp"
 
 namespace mdv::mesh {
 
-class TangentVector {
+class TangentVector : Point {
 public:
-    using Point   = Mesh::Point;
-    using UvCoord = Mesh::Point::UvCoord;
+    using UvCoord = Point::UvCoord;
 
     TangentVector(const Point& app_point, const UvCoord& uv) :
-            _application_point(app_point), _uv(uv) {};
+            Point(app_point), _uv(uv){};
     TangentVector(const Point& app_point, const Eigen::Vector3d& v);
 
     /**
@@ -24,10 +24,10 @@ public:
      * "tip" position of the vector.
      */
     static TangentVector from_tip_position(
-            const Mesh::Point& application_point, const CartesianPoint& tip
+            const Point& application_point, const CartesianPoint& tip
     );
 
-    static TangentVector unit_random(const Mesh::Point& application_point);
+    static TangentVector unit_random(const Point& application_point);
 
     MDV_NODISCARD CartesianPoint tip() const noexcept;
 
@@ -69,20 +69,19 @@ public:
 
     // clang-format off
     MDV_NODISCARD const UvCoord&  uv() const                { return _uv; }
-    MDV_NODISCARD const UvMap&    uv_map() const            { return _application_point.uv_map(); }
-    MDV_NODISCARD const Point&    application_point() const { return _application_point; }
-    MDV_NODISCARD spdlog::logger& logger() const            { return application_point().logger(); }
+    using Point::uv_map;
+    using internal::MeshElement::logger;
+    MDV_NODISCARD const Point&    application_point() const { return *this; }
 
     // clang-format on
 
 private:
-    Point   _application_point;
     UvCoord _uv;
 
     MDV_NODISCARD
     const UvMap::Transform&
     jac() const {
-        return _application_point.uv_map().forward_map_jacobian();
+        return uv_map().forward_map_jacobian();
     }
 };
 
