@@ -4,7 +4,6 @@
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <Eigen/Geometry>
 #include <gsl/assert>
-#include <spdlog/spdlog.h>
 #include <string_view>
 
 #include "mdv/mesh/cgal_impl.hpp"
@@ -27,9 +26,9 @@ using std::filesystem::path;
 //
 Mesh
 Mesh::from_file(const std::filesystem::path& file_path) {
-    const std::string     file_name = file_path.stem().string();
-    auto                  logger    = class_logger_factory("Mesh", file_name, Debug);
-    gsl::owner<CgalImpl*> data      = CgalImpl::from_file(file_path, std::move(logger));
+    const std::string file_name = file_path.stem().string();
+    auto logger = class_logger_factory("Mesh", file_name, Logger::LogLevel::Debug);
+    gsl::owner<CgalImpl*> data = CgalImpl::from_file(file_path, std::move(logger));
     return Mesh(data, file_name);
 }
 

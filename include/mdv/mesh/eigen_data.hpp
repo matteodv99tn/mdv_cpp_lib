@@ -2,10 +2,10 @@
 #define MDV_MESH_EIGEN_DATA_HPP
 
 #include <Eigen/Dense>
-#include <spdlog/fwd.h>
 #include <vector>
 
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/utils/logging.hpp"
 
 namespace mdv::mesh::internal {
 
@@ -25,7 +25,7 @@ public:
     /**
      * @brief Construct the Eigen-based data from a Cgal implementation.
      */
-    EigenData(const CgalImpl&, spdlog::logger& logger);
+    EigenData(const CgalImpl&, Logger& logger);
 
     /**
      * @brief Vertices of the mesh represented as a vector of 3D vectors.

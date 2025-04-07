@@ -1,7 +1,5 @@
 #include "mdv/mesh/algorithm.hpp"
 
-#include <spdlog/spdlog.h>
-
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/conditions.hpp"

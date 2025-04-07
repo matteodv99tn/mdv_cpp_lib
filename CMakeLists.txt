@@ -65,6 +65,7 @@ add_library(
     # General purpose
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/logging.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/logging_extras.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/spdlog.cpp
 
     # Mesh
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/vertex.cpp

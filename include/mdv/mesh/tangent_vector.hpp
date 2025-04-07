@@ -16,7 +16,7 @@ public:
     using UvCoord = Point::UvCoord;
 
     TangentVector(const Point& app_point, const UvCoord& uv) :
-            Point(app_point), _uv(uv){};
+            Point(app_point), _uv(uv) {};
     TangentVector(const Point& app_point, const Eigen::Vector3d& v);
 
     /**

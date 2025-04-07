@@ -64,7 +64,7 @@ protected:
     MDV_NODISCARD
     ::rerun::datatypes::Vec3D operator()(const Eigen::Vector3d&) const;
 
-    static SpdLoggerPtr _logger;
+    static LoggerPtr _logger;
 };
 
 class MeshRerunConverter : public RerunConverter {};

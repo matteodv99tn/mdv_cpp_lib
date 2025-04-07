@@ -19,12 +19,12 @@ public:
     MeshData& operator=(const MeshData&) = default;
     MeshData& operator=(MeshData&&)      = delete;
 
-    MeshData(EigenData eigen_data, SpdLoggerPtr logger) :
+    MeshData(EigenData eigen_data, LoggerPtr logger) :
             eigen_data(std::move(eigen_data)), logger(std::move(logger)) {}
 
     EigenData             eigen_data;
     gsl::owner<CgalImpl*> impl   = nullptr;
-    SpdLoggerPtr          logger = nullptr;
+    LoggerPtr             logger = nullptr;
     std::string           name;
 };
 

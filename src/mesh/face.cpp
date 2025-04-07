@@ -5,7 +5,6 @@
 #include <fmt/format.h>
 #include <gsl/assert>
 #include <random>
-#include <spdlog/spdlog.h>
 
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/fwd.hpp"

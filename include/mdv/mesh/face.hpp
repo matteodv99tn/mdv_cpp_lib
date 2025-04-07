@@ -18,7 +18,8 @@ public:
     using VertexTriplet = std::array<Vertex, 3>;
 
     Face() = default;
-    Face(const internal::MeshData& m, const Index& id) : IndexBasedMeshElement(m, id){};
+    Face(const internal::MeshData& m, const Index& id) :
+            IndexBasedMeshElement(m, id) {};
 
     static Face random(const Mesh& m);
 

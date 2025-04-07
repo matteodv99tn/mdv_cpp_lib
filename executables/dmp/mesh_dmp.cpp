@@ -3,6 +3,8 @@
 #include <sstream>
 #include <string>
 
+#include "mdv/utils/logging.hpp"
+
 #ifdef MDV_WITH_RERUN_SDK
 #include <rerun.hpp>
 #include <rerun/archetypes/series_line.hpp>
@@ -39,7 +41,7 @@ main() {
     fmt::print("Selected mesh path: {}\n", mesh_path);
     const auto mesh = Mesh::from_file(mesh_path);
     fmt::print("Mesh loaded\n");
-    mesh.logger().set_level(spdlog::level::info);
+    mesh.logger().set_log_level(mdv::Logger::LogLevel::Info);
 
 
     using namespace std::chrono_literals;

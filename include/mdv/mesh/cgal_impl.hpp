@@ -59,17 +59,17 @@ public:
 
     // Factory functions
     static gsl::owner<CgalImpl*> from_file(
-            const std::filesystem::path& file_path, SpdLoggerPtr&& logger
+            const std::filesystem::path& file_path, LoggerPtr&& logger
     );
 
-    CgalImpl(const Mesh&& mesh, SpdLoggerPtr&& logger);
+    CgalImpl(const Mesh&& mesh, LoggerPtr&& logger);
     CgalImpl(const CgalImpl&);
     CgalImpl& operator=(const CgalImpl&);
     CgalImpl(CgalImpl&&) noexcept;
     CgalImpl& operator=(CgalImpl&&) noexcept;
     ~CgalImpl();
 
-    mutable SpdLoggerPtr                  _logger;
+    mutable LoggerPtr                     _logger;
     Mesh                                  _mesh;
     std::unique_ptr<ShortestPath>         _shortest_path;
     AabbTree                              _aabb_tree;
@@ -77,7 +77,7 @@ public:
 
     void build_vertex_normals_map() noexcept;
 
-    spdlog::logger&
+    Logger&
     logger() const {
         assert(_logger);
         return *_logger;

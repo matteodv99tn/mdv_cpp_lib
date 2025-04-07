@@ -4,6 +4,7 @@
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh_data.hpp"
+#include "mdv/utils/logging.hpp"
 
 namespace mdv::mesh::internal {
 
@@ -22,7 +23,7 @@ public:
 
     MDV_NODISCARD const MeshData&  data() const noexcept       { assert(is_valid()); return *_mesh_data; }
     MDV_NODISCARD const EigenData& eigen_data() const noexcept { assert(is_valid()); return _mesh_data->eigen_data; }
-    MDV_NODISCARD spdlog::logger&  logger() const noexcept     { assert(is_valid()); return *_mesh_data->logger.get(); };
+    MDV_NODISCARD Logger&          logger() const noexcept     { assert(is_valid()); return *_mesh_data->logger.get(); };
     MDV_NODISCARD const CgalImpl&  cgal() const noexcept       { assert(is_valid()); return *_mesh_data->impl; }
 
     // clang-format on
@@ -45,7 +46,7 @@ public:
     IndexBasedMeshElement() = default;
 
     IndexBasedMeshElement(const MeshData& data, const Index& id) noexcept :
-            MeshElement(data), _id(id){};
+            MeshElement(data), _id(id) {};
 
     // clang-format off
     MDV_NODISCARD bool  is_valid() const noexcept override { return MeshElement::is_valid() && (_id != invalid_index);}

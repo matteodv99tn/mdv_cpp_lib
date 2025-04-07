@@ -16,7 +16,7 @@ public:
     using Iterator  = MeshIterator<Vertex, Index>;
 
     Vertex(const MeshData& data, const Index& id) noexcept :
-            IndexBasedMeshElement(data, id){};
+            IndexBasedMeshElement(data, id) {};
 
     MDV_NODISCARD Eigen::Vector3d normal() const;
 

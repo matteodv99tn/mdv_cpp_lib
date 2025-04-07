@@ -2,7 +2,6 @@
 
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <cstdlib>
-#include <spdlog/spdlog.h>
 
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_impl.hpp"

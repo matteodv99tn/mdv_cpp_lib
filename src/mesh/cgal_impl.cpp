@@ -4,7 +4,6 @@
 #include <CGAL/Polygon_mesh_processing/IO/polygon_mesh_io.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <filesystem>
-#include <spdlog/spdlog.h>
 
 #include <range/v3/algorithm/transform.hpp>
 
@@ -17,7 +16,7 @@ using std::filesystem::path;
 namespace rs = ranges;
 using ::mdv::mesh::internal::CgalImpl;
 
-CgalImpl::CgalImpl(const Mesh&& mesh, SpdLoggerPtr&& logger) :
+CgalImpl::CgalImpl(const Mesh&& mesh, LoggerPtr&& logger) :
         _mesh(mesh), _logger(std::move(logger)) {
     _shortest_path = std::make_unique<ShortestPath>(_mesh);
     this->logger().trace("Initialised shortest path object");
@@ -33,7 +32,7 @@ CgalImpl::~CgalImpl() {
 }
 
 gsl::owner<CgalImpl*>
-CgalImpl::from_file(const path& file_path, SpdLoggerPtr&& logger) {
+CgalImpl::from_file(const path& file_path, LoggerPtr&& logger) {
     assert(logger != nullptr);
     CgalImpl::Mesh mesh;
     logger->info("Loading mesh from file {}", file_path.string());

@@ -1,7 +1,6 @@
 #include "mdv/mesh/conditions.hpp"
 
 #include <exception>
-#include <spdlog/logger.h>
 #include <stdexcept>
 
 bool
@@ -26,7 +25,7 @@ mdv::mesh::require_on_same_mesh(
         );
     }
 
-    spdlog::logger* logger = nullptr;
+    Logger* logger = nullptr;
     if (e1.is_valid()) logger = &e1.logger();
     if (e2.is_valid()) logger = &e2.logger();
 

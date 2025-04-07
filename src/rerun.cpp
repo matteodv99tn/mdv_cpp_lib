@@ -1,6 +1,5 @@
 #include "mdv/rerun.hpp"
 
-#include <spdlog/spdlog.h>
 #include <stdexcept>
 
 #include <rerun/archetypes/mesh3d.hpp>
@@ -25,8 +24,7 @@ using mdv::RerunConverter;
 using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;
 
-mdv::SpdLoggerPtr RerunConverter::_logger =
-        mdv::static_logger_factory("RerunConverter");
+mdv::LoggerPtr RerunConverter::_logger = mdv::static_logger_factory("RerunConverter");
 
 //  ____        _     _ _
 // |  _ \ _   _| |__ | (_) ___
@@ -112,9 +110,9 @@ rra::Arrows3D
 RerunConverter::operator()(
         const Eigen::Vector3d& pos, const Eigen::Quaterniond& ori, const double scale
 ) const {
-    rrd::Vec3D dx = operator()(ori* Eigen::Vector3d::UnitX() * scale);
-    rrd::Vec3D dy = operator()(ori* Eigen::Vector3d::UnitY() * scale);
-    rrd::Vec3D dz = operator()(ori* Eigen::Vector3d::UnitZ() * scale);
+    rrd::Vec3D dx = operator()(ori * Eigen::Vector3d::UnitX() * scale);
+    rrd::Vec3D dy = operator()(ori * Eigen::Vector3d::UnitY() * scale);
+    rrd::Vec3D dz = operator()(ori * Eigen::Vector3d::UnitZ() * scale);
     rrd::Vec3D o  = operator()(pos);
 
     return rra::Arrows3D::from_vectors({dx, dy, dz})
@@ -143,9 +141,8 @@ RerunConverter::as_points(const std::vector<Eigen::Vector3d>& pts) const {
 
 rrd::Vec3D
 RerunConverter::operator()(const Eigen::Vector3d& x) const {
-    return {static_cast<float>(x(0)),
-            static_cast<float>(x(1)),
-            static_cast<float>(x(2))};
+    return {static_cast<float>(x(0)), static_cast<float>(x(1)), static_cast<float>(x(2))
+    };
 }
 
 std::vector<rrc::Vector3D>

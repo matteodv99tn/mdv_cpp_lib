@@ -1,22 +1,23 @@
 #include "mdv/mesh/eigen_data.hpp"
 
-#include <spdlog/spdlog.h>
 #include <thread>
 
 #include <range/v3/algorithm/contains.hpp>
 
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/utils/logging.hpp"
 
 namespace rs = ranges;
 
 constexpr mdv::mesh::IndexTriplet invalid_indexes{
-        mdv::mesh::invalid_index, mdv::mesh::invalid_index, mdv::mesh::invalid_index};
+        mdv::mesh::invalid_index, mdv::mesh::invalid_index, mdv::mesh::invalid_index
+};
 
 using mdv::mesh::internal::CgalImpl;
 using mdv::mesh::internal::EigenData;
 
-EigenData::EigenData(const CgalImpl& cgal, spdlog::logger& logger) {
+EigenData::EigenData(const CgalImpl& cgal, Logger& logger) {
     const std::size_t n_faces    = cgal._mesh.num_faces();
     const std::size_t n_vertices = cgal._mesh.num_vertices();
 

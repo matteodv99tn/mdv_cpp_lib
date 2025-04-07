@@ -4,7 +4,6 @@
 #include <Eigen/Geometry>
 #include <filesystem>
 #include <gsl/pointers>
-#include <spdlog/fwd.h>
 #include <string_view>
 
 #include <boost/range/iterator_range.hpp>
@@ -16,6 +15,7 @@
 #include "mdv/mesh/mesh_iterator.hpp"
 #include "mdv/mesh/point.hpp"
 #include "mdv/mesh/vertex.hpp"
+#include "mdv/utils/logging.hpp"
 
 namespace mdv::mesh {
 
@@ -68,13 +68,13 @@ public:
 
     MDV_NODISCARD std::string_view
                   name() const {
-                      return data().name;
+        return data().name;
     };
 
     // clang-format off
-    MDV_NODISCARD Face            face(const Index& id) const   { return {_data, id}; }
-    MDV_NODISCARD Vertex          vertex(const Index& id) const { return {_data, id}; }
-    MDV_NODISCARD spdlog::logger& logger() const                { assert(_data.logger != nullptr); return *_data.logger.get(); };
+    MDV_NODISCARD Face    face(const Index& id) const   { return {_data, id}; }
+    MDV_NODISCARD Vertex  vertex(const Index& id) const { return {_data, id}; }
+    MDV_NODISCARD Logger& logger() const                { assert(_data.logger != nullptr); return *_data.logger.get(); };
 
     // clang-format on
 
