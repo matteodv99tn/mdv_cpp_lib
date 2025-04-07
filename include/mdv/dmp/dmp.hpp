@@ -7,6 +7,8 @@
 #include <spdlog/spdlog.h>
 
 #include "mdv/containers/demonstration.hpp"
+#include "mdv/dmp/coordinate_system/coordinate_system.hpp"
+#include "mdv/dmp/transformation_system/transformation_system.hpp"
 #include "mdv/riemann_geometry/manifold.hpp"
 #include "mdv/utils/conversions.hpp"
 #include "mdv/utils/logging.hpp"
@@ -32,7 +34,10 @@ struct type_elems_size<double> {
     static constexpr std::size_t value = 1;
 };
 
-template <riemann::manifold M>
+template <
+        riemann::manifold M,
+        typename TransfSystem = dmp::TransformationSystem<M>,
+        typename CoordSystem  = dmp::ExponentialCoordinateSystem>
 class Dmp {
 public:
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
@@ -44,13 +49,13 @@ public:
         const double       beta    = 12.0,
         const double       gamma   = 3.0,
         const basis_size_t n_basis = 12) :
-            _alpha(alpha), _beta(beta), _gamma(gamma), _n_basis(n_basis) {
+            _cs(gamma), _ts(alpha, beta), _n_basis(n_basis) {
         construct_basis_parameters();
 
         logger().info("Initialised DMP object");
-        logger().debug("  alpha = {}", _alpha);
-        logger().debug("  beta  = {}", _beta);
-        logger().debug("  gamma = {}", _gamma);
+        logger().debug("  alpha = {}", _ts.alpha());
+        logger().debug("  beta  = {}", _ts.beta());
+        logger().debug("  gamma = {}", _cs.gamma());
         logger().debug("  number of basis: {}", _n_basis);
 
         _ws = Eigen::MatrixXd::Zero(_n_basis, type_elems_size_v<TangentVector>);
@@ -63,20 +68,13 @@ public:
         static constexpr bool is_scalar = type_elems_size_v<TangentVector> == 1;
 
         Eigen::MatrixXd f_des(demo.size(), type_elems_size_v<TangentVector>);
-        const auto&     g = demo.back().y();
+        const auto      goal = demo.back();
+
         for (long i = 0; i < demo.size(); ++i) {
-            const auto&  sample  = demo[i];
-            const auto&  pos_err = M::logarithmic_map(sample.y(), g);
-            const auto&  vel_err = sample.yd();
-            const auto&  acc_err = sample.ydd();
-            const double s       = time_to_s(seconds(sample.t()));
-            assert(s > 1e-6);
-            auto res = tau * tau * acc_err - _alpha * (_beta * pos_err - tau * vel_err);
-            if constexpr (is_scalar) {
-                f_des(i) = res;
-            } else {
-                f_des.row(i) = res;
-            }
+            const auto force = _ts.eval_forcing(demo[i], goal, tau);
+
+            if constexpr (is_scalar) f_des(i) = force;
+            else f_des.row(i) = force;
         }
         assert(!f_des.hasNaN());
         return f_des;
@@ -158,33 +156,18 @@ public:
         logger().info("  number of steps: {}", n_steps);
 #endif
 
-        auto res = Demonstration<M>::empty(n_steps);
-        res.append_sample()
-                .position(y0)
-                .velocity(M::default_tangent_vector())
-                .acceleration(M::default_tangent_vector())
-                .time(Demonstration<M>::Time::zero());
-        Point         y     = y0;
-        Point         yprev = y;
-        TangentVector z     = M::default_tangent_vector();
+        Demonstration<M> res = Demonstration<M>::builder(n_steps).create();
+        res.front().y()      = y0;
+        res.front().yd()     = M::default_tangent_vector();
+        res.front().ydd()    = M::default_tangent_vector();
+        typename Demonstration<M>::Sample goal;
+        goal.y() = g;
 
         const auto dts = seconds(dt);
-        for (auto i = 1; i < n_steps; ++i) {
-            const double        s       = time_to_s(i * dt);
-            const TangentVector f       = eval_weighted_basis(s) * s;
-            const TangentVector log_y_g = M::logarithmic_map(y, g);
-
-            const TangentVector dz_dt =
-                    M::covariant_derivative(y, _alpha * (_beta * log_y_g - z) + f);
-            const TangentVector z_next = z + dz_dt * dts / tau;
-
-            y = M::exponential_map(yprev, z * dts / tau);
-            z = M::parallel_transport(yprev, y, z_next);
-
-            res.append_sample().time(i * dt).position(y).velocity(z / tau).acceleration(
-                    dz_dt / tau
-            );
-            yprev = y;
+        for (auto i = 0; i < n_steps - 1; ++i) {
+            const double        s = time_to_s(i * dt);
+            const TangentVector f = eval_weighted_basis(s) * s;
+            _ts.step(res[i], goal, f, tau, dts, res[i + 1]);
         }
         return res;
     }
@@ -205,7 +188,7 @@ public:
 
     MDV_NODISCARD double
     time_to_s(const double t) const {
-        return std::exp(-_gamma / tau * t);
+        return _cs.eval_exact(t, tau);
     }
 
     template <typename Duration>
@@ -239,9 +222,8 @@ public:
 
 private:
     // Transformation - Coordinate System
-    double _alpha;
-    double _beta;
-    double _gamma;
+    CoordSystem  _cs;
+    TransfSystem _ts;
 
     // Basis
     basis_size_t    _n_basis;
@@ -256,7 +238,7 @@ private:
         _basis_h = Eigen::VectorXd(_n_basis);
 
         for (auto i = 0; i < _n_basis; ++i) {
-            _basis_c(i) = std::exp(-_gamma * i / _n_basis);
+            _basis_c(i) = _cs.eval_exact(double(i) / double(_n_basis));
             logger().trace("c[{}] = {}", i, _basis_c(i));
         }
 

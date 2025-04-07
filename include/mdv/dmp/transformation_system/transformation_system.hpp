@@ -3,57 +3,56 @@
 
 #include <mdv/riemann_geometry/manifold.hpp>
 
+#include "mdv/containers/demonstration.hpp"
+#include "mdv/macros.hpp"
+
 namespace mdv::dmp {
 
-template <typename M, template <typename> class TsImplementation>
-class TransformationSystemBase {
-    using TransfSys = TsImplementation<M>;
 
-    TransfSys&
-    tf() {
-        return static_cast<TransfSys&>(*this);
-    };
-
-    const TransfSys&
-    tf() const {
-        return static_cast<const TransfSys&>(*this);
-    };
-
+template <riemann::manifold M>
+class TransformationSystem {
 public:
-    using Type    = M::Type;
-    using Tangent = M::Tangent;
+    MDV_MANIFOLD_TYPENAMES_IMPORT(M);
 
-    Tangent
-    learn(const Type& y, const Tangent& yd, const Type& g) const {
-        return tf().learn_impl(y, yd, g);
+    TransformationSystem(const double alpha = 48.0, const double beta = 12.0) :
+            _alpha(alpha), _beta(beta) {}
+
+    MDV_NODISCARD TangentVector
+    eval_forcing(const auto& curr_state, const auto& goal_state, const double tau)
+            const {
+        const auto  pos_err = M::logarithmic_map(curr_state.y(), goal_state.y());
+        const auto& vel_err = curr_state.yd();
+        const auto& acc_err = curr_state.ydd();
+        return tau * tau * acc_err - _alpha * (_beta * pos_err - tau * vel_err);
     }
 
-    std::vector<Tangent>
-    learn(const std::vector<Type>&    y,
-          const std::vector<Tangent>& yd,
-          const std::vector<Type>&    g) const {
-        std::vector<Tangent> res;
-        assert(y.size() == yd.size());
-        assert(y.size() == g.size());
-        res.reserve(y.size());
-        for (std::size_t i{0}; i < y.size(); ++i)
-            res.emplace_back(learn(y[i], yd[g], g[i]));
-        return res;
+    void
+    step(const auto&          curr_state,
+         const auto&          goal_state,
+         const TangentVector& force,
+         const double         tau,
+         const double         dt,
+         auto&                next_state) const {
+        const TangentVector log_y_g =
+                M::logarithmic_map(curr_state.y(), goal_state.y());
+        const TangentVector dz_dt_original =
+                _alpha * (_beta * log_y_g - curr_state.yd()) + force;
+        const TangentVector dz_dt =
+                M::covariant_derivative(curr_state.y(), dz_dt_original);
+        const TangentVector z_next = curr_state.yd() + dz_dt * dt / tau;
+        next_state.y() = M::exponential_map(curr_state.y(), curr_state.yd() * dt / tau);
+        next_state.yd() = M::parallel_transport(curr_state.y(), next_state.y(), z_next);
     }
-};
 
-template <typename M>
-class SecondOrderSystem : public TransformationSystemBase<M, SecondOrderSystem> {
-    using Parent = TransformationSystemBase<M, SecondOrderSystem>;
-    friend Parent;
+    // clang-format off
+    MDV_NODISCARD double alpha() const noexcept { return _alpha; }
+    MDV_NODISCARD double beta() const noexcept  { return _beta; }
 
-    using Type    = M::Type;
-    using Tangent = M::Tangent;
+    // clang-format on
 
-    Tangent
-    learn_impl(const Type& y, const Tangent& yd, const Type& g) const {
-        return Tangent();
-    }
+private:
+    double _alpha;
+    double _beta;
 };
 
 

@@ -209,7 +209,7 @@ class Demonstration<M, Order, ClockT>::DemonstrationBuilder {
     using Dem = Demonstration<M, Order, ClockT>;
 
 public:
-    DemonstrationBuilder(std::size_t size = 0) { data().reserve(size); }
+    DemonstrationBuilder(std::size_t size = 0) { data().resize(size); }
 
     Dem
     create() {
