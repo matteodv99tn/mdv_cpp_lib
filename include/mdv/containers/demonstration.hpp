@@ -6,6 +6,7 @@
 #include <fmt/format.h>
 #include <functional>
 #include <tuple>
+#include <type_traits>
 
 #include "mdv/macros.hpp"
 #include "mdv/riemann_geometry/manifold.hpp"
@@ -28,6 +29,36 @@ concept manifold_demonstration = requires {
     requires std::is_same_v<M, typename Demo::Manifold>;
 };
 
+template <typename Sample, std::size_t MinSize = 0, typename M = Sample::Manifold>
+concept manifold_sample = requires(Sample sample, const Sample csample) {
+    // Manifold check
+    typename Sample::Manifold;
+    requires demonstration_manifold_type<typename Sample::Manifold>;
+    requires std::is_same_v<typename Sample::Manifold, M>;
+
+    // Size check
+    Sample::diff_order;
+    requires(Sample::diff_order >= MinSize);
+
+    // Position accessor
+    { sample.y() } -> std::same_as<typename Sample::Manifold::Point&>;
+    { csample.y() } -> std::same_as<const typename Sample::Manifold::Point&>;
+
+    // Time check
+    typename Sample::Time;
+    { sample.t() } -> std::same_as<typename Sample::Time&>;
+    { csample.t() } -> std::same_as<const typename Sample::Time&>;
+};
+
+
+template <typename FromSample, typename ToSample>
+concept copiable_sample = requires {
+    requires manifold_sample<ToSample>;
+    requires manifold_sample<FromSample, ToSample::diff_order>;
+    requires std::is_same_v<typename FromSample::Manifold, typename ToSample::Manifold>;
+    requires std::is_same_v<typename FromSample::Time, typename ToSample::Time>;
+};
+
 namespace internal {
     template <typename TTangentVector, std::size_t NTangentVector, typename... Args>
     struct sample;
@@ -46,13 +77,79 @@ namespace internal {
 
 }  // namespace internal
 
+//  ____                        _
+// / ___|  __ _ _ __ ___  _ __ | | ___
+// \___ \ / _` | '_ ` _ \| '_ \| |/ _ \
+//  ___) | (_| | | | | | | |_) | |  __/
+// |____/ \__,_|_| |_| |_| .__/|_|\___|
+//                       |_|
+template <
+        demonstration_manifold_type M,
+        std::size_t                 Order = 2,
+        typename ClockT                   = std::chrono::steady_clock::duration>
+class DemonstrationSample {
+public:
+    static constexpr std::size_t diff_order = Order;
+
+    MDV_MANIFOLD_TYPENAMES_IMPORT(M);
+    using Manifold  = M;
+    using Time      = ClockT;
+    using BaseTuple = internal::sample<TangentVector, Order, Time, Point>::type;
+
+    template <typename... Args>
+    DemonstrationSample(Args... args) : _data(std::forward<Args>(args)...) {}
+
+    DemonstrationSample(BaseTuple tpl) : _data(std::move(tpl)) {}
+
+    DemonstrationSample(BaseTuple& tpl) : _data(tpl) {}
+
+    // Copy from another sample
+    DemonstrationSample(const copiable_sample<DemonstrationSample> auto& other) {
+        copy_tpl_impl(other.data(), _data, std::make_index_sequence<diff_order>{});
+    }
+
+    // clang-format off
+    MDV_NODISCARD const BaseTuple&     data() const { return _data; }
+
+    MDV_NODISCARD Time&                t()         { return get_element<0>(); }
+    MDV_NODISCARD const Time&          t() const   { return get_element<0>(); }
+    MDV_NODISCARD Point&               y()         { return get_element<1>(); }
+    MDV_NODISCARD const Point&         y() const   { return get_element<1>(); }
+    MDV_NODISCARD TangentVector&       yd()        { return get_element<2>(); static_assert(Order >= 1, "Demonstration order must be >= 1 to call yd() on a sample");  }
+    MDV_NODISCARD const TangentVector& yd() const  { return get_element<2>(); static_assert(Order >= 1, "Demonstration order must be >= 1 to call yd() on a sample");  }
+    MDV_NODISCARD TangentVector&       ydd()       { return get_element<3>(); static_assert(Order >= 2, "Demonstration order must be >= 2 to call ydd() on a sample"); }
+    MDV_NODISCARD const TangentVector& ydd() const { return get_element<3>(); static_assert(Order >= 2, "Demonstration order must be >= 2 to call ydd() on a sample"); }
+
+    template <std::size_t Index>
+    MDV_NODISCARD auto& get_element() { return std::get<Index>(_data); }
+
+    template <std::size_t Index>
+    MDV_NODISCARD const auto& get_element() const { return std::get<Index>(_data); }
+
+    // clang-format on
+private:
+    BaseTuple _data;
+
+    template <typename SourceTpl, typename TargetTpl, std::size_t... Idx>
+    static void
+    copy_tpl_impl(const SourceTpl& source, TargetTpl& target, std::index_sequence<Idx...>) {
+        ((std::get<Idx>(target) = std::get<Idx>(source)), ...);
+    }
+};
+
+//  ____                                 _             _   _
+// |  _ \  ___ _ __ ___   ___  _ __  ___| |_ _ __ __ _| |_(_) ___  _ __
+// | | | |/ _ \ '_ ` _ \ / _ \| '_ \/ __| __| '__/ _` | __| |/ _ \| '_ \
+// | |_| |  __/ | | | | | (_) | | | \__ \ |_| | | (_| | |_| | (_) | | | |
+// |____/ \___|_| |_| |_|\___/|_| |_|___/\__|_|  \__,_|\__|_|\___/|_| |_|
+//
 template <
         demonstration_manifold_type M,
         std::size_t                 Order = 2,
         typename ClockT                   = std::chrono::steady_clock::duration>
 class Demonstration {
 public:
-    class Sample;
+    using Sample = DemonstrationSample<M, Order, ClockT>;
     class SampleBuilder;
     class DemonstrationBuilder;
 
@@ -61,7 +158,7 @@ public:
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
     using Manifold  = M;
     using Time      = ClockT;
-    using BaseTuple = internal::sample<TangentVector, Order, Time, Point>::type;
+    using BaseTuple = Sample::BaseTuple;
     using Container = std::vector<Sample>;
 
     MDV_NODISCARD static Demonstration
@@ -119,45 +216,6 @@ private:
             res.push_back(sample.template get_element<Index>());
         return res;
     }
-};
-
-//  ____                        _
-// / ___|  __ _ _ __ ___  _ __ | | ___
-// \___ \ / _` | '_ ` _ \| '_ \| |/ _ \
-//  ___) | (_| | | | | | | |_) | |  __/
-// |____/ \__,_|_| |_| |_| .__/|_|\___|
-//                       |_|
-template <demonstration_manifold_type M, std::size_t Order, typename ClockT>
-class Demonstration<M, Order, ClockT>::Sample {
-public:
-    using BaseTuple = Demonstration<M, Order, ClockT>::BaseTuple;
-
-    template <typename... Args>
-    Sample(Args... args) : _data(std::forward<Args>(args)...) {}
-
-    Sample(BaseTuple tpl) : _data(std::move(tpl)) {}
-
-    Sample(BaseTuple& tpl) : _data(tpl) {}
-
-    // clang-format off
-    MDV_NODISCARD Time&                t()         { return get_element<0>(); }
-    MDV_NODISCARD const Time&          t() const   { return get_element<0>(); }
-    MDV_NODISCARD Point&               y()         { return get_element<1>(); }
-    MDV_NODISCARD const Point&         y() const   { return get_element<1>(); }
-    MDV_NODISCARD TangentVector&       yd()        { return get_element<2>(); static_assert(Order >= 1, "Demonstration order must be >= 1 to call yd() on a sample");  }
-    MDV_NODISCARD const TangentVector& yd() const  { return get_element<2>(); static_assert(Order >= 1, "Demonstration order must be >= 1 to call yd() on a sample");  }
-    MDV_NODISCARD TangentVector&       ydd()       { return get_element<3>(); static_assert(Order >= 2, "Demonstration order must be >= 2 to call ydd() on a sample"); }
-    MDV_NODISCARD const TangentVector& ydd() const { return get_element<3>(); static_assert(Order >= 2, "Demonstration order must be >= 2 to call ydd() on a sample"); }
-
-    template <std::size_t Index>
-    MDV_NODISCARD auto& get_element() { return std::get<Index>(_data); }
-
-    template <std::size_t Index>
-    MDV_NODISCARD const auto& get_element() const { return std::get<Index>(_data); }
-
-    // clang-format on
-private:
-    BaseTuple _data;
 };
 
 //  ____                        _      ____        _ _     _

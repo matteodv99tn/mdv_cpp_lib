@@ -1,10 +1,9 @@
 #ifndef MDV_DMP_TRANSFORMATION_SYSTEM_INTERFACE_HPP
 #define MDV_DMP_TRANSFORMATION_SYSTEM_INTERFACE_HPP
 
-#include <mdv/riemann_geometry/manifold.hpp>
-
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/macros.hpp"
+#include "mdv/riemann_geometry/manifold.hpp"
 
 namespace mdv::dmp {
 
@@ -18,8 +17,11 @@ public:
             _alpha(alpha), _beta(beta) {}
 
     MDV_NODISCARD TangentVector
-    eval_forcing(const auto& curr_state, const auto& goal_state, const double tau)
-            const {
+    eval_forcing(
+            const manifold_sample<1, M> auto& curr_state,
+            const manifold_sample<0, M> auto& goal_state,
+            const double                      tau
+    ) const {
         const auto  pos_err = M::logarithmic_map(curr_state.y(), goal_state.y());
         const auto& vel_err = curr_state.yd();
         const auto& acc_err = curr_state.ydd();
@@ -27,12 +29,12 @@ public:
     }
 
     void
-    step(const auto&          curr_state,
-         const auto&          goal_state,
-         const TangentVector& force,
-         const double         tau,
-         const double         dt,
-         auto&                next_state) const {
+    step(const manifold_sample<1, M> auto& curr_state,
+         const manifold_sample<0, M> auto& goal_state,
+         const TangentVector&              force,
+         const double                      tau,
+         const double                      dt,
+         auto&                             next_state) const {
         const TangentVector log_y_g =
                 M::logarithmic_map(curr_state.y(), goal_state.y());
         const TangentVector dz_dt_original =
