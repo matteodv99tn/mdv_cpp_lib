@@ -3,7 +3,7 @@
 
 #include <math.h>
 
-#include <mdv/macros.hpp>
+#include "mdv/macros.hpp"
 
 namespace mdv::dmp {
 
@@ -14,6 +14,14 @@ public:
     MDV_NODISCARD double
     eval_exact(const double t, const double tau = 1.0) const {
         return std::exp(-_gamma * t / tau);
+    }
+
+    /**
+     * @brief Performs one discrete integration timestep
+     */
+    double
+    step(const double current_state, const double tau, const double dt) const {
+        return current_state * (1 - _gamma / tau * dt);
     }
 
     // clang-format off

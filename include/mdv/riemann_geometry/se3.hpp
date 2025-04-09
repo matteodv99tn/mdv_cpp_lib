@@ -1,20 +1,71 @@
-#ifndef MDV_S3_MANIFOLD_HPP
-#define MDV_S3_MANIFOLD_HPP
+#ifndef MDV_SE3_MANIFOLD_HPP
+#define MDV_SE3_MANIFOLD_HPP
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <utility>
 
 namespace mdv::riemann {
 
 struct SE3Point {
-    Eigen::Vector3d    pos;
-    Eigen::Quaterniond ori;
+    Eigen::Vector3d    pos = Eigen::Vector3d::Zero();
+    Eigen::Quaterniond ori = Eigen::Quaterniond::Identity();
 };
 
 struct SE3TangentVector {
-    Eigen::Vector3d pos;
-    Eigen::Vector4d ori;
+    Eigen::Vector3d pos = Eigen::Vector3d::Zero();
+    Eigen::Vector4d ori = Eigen::Vector4d::Zero();
+
+    SE3TangentVector() = default;
+
+    SE3TangentVector(Eigen::Vector3d linear_vel, Eigen::Vector4d angular_vel) :
+            pos(std::move(linear_vel)), ori(std::move(angular_vel)) {}
+
+    SE3TangentVector(const Eigen::Vector<double, 7>& vec) {
+        pos = vec.head(3);
+        pos = vec.tail(4);
+    };
 };
+
+inline SE3TangentVector
+operator+(const SE3TangentVector& v1, const SE3TangentVector& v2) {
+    SE3TangentVector res;
+    res.pos = v1.pos + v2.pos;
+    res.ori = v1.ori + v2.ori;
+    return res;
+}
+
+inline SE3TangentVector
+operator-(const SE3TangentVector& v1, const SE3TangentVector& v2) {
+    SE3TangentVector res;
+    res.pos = v1.pos - v2.pos;
+    res.ori = v1.ori - v2.ori;
+    return res;
+}
+
+inline SE3TangentVector
+operator*(const SE3TangentVector& vec, const double s) {
+    SE3TangentVector res;
+    res.pos = vec.pos * s;
+    res.ori = vec.ori * s;
+    return res;
+}
+
+inline SE3TangentVector
+operator*(const double s, const SE3TangentVector& vec) {
+    SE3TangentVector res;
+    res.pos = vec.pos * s;
+    res.ori = vec.ori * s;
+    return res;
+}
+
+inline SE3TangentVector
+operator/(const SE3TangentVector& vec, const double s) {
+    SE3TangentVector res;
+    res.pos = vec.pos / s;
+    res.ori = vec.ori / s;
+    return res;
+}
 
 class SE3 {
 public:
@@ -37,4 +88,37 @@ public:
 };
 }  // namespace mdv::riemann
 
-#endif  // MDV_S3_MANIFOLD_HPP
+#include "mdv/dmp/learnable_function.hpp"
+
+namespace mdv::dmp::internal {
+
+template <>
+struct type_elems_size<::mdv::riemann::SE3TangentVector> {
+    static constexpr std::size_t value = 7;
+};
+
+template <>
+struct eigen_representation<::mdv::riemann::SE3TangentVector> {
+    static constexpr std::size_t value = 7;
+    using type                         = Eigen::Vector<double, value>;
+
+    static type
+    to_eigen(const ::mdv::riemann::SE3TangentVector& data) {
+        type res;
+        res.head(3) = data.pos;
+        res.tail(4) = data.ori;
+        return res;
+    }
+
+    static ::mdv::riemann::SE3TangentVector
+    from_eigen(const type& data) {
+        riemann::SE3TangentVector res;
+        res.pos = data.head(3);
+        res.ori = data.tail(4);
+        return res;
+    }
+};
+
+}  // namespace mdv::dmp::internal
+
+#endif  // MDV_SE3_MANIFOLD_HPP

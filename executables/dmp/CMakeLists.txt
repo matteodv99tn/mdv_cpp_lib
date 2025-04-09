@@ -24,3 +24,12 @@ target_link_libraries(
     meshdmp_test
     mdvcpplib
 )
+
+add_executable(
+    interpolation
+    ${CMAKE_CURRENT_LIST_DIR}/interpolation.cpp
+)
+target_link_libraries(
+    interpolation
+    mdvcpplib
+)

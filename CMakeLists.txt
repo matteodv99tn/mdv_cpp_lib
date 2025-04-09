@@ -5,6 +5,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(FIND_LIBRARY_USE_LIB64_PATHS OFF)
 
 option(BUILD_TESTING "" OFF)
+option(BUILD_EXECUTABLES "" OFF)
 option(MDV_VERBOSE_DMP "Includes verbose DMP logging in learning/executing")
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -85,6 +86,7 @@ add_library(
 
     # Riemann geometry
     ${CMAKE_CURRENT_LIST_DIR}/src/riemann_geometry/s3.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/riemann_geometry/se3.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/riemann_geometry/mesh.cpp
 
     # DMP
@@ -108,7 +110,6 @@ if(rerun_sdk_FOUND)
         MDV_WITH_RERUN_SDK
     )
 endif()
-
 target_include_directories(
     mdvcpplib
     PUBLIC 
@@ -125,6 +126,10 @@ target_link_libraries(
     PRIVATE 
     range-v3
 )
+target_compile_definitions(
+    mdvcpplib
+    PUBLIC -DFMT_HEADER_ONLY=1
+)
 if(${MDV_VERBOSE_DMP})
     target_compile_definitions(
         mdvcpplib
@@ -140,8 +145,10 @@ endif()
 # | |___ >  <  __/ (__| |_| | || (_| | |_) | |  __/\__ \
 # |_____/_/\_\___|\___|\__,_|\__\__,_|_.__/|_|\___||___/
 #                                                       
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/mesh)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/dmp)
+if(BUILD_EXECUTABLES)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/mesh)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/dmp)
+endif()
 
 
 #  _   _       _ _     _____         _       

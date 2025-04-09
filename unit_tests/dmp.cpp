@@ -32,7 +32,7 @@ TEST(Dmp, ScalarDmp) {
     const auto      fdes = dmp.evaluate_desired_forcing_term(demo);
     Eigen::VectorXd fval(fdes.size());
     for (auto i = 0; i < fdes.size(); ++i)
-        fval(i) = dmp.eval_weighted_basis(mdv::convert::seconds(demo[i].t()));
+        fval(i) = dmp.fun().eval(mdv::convert::seconds(demo[i].t()));
 
     const double f_mae = (fdes - fval).cwiseAbs().mean();
     ASSERT_EQ(fdes.rows(), n_ts);
@@ -76,3 +76,7 @@ TEST(Dmp, QuaternionDmp) {
     const double mae = angle_error.cwiseAbs().mean();
     ASSERT_LE(mae, 3) << "Reconstructed orientation mean absolute error (degrees)";
 }
+
+static_assert(mdv::transformation_system<
+              mdv::dmp::TransformationSystem<mdv::riemann::Scalar>,
+              mdv::riemann::Scalar>);

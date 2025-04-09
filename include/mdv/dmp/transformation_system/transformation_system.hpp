@@ -2,8 +2,10 @@
 #define MDV_DMP_TRANSFORMATION_SYSTEM_INTERFACE_HPP
 
 #include "mdv/containers/demonstration.hpp"
+#include "mdv/dmp/concepts.hpp"
 #include "mdv/macros.hpp"
 #include "mdv/riemann_geometry/manifold.hpp"
+#include "mdv/riemann_geometry/scalar.hpp"
 
 namespace mdv::dmp {
 
@@ -11,6 +13,10 @@ namespace mdv::dmp {
 template <riemann::manifold M>
 class TransformationSystem {
 public:
+    using MinimumSample     = DemonstrationSample<M, 1>;
+    using MinimumGoalSample = DemonstrationSample<M, 0>;
+
+    using Manifold = M;
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
 
     TransformationSystem(const double alpha = 48.0, const double beta = 12.0) :
@@ -34,7 +40,7 @@ public:
          const TangentVector&              force,
          const double                      tau,
          const double                      dt,
-         auto&                             next_state) const {
+         manifold_sample<1, M> auto&       next_state) const {
         const TangentVector log_y_g =
                 M::logarithmic_map(curr_state.y(), goal_state.y());
         const TangentVector dz_dt_original =
@@ -56,7 +62,6 @@ private:
     double _alpha;
     double _beta;
 };
-
 
 }  // namespace mdv::dmp
 
