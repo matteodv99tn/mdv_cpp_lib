@@ -36,18 +36,22 @@ public:
 
     double tau;
 
-    Dmp(const double       alpha   = 48.0,
+    Dmp(Logger::SharedPtr logger =
+                mdv::static_logger_factory("dmp", Logger::LogLevel::Debug),
+        const double       alpha   = 48.0,
         const double       beta    = 12.0,
         const double       gamma   = 3.0,
         const basis_size_t n_basis = 12) :
-            _cs(gamma), _ts(alpha, beta), _fun(n_basis) {
+            _logger(logger), _cs(gamma), _ts(alpha, beta), _fun(n_basis), tau(1.0) {
         construct_basis_parameters();
 
-        logger().info("Initialised DMP object");
-        logger().debug("  alpha = {}", _ts.alpha());
-        logger().debug("  beta  = {}", _ts.beta());
-        logger().debug("  gamma = {}", _cs.gamma());
-        logger().debug("  number of basis: {}", this->n_basis());
+        logger->debug("Initialised DMP object");
+#ifdef MDV_VERBOSE_DMP
+        logger->debug("  alpha = {}", _ts.alpha());
+        logger->debug("  beta  = {}", _ts.beta());
+        logger->debug("  gamma = {}", _cs.gamma());
+        logger->debug("  number of basis: {}", this->n_basis());
+#endif 
     }
 
     Dmp(const Dmp&)            = default;
@@ -58,20 +62,20 @@ public:
     template <typename Demonstration>
     MDV_NODISCARD Eigen::MatrixXd
                   evaluate_desired_forcing_term(const Demonstration& demo) {
-        using mdv::convert::seconds;
-        static constexpr bool is_scalar = Function::tan_vec_dim == 1;
+                      using mdv::convert::seconds;
+                      static constexpr bool is_scalar = Function::tan_vec_dim == 1;
 
-        Eigen::MatrixXd f_des(demo.size(), Function::tan_vec_dim);
-        const auto      goal = demo.back();
+                      Eigen::MatrixXd f_des(demo.size(), Function::tan_vec_dim);
+                      const auto      goal = demo.back();
 
-        for (long i = 0; i < demo.size(); ++i) {
-            const auto force = _ts.eval_forcing(demo[i], goal, tau);
+                      for (long i = 0; i < demo.size(); ++i) {
+                          const auto force = _ts.eval_forcing(demo[i], goal, tau);
 
-            if constexpr (is_scalar) f_des(i) = force;
+                          if constexpr (is_scalar) f_des(i) = force;
             else f_des.row(i) = Function::to_eigen(force);
         }
-        assert(!f_des.hasNaN());
-        return f_des;
+                      assert(!f_des.hasNaN());
+                      return f_des;
     }
 
     template <typename Demonstration>
@@ -104,11 +108,11 @@ public:
         logger().info("DMP succesfully learned");
 
 
+#ifdef MDV_VERBOSE_DMP
         const Eigen::MatrixXd ae = (phi * _fun.weights() - f_des).cwiseAbs();
         logger().info("Linear regression mean absolute error: {}", ae.mean());
         logger().info("Linear regression maximum absolute error: {}", ae.maxCoeff());
 
-#ifdef MDV_VERBOSE_DMP
         logger().info("Integrating learned dynamics to compare learning outcome...");
         const auto reconstructed_demo =
                 integrate(demo.front().y(), demo.back().y(), demo.size(), demo[1].t());
@@ -220,8 +224,7 @@ private:
         _fun.assign_widths(std::move(hs));
     }
 
-    mutable LoggerPtr _logger =
-            mdv::static_logger_factory("dmp", Logger::LogLevel::Debug);
+    mutable LoggerPtr _logger;
 };
 
 #undef SQUARE

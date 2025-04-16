@@ -4,6 +4,8 @@
 #include <sstream>
 #include <string>
 
+#include "mdv/utils/logging.hpp"
+
 #ifdef MDV_WITH_RERUN_SDK
 #include <rerun.hpp>
 #include <rerun/archetypes/series_line.hpp>
@@ -50,9 +52,9 @@ main() {
                              .create();
     const auto        integration_dt    = std::chrono::milliseconds(2);
     const std::size_t integration_steps = dem.back().t() / integration_dt;
-
-    const double alpha = 48.0;
-    Dmp          dmp(alpha, alpha / 4.0, 4.0, 12);
+    const double      alpha             = 48.0;
+    auto              logger = mdv::static_logger_factory("interpolation dmp");
+    Dmp               dmp(logger, alpha, alpha / 4.0, 4.0, 12);
     dmp.learn(dem);
     dmp.tau = mdv::convert::seconds(integration_dt * integration_steps);
     std::cout << "tau = " << dmp.tau << "\n";
