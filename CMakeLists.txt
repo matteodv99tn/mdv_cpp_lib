@@ -139,6 +139,45 @@ if(${MDV_VERBOSE_DMP})
 endif()
 
 
+#  ____   ___  ____ ____  
+# |  _ \ / _ \/ ___|___ \ 
+# | |_) | | | \___ \ __) |
+# |  _ <| |_| |___) / __/ 
+# |_| \_\\___/|____/_____|
+#                         
+find_package(rclcpp             QUIET)
+find_package(tf2_ros            QUIET)
+find_package(geometry_msgs      QUIET)
+
+if(rclcpp_FOUND AND geometry_msgs_FOUND AND tf2_ros_FOUND)
+    set(MDV_WITH_ROS2 TRUE)
+    target_sources(
+        mdvcpplib
+        PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/ros2/conversions.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/ros2/logger.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/ros2/se3.cpp
+    )
+    target_include_directories(
+        mdvcpplib
+        PUBLIC 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/ros2/include>
+    )
+    ament_target_dependencies(
+        mdvcpplib
+        PUBLIC
+        rclcpp
+        tf2_ros
+        geometry_msgs
+    )
+    ament_export_dependencies(
+        rclcpp
+        tf2_ros
+        geometry_msgs
+    )
+endif()
+
+
 #  _____                     _        _     _           
 # | ____|_  _____  ___ _   _| |_ __ _| |__ | | ___  ___ 
 # |  _| \ \/ / _ \/ __| | | | __/ _` | '_ \| |/ _ \/ __|
@@ -194,6 +233,13 @@ if(ament_cmake_FOUND)
         DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/include/
         DESTINATION include
     )
+
+    if(MDV_WITH_ROS2)
+        install(
+            DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/ros2/include/
+            DESTINATION include
+        )
+    endif()
 
     ament_export_targets(mdvcpplib)
     ament_export_dependencies(
