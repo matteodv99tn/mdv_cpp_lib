@@ -6,10 +6,9 @@ using mdv::ros2::RosLogger;
 
 void
 RosLogger::set_log_level(LogLevel level) {
+    _level = level;
     switch (level) {
         case Logger::Trace:
-            _logger.set_level(rclcpp::Logger::Level::Unset);
-            break;
         case Logger::Debug:
             _logger.set_level(rclcpp::Logger::Level::Debug);
             break;
@@ -27,14 +26,15 @@ RosLogger::set_log_level(LogLevel level) {
 
 mdv::Logger::LogLevel
 RosLogger::get_log_level() const {
-    return LogLevel::Info;
+    return _level;
 }
 
 void
 RosLogger::log_message(std::string msg, LogLevel level) const {
+    if(level < _level) return;
+
     switch (level) {
         case Logger::Trace:
-            break;
         case Logger::Debug:
             RCLCPP_DEBUG(_logger, "%s", msg.c_str());
             break;

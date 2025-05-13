@@ -8,6 +8,7 @@
 #include "mdv/dmp/dmp_utilities.hpp"
 #include "mdv/riemann_geometry/manifold.hpp"
 #include "mdv/riemann_geometry/scalar.hpp"
+#include "mdv/riemann_geometry/se3.hpp"
 
 using mdv::Demonstration;
 using mdv::riemann::Scalar;
@@ -30,6 +31,28 @@ mdv::build_scalar_demonstration(const long n_samples) {
     for (const auto& t : ts) pos_traj.emplace_back(2 + 3 * t);
 
     return Demonstration<Scalar>::builder(n_samples)
+            .set_sampling_period(5ms)
+            .assign_position(pos_traj)
+            .velocity_automatic_differentiation()
+            .acceleration_automatic_differentiation()
+            .create();
+}
+
+Demonstration<mdv::riemann::Rn<3>>
+mdv::build_position_demonstration(const long n_samples) {
+    using namespace std::chrono_literals;
+
+    const std::vector<double> ts =
+            poly_5th(Eigen::VectorXd::LinSpaced(n_samples, 0.0, 1.0));
+
+    using Vec3 = Eigen::Vector3d;
+    std::vector<Vec3> pos_traj;
+    pos_traj.reserve(ts.size());
+    const Vec3 start(1.0, 2.0, 3.0);
+    const Vec3 delta(2.0, 0.0, -5.0);
+    for (const auto& t : ts) pos_traj.emplace_back(start + delta * t);
+
+    return Demonstration<mdv::riemann::Rn<3>>::builder(n_samples)
             .set_sampling_period(5ms)
             .assign_position(pos_traj)
             .velocity_automatic_differentiation()
@@ -61,13 +84,25 @@ mdv::build_quaternion_demonstration(const long n_samples) {
     using namespace std::chrono_literals;
     using Quat = Eigen::Quaterniond;
 
+#if 0
     const std::vector<double> ts =
             poly_5th(Eigen::VectorXd::LinSpaced(n_samples, 0.0, 1.0));
+#else
+    std::vector<double> ts;
+    const auto          tdata = Eigen::VectorXd::LinSpaced(n_samples - 10, 0.0, 1.0);
+    for (auto i = 0; i < 5; ++i) ts.push_back(0.0);
+    for (auto i = 0; i < n_samples - 10; ++i) ts.push_back(tdata(i));
+    for (auto i = 0; i < 5; ++i) ts.push_back(1.0);
+#endif
 
-    const Quat q1 = Quat(Eigen::Vector4d(1.0, 3.0, -4.0, 2.0).normalized());
-    // if (q1.w() < 0.0) q1.coeffs() *= -1.0;
-    Expects(q1.w() >= 0.0);
-    const Quat q2 = Quat::Identity();
+
+    // const Quat q1 = Quat(Eigen::Vector4d(1.0, 3.0, -4.0, 2.0).normalized());
+    // // if (q1.w() < 0.0) q1.coeffs() *= -1.0;
+    // Expects(q1.w() >= 0.0);
+    // const Quat q2 = Quat::Identity();
+
+    const Quat q1 = Quat(1.0, 0.0, 0.0, 0.0);
+    const Quat q2 = Quat(0.0, -1.0, 0.0, 0.0);
 
 
     std::vector<Eigen::Quaterniond> pos_traj;
@@ -76,6 +111,28 @@ mdv::build_quaternion_demonstration(const long n_samples) {
 
     return Demonstration<S3>::builder(n_samples)
             .set_sampling_period(1ms)
+            .assign_position(pos_traj)
+            .velocity_automatic_differentiation()
+            .acceleration_automatic_differentiation()
+            .create();
+}
+
+Demonstration<mdv::riemann::SE3>
+mdv::build_se3_demonstration(const long n_samples) {
+    using mdv::riemann::SE3;
+    using namespace std::chrono_literals;
+
+    const auto r3_dem = build_position_demonstration(n_samples);
+    const auto s3_dem = build_quaternion_demonstration(n_samples);
+
+
+    std::vector<SE3::Point> pos_traj;
+    pos_traj.reserve(s3_dem.size());
+    for (std::size_t i = 0; i < s3_dem.size(); ++i)
+        pos_traj.emplace_back(r3_dem[i].y(), s3_dem[i].y());
+
+    return Demonstration<SE3>::builder(n_samples)
+            .set_sampling_period(5ms)
             .assign_position(pos_traj)
             .velocity_automatic_differentiation()
             .acceleration_automatic_differentiation()

@@ -10,6 +10,13 @@ namespace mdv::riemann {
 struct SE3Point {
     Eigen::Vector3d    pos = Eigen::Vector3d::Zero();
     Eigen::Quaterniond ori = Eigen::Quaterniond::Identity();
+
+    SE3Point() = default;
+
+    SE3Point(const Eigen::Vector3d& pos_, const Eigen::Quaterniond& ori_) :
+            pos(pos_), ori(ori_) {
+        // if (ori.w() < 0.0) ori.coeffs() *= -1;
+    }
 };
 
 struct SE3TangentVector {
@@ -67,6 +74,11 @@ operator/(const SE3TangentVector& vec, const double s) {
     return res;
 }
 
+inline bool 
+operator==(const SE3TangentVector& v1, const SE3TangentVector& v2) {
+    return v1.pos == v2.pos && v1.ori == v2.ori;
+}
+
 class SE3 {
 public:
     using Point         = SE3Point;
@@ -115,6 +127,10 @@ struct eigen_representation<::mdv::riemann::SE3TangentVector> {
         riemann::SE3TangentVector res;
         res.pos = data.head(3);
         res.ori = data.tail(4);
+        assert(res.ori(0) == data(3));
+        assert(res.ori(1) == data(4));
+        assert(res.ori(2) == data(5));
+        assert(res.ori(3) == data(6));
         return res;
     }
 };

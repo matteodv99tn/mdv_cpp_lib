@@ -46,14 +46,16 @@ public:
 #define REGISTER_LOG_LEVEL(function, level_enum)                                       \
     template <typename... Args>                                                        \
     void function(fmt::string_view fmt_str, const Args&... args) const {               \
-        using output_it_t = std::back_insert_iterator<std::string>;                    \
-        log_message(                                                                   \
-                fmt::vformat(                                                          \
-                        fmt_str,                                                       \
-                        fmt::make_format_to_n_args<output_it_t, char>(args...)         \
-                ),                                                                     \
-                level_enum                                                             \
-        );                                                                             \
+        constexpr std::size_t n_args = sizeof...(Args);                                \
+        if constexpr (n_args == 0) {                                                   \
+            log_message(fmt::format(fmt_str), level_enum);                             \
+        } else {                                                                       \
+            using output_it_t = std::back_insert_iterator<std::string>;                \
+            log_message(                                                               \
+                    fmt::detail::vformat(fmt_str, fmt::make_format_args(args...)),     \
+                    level_enum                                                         \
+            );                                                                         \
+        }                                                                              \
     }
 #endif
 

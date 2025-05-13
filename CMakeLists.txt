@@ -62,6 +62,7 @@ configure_file(
 #                                                      |___/ 
 add_library(
     mdvcpplib
+    SHARED
 
     # General purpose
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/logging.cpp

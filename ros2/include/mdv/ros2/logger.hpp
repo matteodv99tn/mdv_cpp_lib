@@ -17,7 +17,8 @@ public:
     void                   log_message(std::string msg, LogLevel level) const override;
 
 private:
-    rclcpp::Logger _logger;
+    rclcpp::Logger   _logger;
+    Logger::LogLevel _level = LogLevel::Info;
 };
 
 

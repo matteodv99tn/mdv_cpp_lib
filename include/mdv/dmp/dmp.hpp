@@ -51,7 +51,7 @@ public:
         logger->debug("  beta  = {}", _ts.beta());
         logger->debug("  gamma = {}", _cs.gamma());
         logger->debug("  number of basis: {}", this->n_basis());
-#endif 
+#endif
     }
 
     Dmp(const Dmp&)            = default;
@@ -154,10 +154,11 @@ public:
         logger().info("  number of steps: {}", n_steps);
 #endif
 
-        Demonstration<M> res = Demonstration<M>::builder(n_steps).create();
-        res.front().y()      = y0;
-        res.front().yd()     = M::default_tangent_vector();
-        res.front().ydd()    = M::default_tangent_vector();
+        Demonstration<M> res =
+                Demonstration<M>::builder(n_steps).set_sampling_period(dt).create();
+        res.front().y()   = y0;
+        res.front().yd()  = M::default_tangent_vector();
+        res.front().ydd() = M::default_tangent_vector();
         typename Demonstration<M>::Sample goal;
         goal.y() = g;
 
@@ -270,8 +271,8 @@ public:
 
     template <typename T>
     void
-    set_sampling_period(const T& dt) {
-        dt = mdv::convert::seconds(dt);
+    set_sampling_period(const T& integration_dt) {
+        dt = mdv::convert::seconds(integration_dt);
         _dmp.logger().debug("Dmp integration sampling period set to {}ms", dt * 1000);
     }
 
