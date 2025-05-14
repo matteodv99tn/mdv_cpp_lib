@@ -27,6 +27,18 @@ private:
     void log_message(std::string msg, LogLevel lvl) const override;
 };
 
+Logger::SharedPtr class_logger_factory(
+        const std::string&      class_name,
+        const std::string&      instance_name,
+        const Logger::LogLevel& level = Logger::LogLevel::Info
+);
+
+Logger::SharedPtr static_logger_factory(
+        const std::string&      logger_name,
+        const Logger::LogLevel& level = Logger::LogLevel::Info
+);
+
+
 }  // namespace mdv
 
 

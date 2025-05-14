@@ -24,7 +24,7 @@ using mdv::RerunConverter;
 using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;
 
-mdv::LoggerPtr RerunConverter::_logger = mdv::static_logger_factory("RerunConverter");
+mdv::Logger::SharedPtr RerunConverter::_logger = mdv::get_default_logger();
 
 //  ____        _     _ _
 // |  _ \ _   _| |__ | (_) ___

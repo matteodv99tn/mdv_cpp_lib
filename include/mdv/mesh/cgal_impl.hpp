@@ -59,17 +59,17 @@ public:
 
     // Factory functions
     static gsl::owner<CgalImpl*> from_file(
-            const std::filesystem::path& file_path, LoggerPtr&& logger
+            const std::filesystem::path& file_path, Logger::SharedPtr&& logger
     );
 
-    CgalImpl(const Mesh&& mesh, LoggerPtr&& logger);
+    CgalImpl(const Mesh&& mesh, Logger::SharedPtr&& logger);
     CgalImpl(const CgalImpl&);
     CgalImpl& operator=(const CgalImpl&);
     CgalImpl(CgalImpl&&) noexcept;
     CgalImpl& operator=(CgalImpl&&) noexcept;
     ~CgalImpl();
 
-    mutable LoggerPtr                     _logger;
+    mutable Logger::SharedPtr                     _logger;
     Mesh                                  _mesh;
     std::unique_ptr<ShortestPath>         _shortest_path;
     AabbTree                              _aabb_tree;

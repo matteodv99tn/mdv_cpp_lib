@@ -72,18 +72,11 @@ private:
 #undef REGISTER_LOG_LEVEL
 };
 
-using LoggerPtr = Logger::SharedPtr;
+Logger::SharedPtr get_default_logger();
 
-LoggerPtr class_logger_factory(
-        const std::string&      class_name,
-        const std::string&      instance_name,
-        const Logger::LogLevel& level = Logger::LogLevel::Info
-);
+void set_default_logger(Logger::SharedPtr logger);
 
-LoggerPtr static_logger_factory(
-        const std::string&      logger_name,
-        const Logger::LogLevel& level = Logger::LogLevel::Info
-);
+Logger::SharedPtr get_void_logger();
 
 }  // namespace mdv
 

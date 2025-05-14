@@ -16,7 +16,7 @@ using std::filesystem::path;
 namespace rs = ranges;
 using ::mdv::mesh::internal::CgalImpl;
 
-CgalImpl::CgalImpl(const Mesh&& mesh, LoggerPtr&& logger) :
+CgalImpl::CgalImpl(const Mesh&& mesh, Logger::SharedPtr&& logger) :
         _mesh(mesh), _logger(std::move(logger)) {
     _shortest_path = std::make_unique<ShortestPath>(_mesh);
     this->logger().trace("Initialised shortest path object");
@@ -32,7 +32,7 @@ CgalImpl::~CgalImpl() {
 }
 
 gsl::owner<CgalImpl*>
-CgalImpl::from_file(const path& file_path, LoggerPtr&& logger) {
+CgalImpl::from_file(const path& file_path, Logger::SharedPtr&& logger) {
     assert(logger != nullptr);
     CgalImpl::Mesh mesh;
     logger->info("Loading mesh from file {}", file_path.string());

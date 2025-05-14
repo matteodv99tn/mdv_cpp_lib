@@ -36,8 +36,7 @@ public:
 
     double tau;
 
-    Dmp(Logger::SharedPtr logger =
-                mdv::static_logger_factory("dmp", Logger::LogLevel::Debug),
+    Dmp(Logger::SharedPtr  logger  = mdv::get_default_logger(),
         const double       alpha   = 48.0,
         const double       beta    = 12.0,
         const double       gamma   = 3.0,
@@ -62,20 +61,20 @@ public:
     template <typename Demonstration>
     MDV_NODISCARD Eigen::MatrixXd
                   evaluate_desired_forcing_term(const Demonstration& demo) {
-                      using mdv::convert::seconds;
-                      static constexpr bool is_scalar = Function::tan_vec_dim == 1;
+        using mdv::convert::seconds;
+        static constexpr bool is_scalar = Function::tan_vec_dim == 1;
 
-                      Eigen::MatrixXd f_des(demo.size(), Function::tan_vec_dim);
-                      const auto      goal = demo.back();
+        Eigen::MatrixXd f_des(demo.size(), Function::tan_vec_dim);
+        const auto      goal = demo.back();
 
-                      for (long i = 0; i < demo.size(); ++i) {
-                          const auto force = _ts.eval_forcing(demo[i], goal, tau);
+        for (long i = 0; i < demo.size(); ++i) {
+            const auto force = _ts.eval_forcing(demo[i], goal, tau);
 
-                          if constexpr (is_scalar) f_des(i) = force;
+            if constexpr (is_scalar) f_des(i) = force;
             else f_des.row(i) = Function::to_eigen(force);
         }
-                      assert(!f_des.hasNaN());
-                      return f_des;
+        assert(!f_des.hasNaN());
+        return f_des;
     }
 
     template <typename Demonstration>
@@ -225,7 +224,7 @@ private:
         _fun.assign_widths(std::move(hs));
     }
 
-    mutable LoggerPtr _logger;
+    mutable Logger::SharedPtr _logger;
 };
 
 #undef SQUARE
