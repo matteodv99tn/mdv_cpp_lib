@@ -13,18 +13,18 @@ namespace mdv::mesh::internal {
 class MeshData {
 public:
     ~MeshData();
-    MeshData()                           = default;
-    MeshData(const MeshData&)            = default;
-    MeshData(MeshData&&)                 = delete;
-    MeshData& operator=(const MeshData&) = default;
-    MeshData& operator=(MeshData&&)      = delete;
+    MeshData()                = default;
+    MeshData(const MeshData&) = delete;
+    MeshData(MeshData&&);
+    MeshData& operator=(const MeshData&) = delete;
+    MeshData& operator=(MeshData&&);
 
     MeshData(EigenData eigen_data, Logger::SharedPtr logger) :
             eigen_data(std::move(eigen_data)), logger(std::move(logger)) {}
 
     EigenData             eigen_data;
     gsl::owner<CgalImpl*> impl   = nullptr;
-    Logger::SharedPtr             logger = nullptr;
+    Logger::SharedPtr     logger = nullptr;
     std::string           name;
 };
 

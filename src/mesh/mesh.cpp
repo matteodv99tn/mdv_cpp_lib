@@ -18,6 +18,8 @@ using mdv::mesh::Vertex;
 using mdv::mesh::internal::CgalImpl;
 using std::filesystem::path;
 
+mdv::Logger::SharedPtr Mesh::default_logger = get_default_logger();
+
 //   ____                _                   _
 //  / ___|___  _ __  ___| |_ _ __ _   _  ___| |_ ___  _ __ ___
 // | |   / _ \| '_ \/ __| __| '__| | | |/ __| __/ _ \| '__/ __|
@@ -27,7 +29,7 @@ using std::filesystem::path;
 Mesh
 Mesh::from_file(const std::filesystem::path& file_path) {
     const std::string     file_name = file_path.stem().string();
-    auto                  logger    = get_default_logger();
+    auto                  logger    = Mesh::default_logger;
     gsl::owner<CgalImpl*> data      = CgalImpl::from_file(file_path, std::move(logger));
     return Mesh(data, file_name);
 }
@@ -45,6 +47,7 @@ Mesh::Mesh(gsl::owner<CgalImpl*> cgal_data, const std::string& name) {
 
     // Update Eigen-based data view
     _data.eigen_data = EigenData(*cgal_data, *_data.logger);
+    _data.name       = name;
 }
 
 //  __  __                _

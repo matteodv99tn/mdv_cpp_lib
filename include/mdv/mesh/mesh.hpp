@@ -21,6 +21,9 @@ namespace mdv::mesh {
 
 class Mesh {
 public:
+
+    static Logger::SharedPtr default_logger;
+
     // Forward declarations
     using Vertex = ::mdv::mesh::Vertex;
     using Face   = ::mdv::mesh::Face;
@@ -42,10 +45,10 @@ public:
     // Factory functions
     static Mesh from_file(const std::filesystem::path& file_path);
 
-    Mesh(const Mesh& other)            = delete;
-    Mesh(const Mesh&& other)           = delete;
-    Mesh operator=(const Mesh& other)  = delete;
-    Mesh operator=(const Mesh&& other) = delete;
+    Mesh(const Mesh& other)           = delete;
+    Mesh(Mesh&& other)                = default;
+    Mesh& operator=(const Mesh& other) = delete;
+    Mesh& operator=(Mesh&& other)      = default;
 
     void transform(const Eigen::Affine3d& transformation);
 

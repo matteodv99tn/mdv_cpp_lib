@@ -2,6 +2,8 @@
 #include <fmt/os.h>
 #include <iostream>
 #include <string>
+#include "mdv/mesh/mesh_manager.hpp"
+#include "mdv/utils/spdlog.hpp"
 
 #ifdef MDV_WITH_RERUN_SDK
 #include <rerun.hpp>
@@ -19,7 +21,8 @@
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
-using mdv::mesh::Mesh;
+    using mdv::mesh::Mesh;
+    using mdv::mesh::MeshManager;
 
 int
 main(int argc, char* argv[]) {
@@ -29,7 +32,15 @@ main(int argc, char* argv[]) {
     if (argc > 1) mesh_path = std::string(argv[1]);
     std::cout << "Selected mesh path: " << mesh_path << '\n';
 
-    const auto mesh = Mesh::from_file(mesh_path);
+    MeshManager::default_logger = mdv::static_logger_factory("MeshManager");
+    Mesh::default_logger = mdv::static_logger_factory("Mesh");
+    MeshManager::default_logger->set_log_level(mdv::Logger::LogLevel::Debug);
+    // Mesh::default_logger->set_log_level(mdv::Logger::LogLevel::Debug);
+    MeshManager mm;
+
+    const auto& mesh = *mm.get_mesh_from_file(mesh_path);
+    const auto& mesh2 = *mm.get_mesh_from_file(mesh_path);
+    // const auto mesh = Mesh::from_file(mesh_path);
     std::cout << "Mesh loaded\n";
 
     mdv::RerunConverter to_rerun;
