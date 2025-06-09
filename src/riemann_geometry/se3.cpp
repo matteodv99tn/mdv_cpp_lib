@@ -1,11 +1,18 @@
 #include "mdv/riemann_geometry/se3.hpp"
 
+#include <Eigen/src/Geometry/Transform.h>
+
 #include "mdv/riemann_geometry/euclidean.hpp"
 #include "mdv/riemann_geometry/s3.hpp"
 
 using SE3 = mdv::riemann::SE3;
 using R3  = mdv::riemann::Rn<3>;
 using S3  = mdv::riemann::S3;
+
+mdv::riemann::SE3Point
+mdv::riemann::SE3Point::from_affine(const Eigen::Affine3d& transform) {
+    return {transform.translation(), Eigen::Quaterniond(transform.rotation())};
+}
 
 SE3::TangentVector
 SE3::logarithmic_map(const Point& p1, const Point& p2) {

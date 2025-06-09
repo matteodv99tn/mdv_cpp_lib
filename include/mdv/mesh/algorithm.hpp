@@ -24,6 +24,14 @@ CartesianPoint point_from_geodesic(
 );
 
 /**
+ * @brief Resamples a geodesic polyline at some specified coordinates.
+ *
+ * The coordinate are assumed to be in the range [0, 1]; if a coordinate is outside such
+ * range, it gets rounded to the closest admissible value.
+ */
+Geodesic geodesic_resample(const Geodesic& geod, std::vector<double> coordinates);
+
+/**
  * @brief Computes the parallel transport of vector v on point p
  *
  */

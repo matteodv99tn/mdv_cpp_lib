@@ -16,6 +16,7 @@ std::string
 mdv::eigen_to_str(const Eigen::VectorXd& vec) {
     std::stringstream ss;
     ss << vec.transpose();
+    return "(" + ss.str() + ")";
 
     // Format vector string to be like (xx, xx, xx)
     const std::string original_str = ss.str();

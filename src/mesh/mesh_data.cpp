@@ -7,8 +7,8 @@ using mdv::mesh::internal::MeshData;
 MeshData::~MeshData() {
     // When MeshData gets moved, logger is set to nullptr and cannot be used
     if (logger)
-        logger->debug("~MeshData() called at addr {}", static_cast<const void*>(this));
-    if (impl) logger->debug("Releasing CGAL implementation pointer");
+        logger->trace("~MeshData() called at addr {}", static_cast<const void*>(this));
+    if (impl) logger->trace("Releasing CGAL implementation pointer");
     delete impl;
 }
 

@@ -52,7 +52,7 @@ public:
         } else {                                                                       \
             using output_it_t = std::back_insert_iterator<std::string>;                \
             log_message(                                                               \
-                    fmt::detail::vformat(fmt_str, fmt::make_format_args(args...)),     \
+                    fmt::vformat(fmt_str, fmt::make_format_args(args...)),     \
                     level_enum                                                         \
             );                                                                         \
         }                                                                              \

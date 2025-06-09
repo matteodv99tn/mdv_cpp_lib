@@ -1,5 +1,8 @@
 #include "mdv/mesh/algorithm.hpp"
 
+#include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/all.hpp>
+
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/conditions.hpp"
@@ -12,6 +15,9 @@
 using mdv::mesh::Geodesic;
 using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;
+
+namespace rs = ::ranges;
+namespace rv = ::ranges::views;
 
 double
 mdv::mesh::length(const Geodesic& geod) {
@@ -49,6 +55,17 @@ mdv::mesh::point_from_geodesic(
     return geod.back();
 }
 
+Geodesic
+mdv::mesh::geodesic_resample(const Geodesic& geod, std::vector<double> coordinates) {
+    Geodesic     res;
+    const double len = length(geod);
+    res.reserve(coordinates.size());
+    rs::transform(coordinates, std::back_inserter(res), [geod, len](const double s) {
+        return point_from_geodesic(geod, s, &len);
+    });
+    return res;
+};
+
 TangentVector
 mdv::mesh::parallel_transport(const TangentVector& v, const Mesh::Point& p) {
     auto trihedron = [](const Mesh::Point& pt, const Vec3d& dir) -> Eigen::Matrix3d {
@@ -59,7 +76,8 @@ mdv::mesh::parallel_transport(const TangentVector& v, const Mesh::Point& p) {
         return res;
     };
     p.logger().debug(
-            "Computing parallel transport of vector {} applied in {} to target point "
+            "Computing parallel transport of vector {} applied in {} to target "
+            "point "
             "{}",
             eigen_to_str(v.application_point().position()),
             eigen_to_str(v.cartesian_vector()),

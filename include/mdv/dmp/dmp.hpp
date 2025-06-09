@@ -61,20 +61,20 @@ public:
     template <typename Demonstration>
     MDV_NODISCARD Eigen::MatrixXd
                   evaluate_desired_forcing_term(const Demonstration& demo) {
-        using mdv::convert::seconds;
-        static constexpr bool is_scalar = Function::tan_vec_dim == 1;
+                      using mdv::convert::seconds;
+                      static constexpr bool is_scalar = Function::tan_vec_dim == 1;
 
-        Eigen::MatrixXd f_des(demo.size(), Function::tan_vec_dim);
-        const auto      goal = demo.back();
+                      Eigen::MatrixXd f_des(demo.size(), Function::tan_vec_dim);
+                      const auto      goal = demo.back();
 
-        for (long i = 0; i < demo.size(); ++i) {
-            const auto force = _ts.eval_forcing(demo[i], goal, tau);
+                      for (long i = 0; i < demo.size(); ++i) {
+                          const auto force = _ts.eval_forcing(demo[i], goal, tau);
 
-            if constexpr (is_scalar) f_des(i) = force;
+                          if constexpr (is_scalar) f_des(i) = force;
             else f_des.row(i) = Function::to_eigen(force);
         }
-        assert(!f_des.hasNaN());
-        return f_des;
+                      assert(!f_des.hasNaN());
+                      return f_des;
     }
 
     template <typename Demonstration>
@@ -240,6 +240,9 @@ public:
     using TangentVector     = typename Dmp::Manifold::TangentVector;
 
     IntegrableDmp(Dmp&& dmp) : _dmp(std::move(dmp)) {}
+
+    template <typename... Args>
+    IntegrableDmp(Args... args) : _dmp(std::forward<Args>(args)...) {}
 
     MinimumSample     curr_state;
     MinimumGoalSample goal_state;
