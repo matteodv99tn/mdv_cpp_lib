@@ -15,7 +15,7 @@ struct SE3Point {
 
     SE3Point(const Eigen::Vector3d& pos_, const Eigen::Quaterniond& ori_) :
             pos(pos_), ori(ori_) {
-        if (ori.w() < 0.0) ori.coeffs() *= -1;
+        // if (ori.w() < 0.0) ori.coeffs() *= -1;
     }
 
     static SE3Point from_affine(const Eigen::Affine3d& transform);
