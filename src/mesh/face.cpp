@@ -1,61 +1,59 @@
 #include "mdv/mesh/face.hpp"
 
-#include <CGAL/boost/graph/iterator.h>
-#include <cstdlib>
 #include <fmt/format.h>
 #include <gsl/assert>
-#include <random>
 
-#include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/vertex.hpp"
+#include "mdv/utils/conditions.hpp"
 
 using mdv::mesh::Face;
-using mdv::mesh::Mesh;
-using mdv::mesh::Vertex;
 
-Face
-Face::random(const Mesh& m) {
-    static std::random_device                  rd;
-    static std::mt19937                        gen(rd());
-    std::uniform_int_distribution<Face::Index> dist(0, m.num_faces() - 1);
-    return {m.data(), dist(gen)};
-}
+Face Face::invalid_face = Face();
 
-mdv::Vec3d
-Face::normal() const {
-    const auto& [v0, v1, v2] = vertices();
-    const auto e1            = v1.position() - v0.position();
-    const auto e2            = v2.position() - v0.position();
-    return e1.cross(e2).normalized();
-}
-
-Vertex
-Face::vertex(const long i) const {
-    Expects(i >= 0 && i < 3);
-    return {data(), vertices_ids()[i]};
-}
-
-Face::VertexTriplet
-Face::vertices() const {
-    const auto ids = vertices_ids();
-    return {Vertex(data(), ids[0]), Vertex(data(), ids[1]), Vertex(data(), ids[2])};
+std::size_t
+Face::id() const {
+    assert(is_valid());
+    auto it = Face::ConstIterator(this);
+    return std::distance(mesh().faces_begin(), it);
 }
 
 std::string
 Face::describe() const {
-    if (_mesh_data == nullptr) return "Face object of unspecified mesh";
-    if (id() == invalid_index)
-        return fmt::format("Invalid face on mesh '{}'", data().name);
+    if (undefined_mesh()) return "Face object of unspecified mesh";
+    if (_he == nullptr) return fmt::format("Invalid face on mesh '{}'", mesh().name());
 
-    const auto [v1, v2, v3] = vertices_ids();
+    const auto& he = half_edge();
+    const auto  v1 = he->origin().id();
+    const auto  v2 = he->next()->origin().id();
+    const auto  v3 = he->next()->next()->origin().id();
     return fmt::format(
             "Face ID #{} (vertices {}, {}, {}) of mesh '{}'",
             id(),
             v1,
             v2,
             v3,
-            data().name
+            mesh().name()
     );
+}
+
+void
+Face::bake_properties() {
+    assert(&_he->face() == &_he->prev()->face());
+
+    const auto u = _he->direction();
+    const auto v = _he->prev()->twin()->direction();
+
+    _uv_map.set_origin(_he->origin_position());
+    _uv_map.set_u_vector(u);
+    _uv_map.set_v_vector(v);
+
+    _n = (u.cross(v)).normalized();
+
+    assert(mdv::condition::is_unit_norm(_n));
+    assert(!mdv::condition::is_zero_norm(_uv_map.u_dir()));
+    assert(!mdv::condition::is_zero_norm(_uv_map.v_dir()));
+    assert(mdv::condition::are_orthogonal(_uv_map.u_dir(), normal()));
+    assert(mdv::condition::are_orthogonal(_uv_map.v_dir(), normal()));
 }

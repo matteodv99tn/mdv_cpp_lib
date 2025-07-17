@@ -1,9 +1,7 @@
 #ifndef MDV_MESH_CONDITIONS_HPP
 #define MDV_MESH_CONDITIONS_HPP
 
-#include "mdv/mesh/fwd.hpp"
-#include "mdv/mesh/index_element.hpp"
-#include "mdv/mesh/mesh_data.hpp"
+#include "mdv/mesh/mesh_element.hpp"
 
 namespace mdv::mesh {
 

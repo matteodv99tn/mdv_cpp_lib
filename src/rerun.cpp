@@ -71,7 +71,7 @@ RerunConverter::operator()(const mdv::mesh::Geodesic& geod) const {
 }
 
 rra::Points3D
-RerunConverter::operator()(const Mesh::Point& pt) const {
+RerunConverter::operator()(const mesh::Point& pt) const {
     _logger->debug(
             "Exporting point on a mesh at position {}", eigen_to_str(pt.position())
     );
@@ -79,7 +79,7 @@ RerunConverter::operator()(const Mesh::Point& pt) const {
 }
 
 rra::Points3D
-RerunConverter::operator()(const std::vector<Mesh::Point>& pts) const {
+RerunConverter::operator()(const std::vector<mesh::Point>& pts) const {
     _logger->info("Exporting {} points on a mesh", pts.size());
 
     std::vector<rrc::Position3D> positions;
@@ -141,7 +141,8 @@ RerunConverter::as_points(const std::vector<Eigen::Vector3d>& pts) const {
 
 rrd::Vec3D
 RerunConverter::operator()(const Eigen::Vector3d& x) const {
-    return {static_cast<float>(x(0)), static_cast<float>(x(1)), static_cast<float>(x(2))
+    return {
+            static_cast<float>(x(0)), static_cast<float>(x(1)), static_cast<float>(x(2))
     };
 }
 
@@ -161,7 +162,10 @@ RerunConverter::mesh_triangles(const Mesh& mesh) const {
 
     res.reserve(mesh.num_faces());
     for (const auto& f : mesh.faces()) {
-        const auto [id1, id2, id3] = f.vertices_ids();
+        const auto& he  = f.half_edge();
+        const auto  id1 = he->origin().id();
+        const auto  id2 = he->next()->origin().id();
+        const auto  id3 = he->next()->next()->origin().id();
         res.emplace_back(id1, id2, id3);
     }
     return res;

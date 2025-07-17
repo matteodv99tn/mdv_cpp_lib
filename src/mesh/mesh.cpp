@@ -4,6 +4,7 @@
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <Eigen/Geometry>
 #include <gsl/assert>
+#include <random>
 #include <string_view>
 
 #include "mdv/mesh/cgal_impl.hpp"
@@ -34,20 +35,57 @@ Mesh::from_file(const std::filesystem::path& file_path) {
     return Mesh(data, file_name);
 }
 
-Mesh::Mesh(gsl::owner<CgalImpl*> cgal_data, const std::string& name) {
-    using Index        = Face::Index;
-    using IndexTriplet = Face::IndexTriplet;
-
+Mesh::Mesh(gsl::owner<CgalImpl*> cgal_data, const std::string& name) :
+        _impl(cgal_data) {
     Expects(cgal_data != nullptr);
     Expects(cgal_data->_logger != nullptr);
-    _data.impl   = cgal_data;
-    _data.logger = cgal_data->_logger;
+
+    _logger = cgal_data->_logger;
+
+    logger().debug("Constructing half-edges vertices data");
+    const auto eigen_vertices = _impl->yield_vertices();
+    _vertices.reserve(eigen_vertices.size());
+    for (const auto& v_pos : eigen_vertices) emplace_vertex(v_pos);
+
+
+    logger().debug("Constructing half-edges face data");
+    const auto eigen_faces = _impl->yield_faces();
+    _half_edges.reserve(6 * eigen_faces.size());
+    _faces.reserve(eigen_faces.size());
+    for (const auto& face_vertex_ids : eigen_faces) add_face(face_vertex_ids);
+
+    logger().debug("Constructing half-edges opposite edge pairs");
+    construct_opposite_halfedges();
+    logger().debug("Filling halfedges information");
+    fill_halfedges();
+
+    assert(datastructure_correctly_initialised());
+
+    logger().debug("Baking vertex properties");
+    for (auto& v : vertices()) v.bake_properties();
+
+    logger().debug("Baking face properties");
+    for (auto& f : faces()) f.bake_properties();
+
+
     logger().info("Number of vertices: {}", cgal()._mesh.num_vertices());
     logger().info("Number of faces: {}", cgal()._mesh.num_faces());
+}
 
-    // Update Eigen-based data view
-    _data.eigen_data = EigenData(*cgal_data, *_data.logger);
-    _data.name       = name;
+Mesh::~Mesh() {
+    logger().trace("Deleting mesh ptr at {}", static_cast<void*>(_impl));
+    delete _impl;
+}
+
+Mesh::Mesh(Mesh&& other) :
+        _logger(other._logger),
+        _impl(other._impl),
+        _name(std::move(other._name)),
+        _vertices(std::move(other._vertices)),
+        _faces(std::move(other._faces)),
+        _half_edges(std::move(other._half_edges)) {
+    logger().trace("Moving mesh '{}'", name());
+    other._impl = nullptr;
 }
 
 //  __  __                _
@@ -79,7 +117,7 @@ Mesh::transform(const Eigen::Affine3d& transformation) {
     CGAL::Polygon_mesh_processing::transform(transform, cgal()._mesh);
 }
 
-Mesh::Geodesic
+mdv::mesh::Geodesic
 Mesh::build_geodesic(const Point& from, const Point& to) const {
     logger().debug(
             "Building geodesic from {} to {}",
@@ -106,32 +144,126 @@ Mesh::num_faces() const {
     return cgal()._mesh.num_faces();
 }
 
-Mesh::FaceIterator
-Mesh::faces_begin() const noexcept {
-    return {&_data, 0};
+void
+Mesh::add_face(const IndexTriplet& v_ids) {
+    auto& f = emplace_face();
+
+    auto& he1 = emplace_halfedge();
+    auto& he2 = emplace_halfedge();
+    auto& he3 = emplace_halfedge();
+
+    // Assign face first half-edge
+    f._he = &he1;
+
+    // Assign created half-edges reference to the same face, and set vertices
+    he1._face   = &f;
+    he2._face   = &f;
+    he3._face   = &f;
+    he1._origin = &_vertices[v_ids[0]];
+    he2._origin = &_vertices[v_ids[1]];
+    he3._origin = &_vertices[v_ids[2]];
+
+    // Create relationship between half-edges
+    he1._next = &he2;
+    he1._prev = &he3;
+
+    he2._next = &he3;
+    he2._prev = &he1;
+
+    he3._next = &he1;
+    he3._prev = &he2;
+
+    // Assign half-edges to their origins (if they have not been mapped)
+    if (he1._origin->_he == nullptr) he1._origin->_he = &he1;
+    if (he2._origin->_he == nullptr) he2._origin->_he = &he2;
+    if (he3._origin->_he == nullptr) he3._origin->_he = &he3;
 }
 
-Mesh::FaceIterator
-Mesh::faces_end() const noexcept {
-    return {&_data, static_cast<long>(num_faces())};
+void
+Mesh::construct_opposite_halfedges() {
+    for (std::size_t i = 0; i < _half_edges.size(); ++i) {
+        auto& he_i = _half_edges[i];
+        for (std::size_t j = i + 1; j < _half_edges.size(); ++j) {
+            auto& he_j = _half_edges[j];
+
+            if (he_i.is_opposite_of(he_j)) {
+                assert(he_i._twin == nullptr);
+                assert(he_j._twin == nullptr);
+                he_i._twin = &he_j;
+                he_j._twin = &he_i;
+            }
+        }
+    }
 }
 
-boost::iterator_range<Mesh::FaceIterator>
-Mesh::faces() const noexcept {
-    return {faces_begin(), faces_end()};
+void
+Mesh::fill_halfedges() {
+    const std::size_t he_size = _half_edges.size();
+    for (std::size_t i = 0; i < he_size; ++i) {
+        auto& he = _half_edges[i];
+        if (he._twin != nullptr) continue;
+
+        // Create opposite half-edge
+        auto& twin_he = emplace_halfedge();
+        he._twin      = &twin_he;
+
+        // Fill opposite half-edge data
+        twin_he._origin = he._next->_origin;
+        twin_he._twin   = &he;
+        assert(twin_he._next == nullptr);
+        assert(twin_he._prev == nullptr);
+        assert(twin_he._face == nullptr);
+    }
+
+    for (std::size_t i = he_size; i < _half_edges.size(); ++i) {
+        auto& he_i = _half_edges[i];
+        assert(he_i._twin);
+        assert(he_i._face == nullptr);
+        assert(he_i._origin != nullptr);
+
+        // for (std::size_t j = i + 1; j < _half_edges.size(); ++j) {
+        for (std::size_t j = he_size; j < _half_edges.size(); ++j) {
+            auto& he_j = _half_edges[j];
+
+            if (he_i._origin == he_j._twin->_origin) {
+                assert(he_i._next == nullptr);
+                assert(he_j._prev == nullptr);
+                he_i._next = &he_j;
+                he_j._prev = &he_i;
+            }
+        }
+    }
 }
 
-Mesh::VertexIterator
-Mesh::vertices_begin() const noexcept {
-    return {&_data, 0};
+const Face&
+Mesh::random_face() const {
+    static std::random_device                  rand_dev;
+    static std::mt19937                        generator(rand_dev());
+    std::uniform_int_distribution<std::size_t> distribution(0, num_faces() - 1);
+    return _faces[distribution(generator)];
 }
 
-Mesh::VertexIterator
-Mesh::vertices_end() const noexcept {
-    return {&_data, static_cast<long>(num_vertices())};
-}
+bool
+Mesh::datastructure_correctly_initialised() const {
+    // Check vertices
+    for (const auto& v : _vertices)
+        if (v._he == nullptr) return false;
 
-boost::iterator_range<Mesh::VertexIterator>
-Mesh::vertices() const noexcept {
-    return {vertices_begin(), vertices_end()};
+    // Check faces
+    for (const auto& f : _faces)
+        if (f._he == nullptr) return false;
+
+    // Check half-edges
+    for (const auto& he : _half_edges) {
+        const bool c1 = he._origin == nullptr;
+        const bool c2 = he._twin == nullptr;
+        const bool c3 = he._next == nullptr;
+        const bool c4 = he._prev == nullptr;
+        if (c1 || c2 || c3 || c4) {
+            // Func
+            return false;
+        }
+    }
+
+    return true;
 }

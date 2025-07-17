@@ -69,13 +69,17 @@ public:
     CgalImpl& operator=(CgalImpl&&) noexcept;
     ~CgalImpl();
 
-    mutable Logger::SharedPtr                     _logger;
+    mutable Logger::SharedPtr             _logger;
     Mesh                                  _mesh;
     std::unique_ptr<ShortestPath>         _shortest_path;
     AabbTree                              _aabb_tree;
     mutable gsl::owner<mdv::mesh::Point*> _current_shortpath_source = nullptr;
 
     void build_vertex_normals_map() noexcept;
+
+    MDV_NODISCARD std::vector<Eigen::Vector3d> yield_vertices() const;
+
+    MDV_NODISCARD std::vector<IndexTriplet> yield_faces() const;
 
     Logger&
     logger() const {

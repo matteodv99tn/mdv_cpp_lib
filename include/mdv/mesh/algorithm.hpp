@@ -35,13 +35,13 @@ Geodesic geodesic_resample(const Geodesic& geod, std::vector<double> coordinates
  * @brief Computes the parallel transport of vector v on point p
  *
  */
-TangentVector parallel_transport(const TangentVector& v, const Mesh::Point& p);
+TangentVector parallel_transport(const TangentVector& v, const Point& p);
 
 /**
  * @brief Computes the logarithmic of point "y" w.r.t. to point "p".
  *
  */
-TangentVector logarithmic_map(const Mesh::Point& p, const Mesh::Point& y);
+TangentVector logarithmic_map(const Point& p, const Point& y);
 
 /**
  * @brief Computes the exponential map.
@@ -52,30 +52,20 @@ TangentVector logarithmic_map(const Mesh::Point& p, const Mesh::Point& y);
  * Optionally, it can yield the geodesic retrieved when "unfolding" the vector v.
  *
  */
-Mesh::Point exponential_map(TangentVector v, Geodesic* geod = nullptr);
+Point exponential_map(TangentVector v, Geodesic* geod = nullptr);
 
 
 /**
  * @brief Computes the point-to-face distance
  *
  */
-double distance(const Mesh::Face& f, const CartesianPoint& pt);
+double distance(const Face& f, const CartesianPoint& pt);
 
 /**
  * @brief Computes the point-to-point distance
  *
  */
 double distance(const Point& p1, const Point& p2);
-
-/**
- * @brief Given two faces, it yields the pair of shared vertices from the 2 faces.
- *
- * This function implicitly assumes that faces are neighbouring. If this is not the
- * case, an exception will be thrown.
- */
-std::pair<Mesh::Vertex, Mesh::Vertex> shared_vertices(
-        const Mesh::Face& f1, const Mesh::Face& f2
-);
 
 /**
  * @brief Checks wether the provided UV coordinates are within the "unitary" triangle

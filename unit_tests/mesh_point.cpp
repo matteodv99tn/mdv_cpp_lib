@@ -4,7 +4,7 @@
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/conditions.hpp"
 
-using mdv::mesh::Mesh;
+using namespace mdv::mesh;
 
 TEST(MdvMesh, PointToBarycentric) {
     using mdv::condition::is_zero_norm;
@@ -15,25 +15,21 @@ TEST(MdvMesh, PointToBarycentric) {
     const Eigen::Vector3d b2_des = {0.0, 1.0, 0.0};
     const Eigen::Vector3d b3_des = {0.0, 0.0, 1.0};
 
-    using Face    = Mesh::Face;
-    using Point   = Mesh::Point;
-    using UvCoord = Mesh::Point::UvCoord;
 
     for (int i = 0; i < 256; ++i) {
         // Check conversion to barycentric coordinates
-        const auto face     = Face::random(mesh);
-        const auto pt_on_v1 = Point(face, UvCoord({0.0, 0.0}));
-        const auto pt_on_v2 = Point(face, UvCoord({1.0, 0.0}));
-        const auto pt_on_v3 = Point(face, UvCoord({0.0, 1.0}));
+        const auto& face     = mesh.random_face();
+        const auto  pt_on_v1 = Point(face, UvMap::UvCoord({0.0, 0.0}));
+        const auto  pt_on_v2 = Point(face, UvMap::UvCoord({1.0, 0.0}));
+        const auto  pt_on_v3 = Point(face, UvMap::UvCoord({0.0, 1.0}));
 
         EXPECT_NEAR(pt_on_v1.barycentric()[0], b1_des[0], 1e-9);
         EXPECT_NEAR(pt_on_v2.barycentric()[1], b2_des[1], 1e-9);
         EXPECT_NEAR(pt_on_v3.barycentric()[2], b3_des[2], 1e-9);
 
         // Create random point, and check that different constructors works as expected
-        const auto pt_random = Point::random(mesh);
-        const auto pt_reconstructed =
-                Mesh::Point::from_cartesian(mesh, pt_random.position());
+        const auto pt_random        = Point::random(mesh);
+        const auto pt_reconstructed = Point::from_cartesian(mesh, pt_random.position());
         EXPECT_NEAR(
                 pt_random.position()[0] - pt_reconstructed.position()[0], 0.0, 1e-9
         );

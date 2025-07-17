@@ -23,16 +23,16 @@ namespace mdv {
 class RerunConverter {
 public:
     MDV_NODISCARD
-    ::rerun::archetypes::Mesh3D operator()(const ::mdv::mesh::Mesh&) const;
+    ::rerun::archetypes::Mesh3D operator()(const mesh::Mesh&) const;
 
     MDV_NODISCARD ::rerun::archetypes::LineStrips3D
     operator()(const ::mdv::mesh::Geodesic&) const;
 
     MDV_NODISCARD ::rerun::archetypes::Points3D
-    operator()(const ::mdv::mesh::Mesh::Point&) const;
+    operator()(const mesh::Point&) const;
 
     MDV_NODISCARD ::rerun::archetypes::Points3D
-    operator()(const std::vector<::mdv::mesh::Mesh::Point>&) const;
+    operator()(const std::vector<mesh::Point>&) const;
 
 
     MDV_NODISCARD ::rerun::archetypes::Arrows3D

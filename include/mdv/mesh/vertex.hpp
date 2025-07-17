@@ -1,37 +1,47 @@
 #ifndef MDV_MESH_VERTEX_HPP
 #define MDV_MESH_VERTEX_HPP
 
+#include <vector>
+
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
-#include "mdv/mesh/index_element.hpp"
-#include "mdv/mesh/mesh_iterator.hpp"
+#include "mdv/mesh/mesh_element.hpp"
 
 namespace mdv::mesh {
 
-class Vertex : public internal::IndexBasedMeshElement {
+class Vertex : internal::MeshElement {
 public:
-    using Index     = ::mdv::mesh::Index;
-    using MeshData  = ::mdv::mesh::internal::MeshData;
-    using EigenData = ::mdv::mesh::internal::EigenData;
-    using Iterator  = MeshIterator<Vertex, Index>;
+    using Vector        = std::vector<Vertex>;
+    using Iterator      = Vector::iterator;
+    using ConstIterator = Vector::const_iterator;
 
-    Vertex(const MeshData& data, const Index& id) noexcept :
-            IndexBasedMeshElement(data, id) {};
+    Vertex(const Mesh& mesh, const CartesianPoint& position) :
+            MeshElement(mesh), _pos(position) {}
 
-    MDV_NODISCARD Eigen::Vector3d normal() const;
+    // clang-format off
+    MDV_NODISCARD const CartesianPoint& position() const { return _pos; }
 
-    MDV_NODISCARD const CartesianPoint&
-    position() const noexcept {
-        assert(is_valid());
-        return eigen_data().vertices[id()];
-    }
+    MDV_NODISCARD HalfEdge& half_edge() const { assert(_he); return *_he; }
 
-    MDV_NODISCARD
-    std::string describe() const override;
+
+    MDV_NODISCARD const Eigen::Vector3d& normal() const noexcept { return _n; };
+
+    // clang-format on
+
+    MDV_NODISCARD std::size_t id() const;
+
+    MDV_NODISCARD std::string describe() const override;
 
 private:
-    friend class MeshIterator<Vertex, Index>;
+    friend class Mesh;
+
+    CartesianPoint  _pos = CartesianPoint::Zero();
+    HalfEdge*       _he  = nullptr;
+    Eigen::Vector3d _n   = Eigen::Vector3d::Zero();
+
+    void bake_properties();
 };
+
 }  // namespace mdv::mesh
 
 

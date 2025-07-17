@@ -1,5 +1,7 @@
 #include "mdv/mesh/tangent_vector.hpp"
 
+#include <Eigen/src/Core/Matrix.h>
+
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/fwd.hpp"
@@ -24,7 +26,7 @@ TangentVector::TangentVector(const Point& app_point, const Vec3d& v) :
 }
 
 TangentVector
-TangentVector::from_tip_position(const Mesh::Point& origin, const CartesianPoint& tip) {
+TangentVector::from_tip_position(const Point& origin, const CartesianPoint& tip) {
     const auto p0  = origin.position();
     const auto vec = tip - p0;
     const auto n   = origin.face().normal();
@@ -35,7 +37,7 @@ TangentVector::from_tip_position(const Mesh::Point& origin, const CartesianPoint
 }
 
 TangentVector
-TangentVector::unit_random(const Mesh::Point& application_point) {
+TangentVector::unit_random(const Point& application_point) {
     UvCoord    uv = UvCoord::Random();
     const auto J  = application_point.uv_map().forward_map_jacobian();  // NOLINT
     uv /= (J * uv).norm();
@@ -56,120 +58,91 @@ TangentVector::cartesian_vector() const noexcept {
 std::optional<TangentVector>
 TangentVector::trim() {
     using mdv::condition::are_orthogonal;
-    logger().trace(
-            "Trimming tangent vector with origin '{}', uv: {}",
+    assert(Mesh::default_logger);
+    mdv::Logger& logger = *Mesh::default_logger.get();
+    logger.trace(
+            "Trimming tangent vector with origin '{}', vector: {}",
             application_point().describe(),
-            eigen_to_str(uv())
+            eigen_to_str(cartesian_vector())
     );
 
-    /**
-     * @brief Computes the intersection of two lines given by points and vectors
-     *
-     * First point (and vector) is always assumed to be current point position and
-     * tangent vector direction.
-     *
-     * Second point and vector are provided as arguments and will represent the
-     * different edges of the unitary triangle.
-     */
-    auto compute_intersection = [p1 = application_point().uv(), v1 = uv()](
-                                        const UvCoord&& p2, const UvCoord&& v2
-                                ) -> std::pair<double, double> {
-        Eigen::Matrix2d A;  // NOLINT
-        A.col(0)     = v1;
-        A.col(1)     = -v2;
-        const auto b = p2 - p1;
+    const auto&  v = cartesian_vector();
+    const auto&  p = application_point().position();
+    const auto&  f = application_point().face();
+    const auto&  n = f.normal();
+    const double d = mdv::mesh::distance(f, p);
 
-        if (mdv::condition::is_zero(A.determinant())) [[unlikely]]
-            return {-1.0, -1.0};
-        // householderQr shall be faster, but has lower accuracy that is required for
-        // the problem
-        // UvCoord res = A.householderQr().solve(b);
-        UvCoord res = A.colPivHouseholderQr().solve(b);
-        return {res(0), res(1)};
-    };
+    assert(mdv::condition::are_orthogonal(v, n));
+    assert(mdv::condition::is_zero(d));
 
-    // Compute all possible intersections
-    const auto& [t1, s1] = compute_intersection({0.0, 0.0}, {1.0, 0.0});
-    const auto& [t2, s2] = compute_intersection({0.0, 0.0}, {0.0, 1.0});
-    const auto& [t3, s3] = compute_intersection({0.0, 1.0}, {1.0, -1.0});
-
-    using mdv::condition::internal::zero_th;
-    int    edge_id = 3;
-    double t       = -1.0;
-
-    // Select valid intersection
-    if ((s1 > 0) && (s1 <= 1.0) && (t1 > zero_th)) {
-        edge_id = 0;
-        t       = t1;
-    } else if ((s2 > 0) && (s2 <= 1.0) && (t2 > zero_th)) {
-        assert(edge_id == 3);
-        edge_id = 1;
-        t       = t2;
-    } else if ((s3 > 0) && (s3 <= 1.0) && (t3 > zero_th)) {
-        assert(edge_id == 3);
-        edge_id = 2;
-        t       = t3;
-    }
 
     // Ensure uv is not numerically zero, as this could have lead to numerical
     // instability in the computaion of tX and sX
     if (_uv.cwiseAbs().maxCoeff() < 1e-5) return std::nullopt;
 
-    // Validate
-    if ((edge_id == 3) || (t == -1.0)) {
-        logger().error(
-                "TangentVector::trim failed! Could not find a valid intersection to "
-                "project remainder of TangentVector"
-        );
-        logger().warn("Edge id: {}, parameter t = {}", edge_id, t);
-        logger().warn(
-                "Current application point uv: {} (sum = {})",
-                eigen_to_str(application_point().uv()),
-                application_point().uv().sum()
-        );
-        logger().warn("Tangent vector uv: {}", eigen_to_str(uv()));
-        logger().warn("t1 = {}, s1 = {}", t1, s1);
-        logger().warn("t2 = {}, s2 = {}", t2, s2);
-        logger().warn("t3 = {}, s3 = {}", t3, s3);
-        throw std::runtime_error("TangentVector::trim failed; check log");
+
+    using Vec2  = Eigen::Vector2d;
+    using Vec3  = Eigen::Vector3d;
+    using Mat32 = Eigen::Matrix<double, 3, 2>;
+    Vec3  b;
+    Mat32 A;
+
+    HalfEdge*  he = face().half_edge();
+    const auto p1 = application_point().position();
+    const auto v1 = cartesian_vector();
+
+    bool        first_iter         = true;
+    bool        intersection_found = false;
+    double      s;
+    double      t;
+    Vec2        res;
+    std::size_t iter = 0;
+    while (!intersection_found && (first_iter || he != face().half_edge())) {
+        ++iter;
+        const auto v2 = he->direction();
+        const auto p2 = he->origin_position();
+        A.col(0)      = -v1;
+        A.col(1)      = v2;
+        b             = p1 - p2;
+        res           = A.colPivHouseholderQr().solve(b);
+        t             = res(0);
+        s             = res(1);
+
+        constexpr double zero          = 0.0;
+        const bool       intersects_he = (s > -zero) && (s < 1.0 + zero);
+
+        // In the following case the tangent vector is fully contained in the face
+        if (intersects_he && t >= 1.0) return std::nullopt;
+
+        intersection_found = (intersects_he && t > -zero);
+
+        if (!intersection_found) he = he->next();
+        first_iter = false;
     }
 
-    if (t >= 1.0)
-        return std::nullopt;  // Intersection appears ad a distance greater then the
-                              // motion by the vector
+    if (!intersection_found) throw std::runtime_error("Unable to find intersection!");
+    logger.trace("Intersection -> s: {}, t: {}", s, t);
+
+    const auto           v2  = he->direction();
+    const auto           p2  = he->origin_position();
+    const CartesianPoint tmp = p2 + s * v2;
 
     // Retrieve new point on the boarder
-    const auto boarder_uv  = application_point().uv() + t * uv();
-    const auto boarder_pos = application_point().uv_map().forward_map(boarder_uv);
-    const auto new_face    = application_point().face().neighbour_face(edge_id);
-    const auto new_app_point =
-            Mesh::Point::from_face_and_position(new_face, boarder_pos)
-                    .constrain_inside_triangle();
+    const CartesianPoint boarder_pos = p1 + t * v1;
+
+    const auto& new_face = he->twin()->face();
+
+    const auto& curr_face = application_point().face();
+    const auto  new_app_point =
+            Point::from_face_and_position(new_face, tmp).constrain_inside_triangle();
+
 
     // Compute vector that shall be projected onto the new face
-    const auto uv_delta        = (1.0 - t) * uv();
-    const auto cartesian_delta = uv_map().forward_map_jacobian() * uv_delta;
+    const Eigen::Vector3d cartesian_delta = tip() - boarder_pos;
 
     // Compute conformal mapping of cartesian_delta vector
-    //  1. find shared edge -> will be the rotation axis
-    //  2. find rotation angle based on faces normals (theta)
-    //  3. chose between clockwise / counter-clocwise rotation
-
-    const auto [v_shared1, v_shared2] =
-            mdv::mesh::shared_vertices(application_point().face(), new_face);
-    const auto edge = (v_shared1.position() - v_shared2.position()).normalized();
-
-    const auto   n1        = application_point().face().normal();
-    const auto   n2        = new_face.normal();
-    const auto   cos_theta = n1.dot(n2);
-    const double theta     = std::acos(cos_theta);
-
-    const Eigen::AngleAxis rot1(theta, edge);
-    const Eigen::AngleAxis rot2(-theta, edge);
-    const auto             res1             = rot1 * cartesian_delta;
-    const auto             res2             = rot2 * cartesian_delta;
-    const auto             projected_vector = are_orthogonal(res1, n2) ? res1 : res2;
-    assert(are_orthogonal(projected_vector, n2));
+    const Eigen::Vector3d projected_vector = he->aligning_rotation() * cartesian_delta;
+    assert(are_orthogonal(projected_vector, new_face.normal()));
 
     return TangentVector(new_app_point, projected_vector);
 }

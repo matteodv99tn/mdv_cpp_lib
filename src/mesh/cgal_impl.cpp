@@ -1,5 +1,6 @@
 #include "mdv/mesh/cgal_impl.hpp"
 
+#include <CGAL/boost/graph/graph_traits_Surface_mesh.h>
 #include <CGAL/Polygon_mesh_processing/compute_normal.h>
 #include <CGAL/Polygon_mesh_processing/IO/polygon_mesh_io.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
@@ -44,6 +45,7 @@ CgalImpl::from_file(const path& file_path, Logger::SharedPtr&& logger) {
         logger->error("Unable to load mesh {}", file_path.string());
         throw std::runtime_error("Cannot load mesh");
     }
+
     return new CgalImpl(std::move(mesh), std::move(logger));
 }
 
@@ -69,9 +71,9 @@ mdv::mesh::internal::construct_geodesic(
     Geodesic geod;
     geod.reserve(cgal_geod.size());
     rs::transform(
-            cgal_geod,
-            std::back_inserter(geod),
-            [](const auto& pt) -> Eigen::Vector3d { return convert(pt); }
+            cgal_geod, std::back_inserter(geod), [](const auto& pt) -> Eigen::Vector3d {
+                return convert(pt);
+            }
     );
     return geod;
 }
@@ -82,7 +84,7 @@ mdv::mesh::internal::construct_geodesic(
         const ::mdv::mesh::Point& from,
         const ::mdv::mesh::Point& to
 ) {
-    require_on_same_mesh(from.face(), to.face());
+    // require_on_same_mesh(from.face(), to.face());
 
     auto& curr_target = cgal_data._current_shortpath_source;
 
@@ -90,8 +92,9 @@ mdv::mesh::internal::construct_geodesic(
         cgal_data.logger().trace("Updating shortest path source point");
         if (curr_target != nullptr)
             cgal_data._shortest_path->remove_all_source_points();
-        cgal_data._shortest_path->add_source_point(internal::location_from_mesh_point(to
-        ));
+        cgal_data._shortest_path->add_source_point(
+                internal::location_from_mesh_point(to)
+        );
         cgal_data._current_shortpath_source = new Point(to);
     }
 
@@ -110,6 +113,35 @@ CgalImpl::build_vertex_normals_map() noexcept {
     } else {
         _logger->trace("Vertex normals already computed");
     }
+}
+
+std::vector<Eigen::Vector3d>
+CgalImpl::yield_vertices() const {
+    using Vec3 = Eigen::Vector3d;
+    std::vector<Vec3> res;
+    res.resize(CGAL::num_vertices(_mesh));
+    for (const CgalImpl::Mesh::Vertex_index& vertex : _mesh.vertices()) {
+        const auto cgal_vertex = _mesh.point(vertex);
+        res[vertex.idx()] = Vec3(cgal_vertex.x(), cgal_vertex.y(), cgal_vertex.z());
+    }
+    return res;
+}
+
+std::vector<mdv::mesh::IndexTriplet>
+CgalImpl::yield_faces() const {
+    std::vector<mdv::mesh::IndexTriplet> res;
+    res.resize(CGAL::num_faces(_mesh));
+    for (const CgalImpl::Mesh::Face_index& face : _mesh.faces()) {
+        const auto vertex_iter =
+                CGAL::vertices_around_face(_mesh.halfedge(face), _mesh);
+        int i = 0;
+        for (const auto& vi : vertex_iter) {
+            Expects(i < 3);
+            res[static_cast<long>(face)].at(i) = vi.idx();
+            i++;
+        }
+    }
+    return res;
 }
 
 //   ____                              _

@@ -72,18 +72,15 @@ add_library(
     # Mesh
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/vertex.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/face.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/point.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/tangent_vector.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/cgal_impl.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/eigen_data.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh_data.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/vertex.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/face.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/point.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/tangent_vector.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/half_edge.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/algorithm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/cgal_impl.cpp
+
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/point.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/tangent_vector.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/conditions.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/algorithm.cpp
+
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh_manager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh_utilities.cpp
 

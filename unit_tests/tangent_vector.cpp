@@ -6,8 +6,7 @@
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/conditions.hpp"
 
-using mdv::mesh::Mesh;
-using mdv::mesh::TangentVector;
+using namespace mdv::mesh;
 
 TEST(MdvMesh, TangentVectorUnitRandomInitialisation) {
     const std::string mesh_path =
@@ -15,7 +14,7 @@ TEST(MdvMesh, TangentVectorUnitRandomInitialisation) {
     const auto mesh = Mesh::from_file(mesh_path);
 
     for (int i{0}; i < 256; ++i) {
-        const auto pt  = Mesh::Point::random(mesh);
+        const auto pt  = Point::random(mesh);
         const auto vec = TangentVector::unit_random(pt);
         ASSERT_TRUE(mdv::condition::is_unit_norm(vec.tip() - pt.position()));
     }
@@ -30,7 +29,7 @@ TEST(MdvMesh, TangentVectorFromTipInitialisation) {
     const auto pref_dir = Vec3::UnitX();
 
     for (int i{0}; i < 256; ++i) {
-        const auto pt    = Mesh::Point::random(mesh);
+        const auto pt    = Point::random(mesh);
         const auto n     = pt.face().normal();
         const Vec3 delta = (Mat3::Identity() - n * n.transpose()) * pref_dir;
         const Vec3 tip   = pt.position() + delta;
@@ -51,7 +50,7 @@ TEST(MdvMesh, TangentVectorDifference) {
     const auto pref_dir = Vec3::UnitX();
 
     for (int i{0}; i < 256; ++i) {
-        const auto pt = Mesh::Point::random(mesh);
+        const auto pt = Point::random(mesh);
         const auto v1 = TangentVector::unit_random(pt);
         const auto v2 = TangentVector::unit_random(pt);
 

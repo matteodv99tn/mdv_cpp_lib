@@ -9,7 +9,7 @@ namespace mdv::riemann {
 
 class MeshManifold {
 public:
-    using Point         = mdv::mesh::Mesh::Point;
+    using Point         = mdv::mesh::Point;
     using TangentVector = Eigen::Vector3d;
 
     static TangentVector logarithmic_map(const Point& q1, const Point& q2);

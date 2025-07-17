@@ -1,9 +1,12 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <fmt/base.h>
 #include <sstream>
 #include <string>
 
 #include "mdv/utils/logging.hpp"
+#include "mdv/utils/logging_extras.hpp"
+#include "mdv/utils/spdlog.hpp"
 
 #ifdef MDV_WITH_RERUN_SDK
 #include <rerun.hpp>
@@ -29,13 +32,14 @@ to_string(const Quat& q) {
     return ss.str();
 }
 
+using namespace mdv::mesh;
+
 int
 main() {
-    using M     = mdv::riemann::MeshManifold;
-    using Demo  = mdv::Demonstration<M>;
-    using Dmp   = mdv::Dmp<M>;
-    using Mesh  = mdv::mesh::Mesh;
-    using Point = mdv::mesh::Mesh::Point;
+    using M    = mdv::riemann::MeshManifold;
+    using Demo = mdv::Demonstration<M>;
+    using Dmp  = mdv::Dmp<M>;
+    using Mesh = mdv::mesh::Mesh;
 
     std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus_simple.off";
     fmt::print("Selected mesh path: {}\n", mesh_path);

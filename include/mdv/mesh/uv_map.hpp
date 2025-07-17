@@ -17,6 +17,7 @@ namespace mdv::mesh {
 class UvMap {
 public:
     using Domain    = Eigen::Vector2d;
+    using UvCoord   = Domain;
     using CoDomain  = CartesianPoint;
     using Transform = Eigen::Matrix<double, 3, 2>;
 
@@ -46,9 +47,25 @@ public:
         return _transform.colPivHouseholderQr().solve(in - _origin);
     }
 
+    // clang-format off
+    MDV_NODISCARD auto u_dir() const { return _transform.col(0); } 
+    MDV_NODISCARD auto v_dir() const { return _transform.col(1); }
+
+    // clang-format on
+
+
 private:
-    CoDomain  _origin;
-    Transform _transform;
+    CoDomain  _origin    = CoDomain::Zero();
+    Transform _transform = Transform::Zero();
+
+    friend class Face;
+
+    // clang-format off
+    void set_origin(const CartesianPoint& origin) { _origin = origin; }
+    void set_u_vector(const Eigen::Vector3d& vec) { _transform.col(0) = vec; } 
+    void set_v_vector(const Eigen::Vector3d& vec) { _transform.col(1) = vec; }
+
+    // clang-format on
 };
 
 

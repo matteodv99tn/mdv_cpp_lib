@@ -8,7 +8,7 @@
 
 using MeshManifold = mdv::riemann::MeshManifold;
 
-using Point      = mdv::mesh::Mesh::Point;
+using Point      = mdv::mesh::Point;
 using Vec3       = Eigen::Vector3d;
 using MeshTanVec = mdv::mesh::TangentVector;
 

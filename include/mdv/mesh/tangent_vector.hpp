@@ -5,7 +5,7 @@
 
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
-#include "mdv/mesh/index_element.hpp"
+#include "mdv/mesh/mesh_element.hpp"
 #include "mdv/mesh/point.hpp"
 #include "mdv/mesh/uv_map.hpp"
 
@@ -13,7 +13,7 @@ namespace mdv::mesh {
 
 class TangentVector : Point {
 public:
-    using UvCoord = Point::UvCoord;
+    using UvCoord = UvMap::UvCoord;
 
     TangentVector(const Point& app_point, const UvCoord& uv) :
             Point(app_point), _uv(uv) {};
@@ -69,8 +69,9 @@ public:
 
     // clang-format off
     MDV_NODISCARD const UvCoord&  uv() const                { return _uv; }
+
     using Point::uv_map;
-    using internal::MeshElement::logger;
+
     MDV_NODISCARD const Point&    application_point() const { return *this; }
 
     // clang-format on

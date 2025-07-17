@@ -3,21 +3,18 @@
 
 #include "mdv/mesh/face.hpp"
 #include "mdv/mesh/fwd.hpp"
-#include "mdv/mesh/index_element.hpp"
-#include "mdv/mesh/mesh_data.hpp"
 #include "mdv/mesh/uv_map.hpp"
+#include "mdv/utils/conditions.hpp"
 
 namespace mdv::mesh {
 
-class Point : private Face {
+class Point {
 public:
-    using Face     = ::mdv::mesh::Face;
-    using UvCoord  = UvMap::Domain;
-    using MeshData = ::mdv::mesh::internal::MeshData;
+    using UvCoord = UvMap::Domain;
 
     Point() = default;
 
-    Point(const Face& face, const UvCoord& uv) : Face(face), _uv(uv) {}
+    Point(const Face& face, const UvCoord& uv);
 
     /**
      * @brief Retrieves the closes point on the mesh to the given point described in
@@ -67,19 +64,18 @@ public:
     void  constrain_inside_triangle() &;
     Point constrain_inside_triangle() &&;
 
+    const UvMap&
+    uv_map() const {
+        return _face->uv_map();
+    }
+
     MDV_NODISCARD
     std::string describe() const;
-
-    using Face::uv_map;
-    using internal::MeshElement::cgal;
-    using internal::MeshElement::data;
-    using internal::MeshElement::eigen_data;
-    using internal::MeshElement::logger;
 
     // clang-format off
     MDV_NODISCARD double          u() const noexcept         { return _uv(0); }
     MDV_NODISCARD double          v() const noexcept         { return _uv(1); }
-    MDV_NODISCARD const Face&     face() const noexcept      { return *this; }
+    MDV_NODISCARD const Face&     face() const noexcept      { return *_face; }
     MDV_NODISCARD const UvCoord&  uv() const noexcept        { return _uv; }
 
     MDV_NODISCARD bool operator==(const Point& other) const noexcept;
@@ -87,7 +83,9 @@ public:
     // clang-format on
 private:
     Point(const Face& face, const CartesianPoint& pt);
-    UvCoord _uv;
+
+    UvCoord     _uv   = UvCoord::Zero();
+    const Face* _face = nullptr;
 };
 
 
