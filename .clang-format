@@ -30,7 +30,7 @@ AlwaysBreakBeforeMultilineStrings: True
 AlwaysBreakAfterDefinitionReturnType: All
 # BreakAfterReturnType: ExceptShortType
 BinPackArguments: False
-BinPackParameters: False
+BinPackParameters: OnePerLine
 BreakBeforeBraces: Attach
 BreakBeforeBinaryOperators: NonAssignment
 BreakConstructorInitializers: AfterColon
