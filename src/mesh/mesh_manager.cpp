@@ -12,9 +12,13 @@ using mdv::mesh::MeshManager;
 
 mdv::Logger::SharedPtr MeshManager::default_logger = get_default_logger();
 
+MeshManager::~MeshManager() {
+    for (auto& [name, mesh_ptr] : _mesh_map) delete mesh_ptr;
+}
+
 void
-MeshManager::insert_mesh(Mesh&& mesh, std::optional<std::string> name) {
-    const std::string mesh_name = name.value_or(std::string(mesh.name()));
+MeshManager::insert_mesh(gsl::owner<Mesh*> mesh, std::optional<std::string> name) {
+    const std::string mesh_name = name.value_or(std::string(mesh->name()));
     _logger->info("Inserting new mesh with name '{}' into cache", mesh_name);
 
     if (_mesh_map.contains(mesh_name)) {
@@ -25,7 +29,7 @@ MeshManager::insert_mesh(Mesh&& mesh, std::optional<std::string> name) {
         throw std::runtime_error("Inserting mesh with same name");
     }
 
-    _mesh_map.insert(std::make_pair(mesh_name, std::move(mesh)));
+    _mesh_map.insert(std::make_pair(mesh_name, mesh));
     _logger->trace("Mesh correctly inserted!");
 }
 
@@ -38,7 +42,7 @@ MeshManager::get_mesh_by_name(const std::string& name) {
         return std::nullopt;
     }
 
-    return &_mesh_map.at(name);
+    return _mesh_map.at(name);
 }
 
 MeshManager::MeshPtr
@@ -47,12 +51,10 @@ MeshManager::get_mesh_from_file(const std::filesystem::path& file_path) {
 
 
     if (!_file_map.contains(file_path)) {
-        auto mesh            = Mesh::from_file(file_path);
-        _file_map[file_path] = std::string(mesh.name());
+        gsl::owner<Mesh*> mesh = new Mesh(Mesh::from_file(file_path));
+        _file_map[file_path]   = std::string(mesh->name());
         insert_mesh(std::move(mesh));
-        _logger->trace(
-                "Mesh '{}' cached", file_path.string(), mesh.name()
-        );
+        _logger->trace("Mesh '{}' cached", file_path.string(), mesh->name());
     }
 
     const std::string      mesh_name  = _file_map.at(file_path);

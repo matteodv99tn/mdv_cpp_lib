@@ -32,6 +32,20 @@ CgalImpl::~CgalImpl() {
     delete _current_shortpath_source;
 }
 
+CgalImpl::CgalImpl(CgalImpl&& other) noexcept :
+        _logger(other._logger),
+        _mesh(std::move(other._mesh)),
+        _shortest_path(std::move(other._shortest_path)),
+        _aabb_tree(std::move(other._aabb_tree)),
+        _current_shortpath_source(other._current_shortpath_source) {
+    other._current_shortpath_source = nullptr;
+    logger().trace(
+            "Moved CgalImpl from {} to {}",
+            static_cast<void*>(&other),
+            static_cast<void*>(this)
+    );
+}
+
 gsl::owner<CgalImpl*>
 CgalImpl::from_file(const path& file_path, Logger::SharedPtr&& logger) {
     assert(logger != nullptr);
@@ -55,7 +69,11 @@ mdv::mesh::internal::location_from_mesh_point(const ::mdv::mesh::Point& pt) noex
     // appears coorect w.r.t. to Cgal internal data alignment
     const Eigen::Vector3d b = pt.barycentric();
     std::array<double, 3> bar_coords{b(2), b(0), b(1)};
-    return {static_cast<CGAL::SM_Face_index>(pt.face().id()), bar_coords};
+    const auto            f_id  = pt.face().id();
+    const auto            num_f = pt.face().mesh().num_faces();
+    assert(pt.face().is_valid());
+    assert(f_id < num_f);
+    return {static_cast<CGAL::SM_Face_index>(f_id), bar_coords};
 }
 
 ::mdv::mesh::Geodesic

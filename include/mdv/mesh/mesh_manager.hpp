@@ -16,7 +16,11 @@ class MeshManager {
 public:
     using MeshPtr = gsl::not_null<Mesh*>;
 
-    void insert_mesh(Mesh&& mesh, std::optional<std::string> name = std::nullopt);
+    ~MeshManager();
+
+    void insert_mesh(
+            gsl::owner<Mesh*> mesh, std::optional<std::string> name = std::nullopt
+    );
 
     std::optional<MeshPtr> get_mesh_by_name(const std::string& name);
 
@@ -27,7 +31,7 @@ public:
 
 private:
     using FileMap = std::map<std::filesystem::path, std::string>;
-    using MeshMap = std::map<std::string, Mesh>;
+    using MeshMap = std::map<std::string, gsl::owner<Mesh*>>;
 
     FileMap _file_map;
     MeshMap _mesh_map;

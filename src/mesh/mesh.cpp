@@ -36,37 +36,13 @@ Mesh::from_file(const std::filesystem::path& file_path) {
 }
 
 Mesh::Mesh(gsl::owner<CgalImpl*> cgal_data, const std::string& name) :
-        _impl(cgal_data) {
+        _impl(cgal_data), _name(name) {
     Expects(cgal_data != nullptr);
     Expects(cgal_data->_logger != nullptr);
 
     _logger = cgal_data->_logger;
 
-    logger().debug("Constructing half-edges vertices data");
-    const auto eigen_vertices = _impl->yield_vertices();
-    _vertices.reserve(eigen_vertices.size());
-    for (const auto& v_pos : eigen_vertices) emplace_vertex(v_pos);
-
-
-    logger().debug("Constructing half-edges face data");
-    const auto eigen_faces = _impl->yield_faces();
-    _half_edges.reserve(6 * eigen_faces.size());
-    _faces.reserve(eigen_faces.size());
-    for (const auto& face_vertex_ids : eigen_faces) add_face(face_vertex_ids);
-
-    logger().debug("Constructing half-edges opposite edge pairs");
-    construct_opposite_halfedges();
-    logger().debug("Filling halfedges information");
-    fill_halfedges();
-
-    assert(datastructure_correctly_initialised());
-
-    logger().debug("Baking vertex properties");
-    for (auto& v : vertices()) v.bake_properties();
-
-    logger().debug("Baking face properties");
-    for (auto& f : faces()) f.bake_properties();
-
+    build_halfedges();
 
     logger().info("Number of vertices: {}", cgal()._mesh.num_vertices());
     logger().info("Number of faces: {}", cgal()._mesh.num_faces());
@@ -84,7 +60,12 @@ Mesh::Mesh(Mesh&& other) :
         _vertices(std::move(other._vertices)),
         _faces(std::move(other._faces)),
         _half_edges(std::move(other._half_edges)) {
-    logger().trace("Moving mesh '{}'", name());
+    logger().trace(
+            "Moving mesh '{}' from {} to {}",
+            name(),
+            static_cast<void*>(&other),
+            static_cast<void*>(this)
+    );
     other._impl = nullptr;
 }
 
@@ -142,6 +123,35 @@ Mesh::num_vertices() const {
 std::size_t
 Mesh::num_faces() const {
     return cgal()._mesh.num_faces();
+}
+
+void
+Mesh::build_halfedges() {
+    logger().debug("Synching half-edge data structure");
+    logger().trace("Constructing half-edges vertices data");
+    const auto eigen_vertices = _impl->yield_vertices();
+    _vertices.reserve(eigen_vertices.size());
+    for (const auto& v_pos : eigen_vertices) emplace_vertex(v_pos);
+
+
+    logger().trace("Constructing half-edges face data");
+    const auto eigen_faces = _impl->yield_faces();
+    _half_edges.reserve(6 * eigen_faces.size());
+    _faces.reserve(eigen_faces.size());
+    for (const auto& face_vertex_ids : eigen_faces) add_face(face_vertex_ids);
+
+    logger().trace("Constructing half-edges opposite edge pairs");
+    construct_opposite_halfedges();
+    logger().trace("Filling halfedges information");
+    fill_halfedges();
+
+    assert(datastructure_correctly_initialised());
+
+    logger().trace("Baking vertex properties");
+    for (auto& v : vertices()) v.bake_properties();
+
+    logger().trace("Baking face properties");
+    for (auto& f : faces()) f.bake_properties();
 }
 
 void

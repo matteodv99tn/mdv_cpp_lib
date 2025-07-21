@@ -119,25 +119,18 @@ private:
     Face::Vector          _faces;
     HalfEdge::Vector      _half_edges;
 
-    Vertex&
-    emplace_vertex(const CartesianPoint& pos) {
-        return _vertices.emplace_back(*this, pos);
-    }
-
-    Face&
-    emplace_face() {
-        return _faces.emplace_back(*this);
-    }
-
-    HalfEdge&
-    emplace_halfedge() {
-        return _half_edges.emplace_back(*this);
-    }
-
+    void build_halfedges();
     void add_face(const IndexTriplet& v_ids);
     void construct_opposite_halfedges();
     void fill_halfedges();
     bool datastructure_correctly_initialised() const;
+
+    // clang-format off
+    Vertex&   emplace_vertex(const CartesianPoint& pos) { return _vertices.emplace_back(*this, pos); } 
+    Face&     emplace_face()                            { return _faces.emplace_back(*this); }
+    HalfEdge& emplace_halfedge()                        { return _half_edges.emplace_back(*this); }
+
+    // clang-format on
 };
 
 }  // namespace mdv::mesh
