@@ -26,7 +26,7 @@ class Dmp {
 public:
     using Manifold = M;
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
-    using Function = dmp::LearnableFunction<Manifold>;
+    using Function = dmp::LearnableFunction<typename Manifold::TangentVector>;
 
     using MinimumGoalSample = TransfSystem::MinimumGoalSample;
     using MinimumSample     = TransfSystem::MinimumSample;
@@ -41,8 +41,8 @@ public:
         const double       beta    = 12.0,
         const double       gamma   = 3.0,
         const basis_size_t n_basis = 12) :
-            _logger(logger), _cs(gamma), _ts(alpha, beta), _fun(n_basis), tau(1.0) {
-        construct_basis_parameters();
+            _logger(logger), _cs(gamma), _ts(alpha, beta), tau(1.0) {
+        initialise_function(n_basis);
 
         logger->debug("Initialised DMP object");
 #ifdef MDV_VERBOSE_DMP
@@ -61,20 +61,20 @@ public:
     template <typename Demonstration>
     MDV_NODISCARD Eigen::MatrixXd
                   evaluate_desired_forcing_term(const Demonstration& demo) {
-                      using mdv::convert::seconds;
-                      static constexpr bool is_scalar = Function::tan_vec_dim == 1;
+        using mdv::convert::seconds;
+        static constexpr bool is_scalar = Function::tan_vec_dim == 1;
 
-                      Eigen::MatrixXd f_des(demo.size(), Function::tan_vec_dim);
-                      const auto      goal = demo.back();
+        Eigen::MatrixXd f_des(demo.size(), Function::tan_vec_dim);
+        const auto      goal = demo.back();
 
-                      for (long i = 0; i < demo.size(); ++i) {
-                          const auto force = _ts.eval_forcing(demo[i], goal, tau);
+        for (long i = 0; i < demo.size(); ++i) {
+            const auto force = _ts.eval_forcing(demo[i], goal, tau);
 
-                          if constexpr (is_scalar) f_des(i) = force;
+            if constexpr (is_scalar) f_des(i) = force;
             else f_des.row(i) = Function::to_eigen(force);
         }
-                      assert(!f_des.hasNaN());
-                      return f_des;
+        assert(!f_des.hasNaN());
+        return f_des;
     }
 
     template <typename Demonstration>
@@ -103,7 +103,7 @@ public:
         assert(phi.cols() == n_basis());
         assert(f_des.rows() == demo.size());
         assert(f_des.cols() == Function::tan_vec_dim);
-        _fun.learn(phi, f_des);
+        fun().learn(phi, f_des);
         logger().info("DMP succesfully learned");
 
 
@@ -164,7 +164,7 @@ public:
         const auto dts = seconds(dt);
         for (auto i = 0; i < n_steps - 1; ++i) {
             const double        s = time_to_s(i * dt);
-            const TangentVector f = _fun.eval(s, s);
+            const TangentVector f = fun()(s, s);
             _ts.step(res[i], goal, f, tau, dts, res[i + 1]);
         }
         return res;
@@ -183,16 +183,17 @@ public:
 
     Eigen::VectorXd
     eval_basis(const double s) const {
-        return _fun.eval_basis(s);
+        return fun().eval_basis(s);
     }
 
     // clang-format off
-    MDV_NODISCARD std::size_t            n_basis() const { return _fun.n_basis(); }
-    MDV_NODISCARD const Eigen::MatrixXd& weights() const { return _fun.weights(); }
+    MDV_NODISCARD std::size_t            n_basis() const { return fun().n_basis(); }
+    MDV_NODISCARD const Eigen::MatrixXd& weights() const { return fun().weights(); }
     MDV_NODISCARD Logger&                logger() const  { return *(_logger.get()); }
     MDV_NODISCARD CoordSystem&           coord_sys()     { return _cs; }
     MDV_NODISCARD TransfSystem&          transf_sys()    { return _ts; }
-    MDV_NODISCARD Function&              fun()           { return _fun; }
+    MDV_NODISCARD Function&              fun()           { assert(_fun); return *_fun; }
+    MDV_NODISCARD const Function&        fun() const     { assert(_fun); return *_fun; }
 
     // clang-format on
 
@@ -203,25 +204,25 @@ private:
     TransfSystem _ts;
 
     // Basis
-    Function _fun;
+    std::unique_ptr<Function> _fun;
 
     void
-    construct_basis_parameters() {
-        logger().debug("Constructing parameters for a basis of size {}", n_basis());
-        Eigen::VectorXd cs = Eigen::VectorXd(n_basis());
-        Eigen::VectorXd hs = Eigen::VectorXd(n_basis());
+    initialise_function(long n_basis) {
+        logger().debug("Constructing parameters for a basis of size {}", n_basis);
+        Eigen::VectorXd cs = Eigen::VectorXd(n_basis);
+        Eigen::VectorXd hs = Eigen::VectorXd(n_basis);
 
-        for (auto i = 0; i < n_basis(); ++i) {
-            cs(i) = _cs.eval_exact(double(i) / double(n_basis()));
-            logger().trace("c[{}] = {}", i, cs(i));
-        }
+        for (auto i = 0; i < n_basis; ++i)
+            cs(i) = _cs.eval_exact(double(i) / double(n_basis));
 
-        for (auto i = 0; i < n_basis() - 1; ++i) hs(i) = 1 / SQUARE(cs(i + 1) - cs(i));
-        hs(n_basis() - 1) = hs(n_basis() - 2);
-        for (auto i = 0; i < n_basis(); ++i) logger().trace("h[{}] = {}", i, hs(i));
+        for (auto i = 0; i < n_basis - 1; ++i) hs(i) = 1 / SQUARE(cs(i + 1) - cs(i));
+        hs(n_basis - 1) = hs(n_basis - 2);
 
-        _fun.assign_centers(std::move(cs));
-        _fun.assign_widths(std::move(hs));
+        std::vector<dmp::ExponentialBasis> basis;
+        basis.reserve(n_basis);
+        for (long i = 0; i < n_basis; ++i) basis.emplace_back(cs(i), hs(i));
+
+        _fun = std::make_unique<Function>(std::move(basis));
     }
 
     mutable Logger::SharedPtr _logger;
@@ -265,7 +266,7 @@ public:
     void
     step() {
         s                             = _dmp.coord_sys().step(s, _dmp.tau, dt);
-        const TangentVector         f = _dmp.fun().eval(s, s);
+        const TangentVector         f = _dmp.fun()(s, s);
         typename Dmp::MinimumSample next_state;
         _dmp.transf_sys().step(curr_state, goal_state, f, _dmp.tau, dt, next_state);
         curr_state = next_state;

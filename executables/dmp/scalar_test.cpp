@@ -42,7 +42,7 @@ main() {
     const Eigen::VectorXd f_des = dmp.evaluate_desired_forcing_term(dem);
     Eigen::VectorXd       f_lrnd(f_des.size());
     for (auto i = 0; i < dem.size(); ++i)
-        f_lrnd(i) = dmp.fun().eval(dmp.time_to_s(dem[i].t()));
+        f_lrnd(i) = dmp.fun()(dmp.time_to_s(dem[i].t()));
 
 
 #ifdef MDV_WITH_RERUN_SDK

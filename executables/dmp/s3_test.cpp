@@ -48,7 +48,7 @@ main() {
     const Eigen::MatrixXd f_des = dmp.evaluate_desired_forcing_term(dem);
     Eigen::MatrixXd       f_lrnd(f_des.rows(), f_des.cols());
     for (auto i = 0; i < dem.size(); ++i)
-        f_lrnd.row(i) = dmp.fun().eval(dmp.time_to_s(dem[i].t()));
+        f_lrnd.row(i) = dmp.fun()(dmp.time_to_s(dem[i].t()));
 
 #ifdef MDV_WITH_RERUN_SDK
     //  ____  _       _   _   _

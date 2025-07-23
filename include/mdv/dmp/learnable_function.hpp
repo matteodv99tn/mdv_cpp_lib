@@ -69,59 +69,63 @@ namespace internal {
 
 }  // namespace internal
 
-template <riemann::manifold M>
+class ExponentialBasis {
+public:
+    using Input = double;
+
+    ExponentialBasis(const double c, const double h) : _c(c), _h(h) {}
+
+    double
+    operator()(const Input& in) const {
+        return std::exp(-_h * SQUARE(in - _c));
+    }
+
+private:
+    double _c = 0.0;
+    double _h = 1.0;
+};
+
+template <typename LearnedType, typename BaseFunction = ExponentialBasis>
 class LearnableFunction {
 public:
+    using BaseFun = BaseFunction;
+    using Input   = BaseFun::Input;
+
     using basis_size_t = long;
     using weights_t    = Eigen::MatrixXd;
 
-    using TangentVector = M::TangentVector;
+    using TangentVector = LearnedType;
     using EigenTanVec   = internal::eigen_representation_t<TangentVector>;
-    static constexpr std::size_t tan_vec_dim = internal::type_elems_size_v<EigenTanVec>;
+    static constexpr std::size_t tan_vec_dim = internal::type_elems_size_v<LearnedType>;
 
-    LearnableFunction(basis_size_t num_basis) :
-            _n_basis(num_basis),
-            _basis_c(Eigen::VectorXd::Zero(num_basis)),
-            _basis_h(Eigen::VectorXd::Zero(num_basis)),
-            _ws(Eigen::MatrixXd::Zero(num_basis, tan_vec_dim)) {}
+    LearnableFunction(std::vector<BaseFun>&& basis) : _basis(std::move(basis)) {}
 
     void
     learn(const Eigen::MatrixXd& phi, const Eigen::MatrixXd& fdes) {
-        assert(phi.cols() == _n_basis);
+        assert(phi.cols() == n_basis());
         assert(phi.rows() == fdes.rows());
         assert(fdes.cols() == tan_vec_dim);
         _ws = phi.fullPivHouseholderQr().solve(fdes);
     }
 
-    void
-    assign_centers(Eigen::VectorXd&& centers) {
-        assert(centers.size() == _n_basis);
-        _basis_c = std::move(centers);
-    }
-
-    void
-    assign_widths(Eigen::VectorXd&& widths) {
-        assert(widths.size() == _n_basis);
-        _basis_h = std::move(widths);
-    }
-
     TangentVector
-    eval(const double s, const double scale = 1.0) const {
+    operator()(const double s, const double scale = 1.0) const {
         const Eigen::VectorXd b = eval_basis(s);
         return from_eigen(scale * b.transpose() * _ws);
     };
 
     Eigen::VectorXd
     eval_basis(const double s) const {
-        Eigen::VectorXd basis(_n_basis);
-        for (auto i = 0; i < _n_basis; ++i)
-            basis(i) = std::exp(-_basis_h[i] * SQUARE(s - _basis_c[i]));
+        Eigen::VectorXd basis(_basis.size());
+        auto            basis_eval = [&s](const BaseFun& b) { return b(s); };
+
+        std::transform(_basis.begin(), _basis.end(), basis.begin(), basis_eval);
         basis /= basis.sum();  // Normalise
         return basis;
     }
 
     // clang-format off
-    MDV_NODISCARD std::size_t            n_basis() const { return _n_basis; }
+    MDV_NODISCARD std::size_t            n_basis() const { return _basis.size(); }
     MDV_NODISCARD const Eigen::MatrixXd& weights() const { return _ws; }
 
     // clang-format on
@@ -137,10 +141,8 @@ public:
     }
 
 private:
-    basis_size_t    _n_basis;
-    Eigen::VectorXd _basis_c;  // Centers of the basis
-    Eigen::VectorXd _basis_h;  // h parameters of the basis
-    weights_t       _ws;       // weights
+    std::vector<BaseFun> _basis;
+    weights_t            _ws;  // weights
 };
 
 #undef SQUARE

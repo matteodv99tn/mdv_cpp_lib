@@ -36,7 +36,7 @@ TEST(Dmp, ScalarDmp) {
     const auto      fdes = dmp.evaluate_desired_forcing_term(demo);
     Eigen::VectorXd fval(fdes.size());
     for (auto i = 0; i < fdes.size(); ++i)
-        fval(i) = dmp.fun().eval(mdv::convert::seconds(demo[i].t()));
+        fval(i) = dmp.fun()(mdv::convert::seconds(demo[i].t()));
 
     const double f_mae = (fdes - fval).cwiseAbs().mean();
     ASSERT_EQ(fdes.rows(), n_ts);
@@ -171,15 +171,17 @@ TEST(Dmp, SE3Dmp) {
 
     for (std::size_t i = 0; i < se3_res.size(); ++i) {
         const double s     = se3_dmp.time_to_s(mdv::convert::seconds(se3_res[i].t()));
-        const auto   se3_f = se3_dmp.fun().eval(s, s);
-        const auto   s3_f  = s3_dmp.fun().eval(s, s);
+        const auto   se3_f = se3_dmp.fun()(s, s);
+        const auto   s3_f  = s3_dmp.fun()(s, s);
         ASSERT_TRUE(mdv::condition::is_zero_norm(se3_f.ori - s3_f))
                 << "At iter " << i << " of " << se3_res.size();
         ASSERT_EQ(se3_res[i].y().pos, r3_res[i].y());
-        ASSERT_TRUE(mdv::condition::is_zero_norm(
-                se3_res[i].y().ori.coeffs() - s3_res[i].y().coeffs()
-        )) << "At iter "
-           << i << " of " << se3_res.size();
+        ASSERT_TRUE(
+                mdv::condition::is_zero_norm(
+                        se3_res[i].y().ori.coeffs() - s3_res[i].y().coeffs()
+                )
+        ) << "At iter "
+          << i << " of " << se3_res.size();
     }
 
     static_assert(R3Dmp::Function::tan_vec_dim == 3);
