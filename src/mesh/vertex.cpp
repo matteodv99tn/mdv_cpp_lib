@@ -39,7 +39,7 @@ Vertex::bake_properties() {
 
 #if MDV_CGAL_VERSION == 5
     const auto normals =
-            mesh().cgal() _mesh.property_map<VertexDescriptor, Vec3>("v:normal").first;
+            mesh().cgal()._mesh.property_map<VertexDescriptor, Vec3>("v:normal").first;
 #elif MDV_CGAL_VERSION == 6
     const auto normals = mesh().cgal()
                                  ._mesh.property_map<VertexDescriptor, Vec3>("v:normal")
