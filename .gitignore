@@ -16,3 +16,4 @@ docs/.venv
 docs/venv
 docs/.env
 docs/env
+.aider*

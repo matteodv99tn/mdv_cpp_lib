@@ -21,12 +21,13 @@
 
 namespace mdv::mesh::internal {
 
-//   ____            _ __  __           _
-//  / ___|__ _  __ _| |  \/  | ___  ___| |__
-// | |   / _` |/ _` | | |\/| |/ _ \/ __| '_ \
-// | |__| (_| | (_| | | |  | |  __/\__ \ | | |
-//  \____\__, |\__,_|_|_|  |_|\___||___/_| |_|
-//       |___/
+/**
+ * @brief Implementation class for mesh data using CGAL.
+ *
+ * This class encapsulates the necessary data and functionality to work with
+ * meshes using the Computational Geometry Algorithms Library (CGAL). It
+ * provides methods for loading, processing, and querying mesh data.
+ */
 class CgalImpl {
 public:
     // CGAL typedefs - general
@@ -90,10 +91,27 @@ public:
 
 CgalImpl::FaceLocation location_from_mesh_point(const ::mdv::mesh::Point& pt) noexcept;
 
+/**
+ * @brief Constructs a geodesic path from the given source point to the shortest
+ *        path source point.
+ *
+ * @param shpath The shortest path object.
+ * @param from The source point.
+ * @return Geodesic representing the path from the source point to the current
+ *         shortest path source point.
+ */
 ::mdv::mesh::Geodesic construct_geodesic(
         CgalImpl::ShortestPath& shpath, const ::mdv::mesh::Point& from
 );
 
+/**
+ * @brief Constructs a geodesic path between two points on the mesh.
+ *
+ * @param cgal_data The CGAL implementation data.
+ * @param from The starting point of the geodesic.
+ * @param to The ending point of the geodesic.
+ * @return Geodesic representing the path between the two points.
+ */
 ::mdv::mesh::Geodesic construct_geodesic(
         const CgalImpl&           cgal_data,
         const ::mdv::mesh::Point& from,
@@ -112,7 +130,6 @@ CgalImpl::FaceLocation location_from_mesh_point(const ::mdv::mesh::Point& pt) no
 // | | | |  __/ | |_) |  __/ |  \__ \
 // |_| |_|\___|_| .__/ \___|_|  |___/
 //              |_|
-
 Eigen::Vector3d convert(const CgalImpl::Vec3& x);
 Eigen::Vector3d convert(const CgalImpl::Point3& x);
 
