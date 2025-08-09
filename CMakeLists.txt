@@ -258,3 +258,27 @@ if(ament_cmake_FOUND)
 else()
     message(STATUS "ament_cmake not found, skipping ROS2 installation")
 endif()
+
+
+#  ____                                   
+# |  _ \  _____  ___   _  __ _  ___ _ __  
+# | | | |/ _ \ \/ / | | |/ _` |/ _ \ '_ \ 
+# | |_| | (_) >  <| |_| | (_| |  __/ | | |
+# |____/ \___/_/\_\\__, |\__, |\___|_| |_|
+#                  |___/ |___/            
+
+find_package(Doxygen)
+if(Doxygen_FOUND)
+    message(STATUS "Doxygen found, enabling build of documentation")
+    configure_file(
+        Doxyfile.in
+        ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
+    )
+    add_custom_target( 
+        docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM 
+    )
+endif()
