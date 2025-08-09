@@ -13,9 +13,11 @@
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
+// \cond DOXYGEN_IGNORE
 using mdv::mesh::Geodesic;
 using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;
+// \endcond
 
 namespace rs = ::ranges;
 namespace rv = ::ranges::views;

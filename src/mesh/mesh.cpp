@@ -13,11 +13,13 @@
 #include "mdv/utils/logging_extras.hpp"
 
 
+// \cond DOXYGEN_IGNORE
 using mdv::mesh::Face;
 using mdv::mesh::Mesh;
 using mdv::mesh::Vertex;
 using mdv::mesh::internal::CgalImpl;
 using std::filesystem::path;
+// \endcond
 
 mdv::Logger::SharedPtr Mesh::default_logger = get_default_logger();
 

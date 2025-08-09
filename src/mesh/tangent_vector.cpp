@@ -9,9 +9,11 @@
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
+// \cond DOXYGEN_IGNORE
 using mdv::mesh::CartesianPoint;
 using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;
+// \endcond
 
 //  _____                            _ __     __        _
 // |_   _|_ _ _ __   __ _  ___ _ __ | |\ \   / /__  ___| |_ ___  _ __

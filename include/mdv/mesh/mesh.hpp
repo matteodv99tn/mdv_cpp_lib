@@ -24,13 +24,15 @@ namespace mdv::mesh {
  *
  * This class encapsulates the necessary data and functionality to work with
  * meshes. It provides methods for loading, processing, and querying mesh data.
- * 
+ *
  * The mesh stores data as half-edge data structure, and internally uses CGAL
  * to load the data and perform some operations.
  */
 class Mesh {
 public:
     static Logger::SharedPtr default_logger;
+
+    using CgalImpl = internal::CgalImpl;
 
     // Factory functions
     /**
@@ -286,37 +288,37 @@ private:
      *
      * @var Logger::SharedPtr _logger
      */
-    Logger::SharedPtr     _logger = default_logger;
+    Logger::SharedPtr _logger = default_logger;
     /**
      * @brief The CGAL implementation data associated with the mesh.
      *
      * @var gsl::owner<CgalImpl*> _impl
      */
-    gsl::owner<CgalImpl*> _impl   = nullptr;
+    gsl::owner<CgalImpl*> _impl = nullptr;
     /**
      * @brief The name of the mesh.
      *
      * @var std::string _name
      */
-    std::string           _name;
+    std::string _name;
     /**
      * @brief A vector of vertices in the mesh.
      *
      * @var Vertex::Vector _vertices
      */
-    Vertex::Vector        _vertices;
+    Vertex::Vector _vertices;
     /**
      * @brief A vector of faces in the mesh.
      *
      * @var Face::Vector _faces
      */
-    Face::Vector          _faces;
+    Face::Vector _faces;
     /**
      * @brief A vector of half-edges in the mesh.
      *
      * @var HalfEdge::Vector _half_edges
      */
-    HalfEdge::Vector      _half_edges;
+    HalfEdge::Vector _half_edges;
 
     /**
      * @brief Builds the half-edges data structure.
@@ -342,7 +344,8 @@ private:
     /**
      * @brief Fills in additional information for each half-edge.
      *
-     * Completes the half-edges data structure with necessary connections and properties.
+     * Completes the half-edges data structure with necessary connections and
+     * properties.
      */
     void fill_halfedges();
 
@@ -351,7 +354,8 @@ private:
      *
      * Validates that all half-edges, faces, and vertices are properly connected.
      *
-     * @return bool True if the data structure is correctly initialized; false otherwise.
+     * @return bool True if the data structure is correctly initialized; false
+     * otherwise.
      */
     bool datastructure_correctly_initialised() const;
 

@@ -15,7 +15,9 @@
 using std::filesystem::path;
 
 namespace rs = ranges;
+// \cond DOXYGEN_IGNORE
 using ::mdv::mesh::internal::CgalImpl;
+// \endcond
 
 CgalImpl::CgalImpl(const Mesh&& mesh, Logger::SharedPtr&& logger) :
         _mesh(mesh), _logger(std::move(logger)) {

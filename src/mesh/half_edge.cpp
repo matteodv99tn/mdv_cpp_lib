@@ -4,7 +4,9 @@
 
 #include "mdv/utils/conditions.hpp"
 
+// \cond DOXYGEN_IGNORE
 using mdv::mesh::HalfEdge;
+// \endcond
 
 Eigen::Vector3d
 HalfEdge::inbound_direction() const {

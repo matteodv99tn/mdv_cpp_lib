@@ -10,8 +10,10 @@
 #include "mdv/mesh/point.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 
+// \cond DOXYGEN_IGNORE
 using FaceData   = std::vector<Eigen::Vector3i>;
 using VertexData = std::vector<Eigen::Vector3d>;
+// \endcond
 
 namespace {
 

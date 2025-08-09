@@ -11,7 +11,10 @@
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
+// \cond DOXYGEN_IGNORE
 using mdv::mesh::Vertex;
+
+// \endcond
 
 std::size_t
 Vertex::id() const {

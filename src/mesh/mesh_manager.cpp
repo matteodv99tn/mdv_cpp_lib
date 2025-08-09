@@ -7,8 +7,10 @@
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/logging.hpp"
 
+// \cond DOXYGEN_IGNORE
 using mdv::mesh::Mesh;
 using mdv::mesh::MeshManager;
+// \endcond
 
 mdv::Logger::SharedPtr MeshManager::default_logger = get_default_logger();
 

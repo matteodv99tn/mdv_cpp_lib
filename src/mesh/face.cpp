@@ -8,7 +8,9 @@
 #include "mdv/mesh/vertex.hpp"
 #include "mdv/utils/conditions.hpp"
 
+// \cond DOXYGEN_IGNORE
 using mdv::mesh::Face;
+// \endcond
 
 Face Face::invalid_face = Face();
 

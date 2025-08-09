@@ -10,11 +10,13 @@
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
+// \cond DOXYGEN_IGNORE
 using mdv::mesh::CartesianPoint;
 using mdv::mesh::Face;
 using mdv::mesh::Mesh;
 using mdv::mesh::Point;
 using mdv::mesh::internal::CgalImpl;
+// \endcond
 
 //   ____                _                   _
 //  / ___|___  _ __  ___| |_ _ __ _   _  ___| |_ ___  _ __ ___
