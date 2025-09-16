@@ -132,7 +132,9 @@ private:
 
     template <typename SourceTpl, typename TargetTpl, std::size_t... Idx>
     static void
-    copy_tpl_impl(const SourceTpl& source, TargetTpl& target, std::index_sequence<Idx...>) {
+    copy_tpl_impl(
+            const SourceTpl& source, TargetTpl& target, std::index_sequence<Idx...>
+    ) {
         ((std::get<Idx>(target) = std::get<Idx>(source)), ...);
     }
 };
@@ -424,14 +426,18 @@ private:
         if (data().size() == 0) data().resize(content.size());
 
         if (data().size() != content.size()) {
-            throw std::runtime_error(fmt::format(
-                    "Current demonstration samples count ({}) is not compatible with "
-                    "provided container size ({}) for {} component, and no default "
-                    "value constructor",
-                    data().size(),
-                    content.size(),
-                    comp_desc
-            ));
+            throw std::runtime_error(
+                    fmt::format(
+                            "Current demonstration samples count ({}) is not "
+                            "compatible with "
+                            "provided container size ({}) for {} component, and no "
+                            "default "
+                            "value constructor",
+                            data().size(),
+                            content.size(),
+                            comp_desc
+                    )
+            );
         }
 
         auto it = internal::make_element_iterator<Index>(data().begin());

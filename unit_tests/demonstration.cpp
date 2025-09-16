@@ -128,9 +128,9 @@ concept is_demonstration = requires {
     requires std::is_same_v<M, typename Demo::Manifold>;
 };
 
-static_assert(mdv::manifold_sample<
-              mdv::DemonstrationSample<mdv::riemann::Scalar, 2>,
-              1>);
+static_assert(
+        mdv::manifold_sample<mdv::DemonstrationSample<mdv::riemann::Scalar, 2>, 1>
+);
 
 mdv::DemonstrationSample<mdv::riemann::Scalar, 1> out(
         mdv::DemonstrationSample<mdv::riemann::Scalar, 2>{}

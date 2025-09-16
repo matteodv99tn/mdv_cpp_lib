@@ -64,7 +64,7 @@ public:
     );
 
     CgalImpl(const Mesh&& mesh, Logger::SharedPtr&& logger);
-    CgalImpl(const CgalImpl&) = delete;
+    CgalImpl(const CgalImpl&)            = delete;
     CgalImpl& operator=(const CgalImpl&) = delete;
     CgalImpl(CgalImpl&&) noexcept;
     CgalImpl& operator=(CgalImpl&&) noexcept = delete;

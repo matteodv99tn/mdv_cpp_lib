@@ -25,18 +25,20 @@ public:
     MDV_NODISCARD
     ::rerun::archetypes::Mesh3D operator()(const mesh::Mesh&) const;
 
-    MDV_NODISCARD ::rerun::archetypes::LineStrips3D
-    operator()(const ::mdv::mesh::Geodesic&) const;
+    MDV_NODISCARD ::rerun::archetypes::LineStrips3D operator()(
+            const ::mdv::mesh::Geodesic&
+    ) const;
 
-    MDV_NODISCARD ::rerun::archetypes::Points3D
-    operator()(const mesh::Point&) const;
+    MDV_NODISCARD ::rerun::archetypes::Points3D operator()(const mesh::Point&) const;
 
-    MDV_NODISCARD ::rerun::archetypes::Points3D
-    operator()(const std::vector<mesh::Point>&) const;
+    MDV_NODISCARD ::rerun::archetypes::Points3D operator()(
+            const std::vector<mesh::Point>&
+    ) const;
 
 
-    MDV_NODISCARD ::rerun::archetypes::Arrows3D
-    operator()(const std::vector<::mdv::mesh::TangentVector>&) const;
+    MDV_NODISCARD ::rerun::archetypes::Arrows3D operator()(
+            const std::vector<::mdv::mesh::TangentVector>&
+    ) const;
 
     MDV_NODISCARD ::rerun::archetypes::Arrows3D operator()(
             const Eigen::Vector3d&    position,
@@ -44,21 +46,25 @@ public:
             double                    scale = 0.4
     ) const;
 
-    MDV_NODISCARD ::rerun::archetypes::Points3D
-    as_points(const std::vector<Eigen::Vector3d>&) const;
+    MDV_NODISCARD ::rerun::archetypes::Points3D as_points(
+            const std::vector<Eigen::Vector3d>&
+    ) const;
 
 protected:
     MDV_NODISCARD
-    std::vector<::rerun::components::Vector3D>
-    mesh_vertex_normals(const ::mdv::mesh::Mesh&) const;
+    std::vector<::rerun::components::Vector3D> mesh_vertex_normals(
+            const ::mdv::mesh::Mesh&
+    ) const;
 
     MDV_NODISCARD
-    std::vector<::rerun::components::Position3D> mesh_vertices(const ::mdv::mesh::Mesh&)
-            const;
+    std::vector<::rerun::components::Position3D> mesh_vertices(
+            const ::mdv::mesh::Mesh&
+    ) const;
 
     MDV_NODISCARD
-    std::vector<::rerun::components::TriangleIndices>
-    mesh_triangles(const ::mdv::mesh::Mesh&) const;
+    std::vector<::rerun::components::TriangleIndices> mesh_triangles(
+            const ::mdv::mesh::Mesh&
+    ) const;
 
 
     MDV_NODISCARD

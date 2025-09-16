@@ -13,6 +13,7 @@
 // \cond DOXYGEN_IGNORE
 using FaceData   = std::vector<Eigen::Vector3i>;
 using VertexData = std::vector<Eigen::Vector3d>;
+
 // \endcond
 
 namespace {

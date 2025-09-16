@@ -13,6 +13,7 @@
 using mdv::mesh::CartesianPoint;
 using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;
+
 // \endcond
 
 //  _____                            _ __     __        _

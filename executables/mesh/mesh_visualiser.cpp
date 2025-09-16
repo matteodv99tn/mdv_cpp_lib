@@ -69,7 +69,7 @@ main(int argc, char* argv[]) {
     if (geodesic.empty()) {
         std::cout << "Geodesic is empty! Terminating\n";
         return 1;
-    } 
+    }
 
     assert(!geodesic.empty());
     rec.log("geodesic", to_rerun(geodesic));

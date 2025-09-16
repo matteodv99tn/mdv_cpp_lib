@@ -16,6 +16,7 @@ using mdv::mesh::Face;
 using mdv::mesh::Mesh;
 using mdv::mesh::Point;
 using mdv::mesh::internal::CgalImpl;
+
 // \endcond
 
 //   ____                _                   _

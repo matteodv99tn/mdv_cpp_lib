@@ -95,14 +95,22 @@ struct HalfEdge : internal::MeshElement {
      *
      * @return Pointer to the next half-edge.
      */
-    MDV_NODISCARD HalfEdge* next() const { assert(_next); return _next; }
+    MDV_NODISCARD HalfEdge*
+    next() const {
+        assert(_next);
+        return _next;
+    }
 
     /**
      * @brief Retrieves the previous half-edge in the sequence around this edge.
      *
      * @return Pointer to the previous half-edge.
      */
-    MDV_NODISCARD HalfEdge* prev() const { assert(_prev); return _prev; }
+    MDV_NODISCARD HalfEdge*
+    prev() const {
+        assert(_prev);
+        return _prev;
+    }
 
     /**
      * @brief Retrieves the twin half-edge of this half-edge.
@@ -112,14 +120,22 @@ struct HalfEdge : internal::MeshElement {
      *
      * @return Pointer to the twin half-edge.
      */
-    MDV_NODISCARD HalfEdge* twin() const { assert(_twin); return _twin; }
+    MDV_NODISCARD HalfEdge*
+    twin() const {
+        assert(_twin);
+        return _twin;
+    }
 
     /**
      * @brief Retrieves the origin vertex of this half-edge.
      *
      * @return Reference to the origin vertex object.
      */
-    MDV_NODISCARD Vertex& origin() const { assert(_origin); return *_origin; }
+    MDV_NODISCARD Vertex&
+    origin() const {
+        assert(_origin);
+        return *_origin;
+    }
 
     /**
      * @brief Retrieves the opposite face of this half-edge.
@@ -129,7 +145,11 @@ struct HalfEdge : internal::MeshElement {
      *
      * @return Reference to the opposite face object.
      */
-    MDV_NODISCARD Face& opposite_face() const { assert(_twin != nullptr); return _twin->face(); }
+    MDV_NODISCARD Face&
+    opposite_face() const {
+        assert(_twin != nullptr);
+        return _twin->face();
+    }
 
     /**
      * @brief Checks if this half-edge is equal to another half-edge.
@@ -141,7 +161,10 @@ struct HalfEdge : internal::MeshElement {
      * @return true If both half-edges are the same.
      * @return false Otherwise.
      */
-    MDV_NODISCARD bool operator==(const HalfEdge& other) const { return this == &other; }
+    MDV_NODISCARD bool
+    operator==(const HalfEdge& other) const {
+        return this == &other;
+    }
 
     /**
      * @brief Checks if this half-edge is not equal to another half-edge.
@@ -153,7 +176,10 @@ struct HalfEdge : internal::MeshElement {
      * @return true If both half-edges are different.
      * @return false Otherwise.
      */
-    MDV_NODISCARD bool operator!=(const HalfEdge& other) const { return this != &other; }
+    MDV_NODISCARD bool
+    operator!=(const HalfEdge& other) const {
+        return this != &other;
+    }
 
     /**
      * @brief Provides a string representation of this half-edge.
