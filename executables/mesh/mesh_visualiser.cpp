@@ -1,5 +1,4 @@
 #include <cstdlib>
-#include <filesystem>
 #include <fmt/os.h>
 #include <iostream>
 #include <string>
@@ -32,10 +31,15 @@ int
 main(int argc, char* argv[]) {
 #ifdef MDV_WITH_RERUN_SDK
     std::srand(std::time(nullptr));
-    path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
-    // mesh_path             = mdv::mesh::create_cone(6);
-    if (argc > 1) mesh_path = std::string(argv[1]);
-    std::cout << "Selected mesh path: " << mesh_path << '\n';
+    // std::string mesh_path = mdv::config::mesh_dir() + "/torus_simple.off";
+    // // mesh_path             = mdv::mesh::create_cone(6);
+    // if (argc > 1) mesh_path = std::string(argv[1]);
+    // std::cout << "Selected mesh path: " << mesh_path << '\n';
+    //
+    const std::string mesh_path = "mesh.off";
+    mdv::mesh::create_from_function(mesh_path, [](double x, double y) -> double {
+        return x * x + y * y;
+    });
 
     MeshManager::default_logger = mdv::static_logger_factory("MeshManager");
     Mesh::default_logger        = mdv::static_logger_factory("Mesh");
