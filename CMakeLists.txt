@@ -49,8 +49,8 @@ add_compile_definitions(MDV_CGAL_VERSION=${CGAL_VERSION_MAJOR})
 # )
 
 configure_file(
-    ${CMAKE_CURRENT_LIST_DIR}/include/mdv/config.hpp.in
-    ${CMAKE_CURRENT_LIST_DIR}/include/mdv/config.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/config.cpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/src/config.cpp
 )
 
 
@@ -63,6 +63,8 @@ configure_file(
 add_library(
     mdvcpplib
     SHARED
+
+    ${CMAKE_CURRENT_BINARY_DIR}/src/config.cpp
 
     # General purpose
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/logging.cpp

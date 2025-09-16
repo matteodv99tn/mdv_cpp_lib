@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <gtest/gtest.h>
 
 #include "mdv/config.hpp"
@@ -5,12 +6,12 @@
 #include "mdv/utils/conditions.hpp"
 
 using namespace mdv::mesh;
+using std::filesystem::path;
 
 TEST(MdvMesh, PointToBarycentric) {
     using mdv::condition::is_zero_norm;
-    const std::string mesh_path =
-            std::string(mdv::config::mesh_dir) + "/torus_simple.off";
-    const auto            mesh   = Mesh::from_file(mesh_path);
+    const path mesh_path         = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto mesh              = Mesh::from_file(mesh_path);
     const Eigen::Vector3d b1_des = {1.0, 0.0, 0.0};
     const Eigen::Vector3d b2_des = {0.0, 1.0, 0.0};
     const Eigen::Vector3d b3_des = {0.0, 0.0, 1.0};

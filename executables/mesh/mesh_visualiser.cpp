@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <filesystem>
 #include <fmt/os.h>
 #include <iostream>
 #include <string>
@@ -25,11 +26,13 @@
 
 using namespace mdv::mesh;
 
+using std::filesystem::path;
+
 int
 main(int argc, char* argv[]) {
 #ifdef MDV_WITH_RERUN_SDK
     std::srand(std::time(nullptr));
-    std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus_simple.off";
+    path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     // mesh_path             = mdv::mesh::create_cone(6);
     if (argc > 1) mesh_path = std::string(argv[1]);
     std::cout << "Selected mesh path: " << mesh_path << '\n';

@@ -8,8 +8,6 @@ json/
 trajectories/
 meshes/generated/
 
-include/mdv/config.hpp
-
 
 docs/html
 docs/.venv

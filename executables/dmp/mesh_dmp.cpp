@@ -33,6 +33,7 @@ to_string(const Quat& q) {
 }
 
 using namespace mdv::mesh;
+using std::filesystem::path;
 
 int
 main() {
@@ -41,8 +42,8 @@ main() {
     using Dmp  = mdv::Dmp<M>;
     using Mesh = mdv::mesh::Mesh;
 
-    std::string mesh_path = std::string(mdv::config::mesh_dir) + "/torus_simple.off";
-    fmt::print("Selected mesh path: {}\n", mesh_path);
+    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    fmt::print("Selected mesh path: {}\n", mesh_path.string());
     const auto mesh = Mesh::from_file(mesh_path);
     fmt::print("Mesh loaded\n");
     mesh.logger().set_log_level(mdv::Logger::LogLevel::Info);

@@ -1,0 +1,6 @@
+#include "mdv/config.hpp"
+
+std::filesystem::path
+mdv::config::meshes_directory() {
+    return "@CMAKE_CURRENT_SOURCE_DIR@/meshes";
+}

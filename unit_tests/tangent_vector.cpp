@@ -1,5 +1,6 @@
 #include "mdv/mesh/tangent_vector.hpp"
 
+#include <filesystem>
 #include <gtest/gtest.h>
 
 #include "mdv/config.hpp"
@@ -8,10 +9,11 @@
 
 using namespace mdv::mesh;
 
+using std::filesystem::path;
+
 TEST(MdvMesh, TangentVectorUnitRandomInitialisation) {
-    const std::string mesh_path =
-            std::string(mdv::config::mesh_dir) + "/torus_simple.off";
-    const auto mesh = Mesh::from_file(mesh_path);
+    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto mesh      = Mesh::from_file(mesh_path);
 
     for (int i{0}; i < 256; ++i) {
         const auto pt  = Point::random(mesh);
@@ -21,12 +23,11 @@ TEST(MdvMesh, TangentVectorUnitRandomInitialisation) {
 }
 
 TEST(MdvMesh, TangentVectorFromTipInitialisation) {
-    using Vec3 = Eigen::Vector3d;
-    using Mat3 = Eigen::Matrix3d;
-    const std::string mesh_path =
-            std::string(mdv::config::mesh_dir) + "/torus_simple.off";
-    const auto mesh     = Mesh::from_file(mesh_path);
-    const auto pref_dir = Vec3::UnitX();
+    using Vec3           = Eigen::Vector3d;
+    using Mat3           = Eigen::Matrix3d;
+    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto mesh      = Mesh::from_file(mesh_path);
+    const auto pref_dir  = Vec3::UnitX();
 
     for (int i{0}; i < 256; ++i) {
         const auto pt    = Point::random(mesh);
@@ -42,12 +43,11 @@ TEST(MdvMesh, TangentVectorFromTipInitialisation) {
 }
 
 TEST(MdvMesh, TangentVectorDifference) {
-    using Vec3 = Eigen::Vector3d;
-    using Mat3 = Eigen::Matrix3d;
-    const std::string mesh_path =
-            std::string(mdv::config::mesh_dir) + "/torus_simple.off";
-    const auto mesh     = Mesh::from_file(mesh_path);
-    const auto pref_dir = Vec3::UnitX();
+    using Vec3           = Eigen::Vector3d;
+    using Mat3           = Eigen::Matrix3d;
+    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto mesh      = Mesh::from_file(mesh_path);
+    const auto pref_dir  = Vec3::UnitX();
 
     for (int i{0}; i < 256; ++i) {
         const auto pt = Point::random(mesh);

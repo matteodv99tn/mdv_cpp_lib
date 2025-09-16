@@ -1,11 +1,11 @@
 #ifndef MDV_CONFIG_HPP
 #define MDV_CONFIG_HPP
 
-#include <string_view>
+#include <filesystem>
 
 namespace mdv::config {
 
-constexpr std::string_view mesh_dir = "@CMAKE_CURRENT_SOURCE_DIR@/meshes";
+std::filesystem::path meshes_directory();
 
 
 }  // namespace mdv::config
