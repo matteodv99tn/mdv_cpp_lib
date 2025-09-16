@@ -32,7 +32,7 @@ struct SE3TangentVector {
 
     SE3TangentVector(const Eigen::Vector<double, 7>& vec) {
         pos = vec.head(3);
-        pos = vec.tail(4);
+        ori = vec.tail(4);
     };
 };
 
@@ -101,42 +101,5 @@ public:
     static TangentVector default_tangent_vector();
 };
 }  // namespace mdv::riemann
-
-#include "mdv/dmp/learnable_function.hpp"
-
-namespace mdv::dmp::internal {
-
-template <>
-struct type_elems_size<::mdv::riemann::SE3TangentVector> {
-    static constexpr std::size_t value = 7;
-};
-
-template <>
-struct eigen_representation<::mdv::riemann::SE3TangentVector> {
-    static constexpr std::size_t value = 7;
-    using type                         = Eigen::Vector<double, value>;
-
-    static type
-    to_eigen(const ::mdv::riemann::SE3TangentVector& data) {
-        type res;
-        res.head(3) = data.pos;
-        res.tail(4) = data.ori;
-        return res;
-    }
-
-    static ::mdv::riemann::SE3TangentVector
-    from_eigen(const type& data) {
-        riemann::SE3TangentVector res;
-        res.pos = data.head(3);
-        res.ori = data.tail(4);
-        assert(res.ori(0) == data(3));
-        assert(res.ori(1) == data(4));
-        assert(res.ori(2) == data(5));
-        assert(res.ori(3) == data(6));
-        return res;
-    }
-};
-
-}  // namespace mdv::dmp::internal
 
 #endif  // MDV_SE3_MANIFOLD_HPP

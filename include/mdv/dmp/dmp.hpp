@@ -1,7 +1,6 @@
 #ifndef MDV_DMP_HPP
 #define MDV_DMP_HPP
 
-#include <cmath>
 #include <gsl/assert>
 
 #include "mdv/containers/demonstration.hpp"
@@ -11,12 +10,68 @@
 #include "mdv/dmp/transformation_system/transformation_system.hpp"
 #include "mdv/macros.hpp"
 #include "mdv/riemann_geometry/manifold.hpp"
+#include "mdv/riemann_geometry/se3.hpp"
 #include "mdv/utils/conversions.hpp"
 #include "mdv/utils/logging.hpp"
 
 #define SQUARE(x) ((x) * (x))
 
 namespace mdv {
+
+template <typename T>
+struct Embedding;
+
+template <>
+struct Embedding<double> {
+    static constexpr int dimension = 1;
+    using type                     = double;
+
+    double
+    operator()(double in) const {
+        return in;
+    };
+};
+
+template <int Dim>
+struct Embedding<Eigen::Vector<double, Dim>> {
+    static constexpr int dimension = Dim;
+    using type                     = Eigen::Vector<double, Dim>;
+
+    type&
+    operator()(type& in) const {
+        return in;
+    }
+
+    const type&
+    operator()(const type& in) const {
+        return in;
+    }
+
+    type
+    operator()(type&& in) const {
+        return std::move(in);
+    }
+};
+
+template <>
+struct Embedding<mdv::riemann::SE3TangentVector> {
+    static constexpr int dimension = 7;
+    using type                     = Eigen::Vector<double, 7>;
+
+    type
+    operator()(const mdv::riemann::SE3TangentVector& in) const {
+        return {in.pos(0),
+                in.pos(1),
+                in.pos(2),
+                in.ori(0),
+                in.ori(1),
+                in.ori(2),
+                in.ori(3)};
+    }
+};
+
+template <typename T>
+static constexpr int embedding_dimension = Embedding<T>::dimension;
 
 template <
         riemann::manifold        M,
@@ -26,7 +81,9 @@ class Dmp {
 public:
     using Manifold = M;
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
-    using Function = dmp::LearnableFunction<typename Manifold::TangentVector>;
+
+    using TvEmbedding = Embedding<TangentVector>;
+    using Function    = dmp::LearnableFunction<TvEmbedding::dimension>;
 
     using MinimumGoalSample = TransfSystem::MinimumGoalSample;
     using MinimumSample     = TransfSystem::MinimumSample;
@@ -62,16 +119,17 @@ public:
     MDV_NODISCARD Eigen::MatrixXd
                   evaluate_desired_forcing_term(const Demonstration& demo) {
         using mdv::convert::seconds;
-        static constexpr bool is_scalar = Function::tan_vec_dim == 1;
+        static constexpr bool is_scalar = TvEmbedding::dimension == 1;
 
-        Eigen::MatrixXd f_des(demo.size(), Function::tan_vec_dim);
+        Eigen::MatrixXd f_des(demo.size(), TvEmbedding::dimension);
         const auto      goal = demo.back();
 
         for (long i = 0; i < demo.size(); ++i) {
-            const auto force = _ts.eval_forcing(demo[i], goal, tau);
+            const TangentVector force = _ts.eval_forcing(demo[i], goal, tau);
 
+            TvEmbedding emb;
             if constexpr (is_scalar) f_des(i) = force;
-            else f_des.row(i) = Function::to_eigen(force);
+            else f_des.row(i) = emb(force);
         }
         assert(!f_des.hasNaN());
         return f_des;
@@ -102,7 +160,7 @@ public:
         assert(phi.rows() == demo.size());
         assert(phi.cols() == n_basis());
         assert(f_des.rows() == demo.size());
-        assert(f_des.cols() == Function::tan_vec_dim);
+        assert(f_des.cols() == TvEmbedding::dimension);
         fun().learn(phi, f_des);
         logger().info("DMP succesfully learned");
 
@@ -188,7 +246,7 @@ public:
 
     // clang-format off
     MDV_NODISCARD std::size_t            n_basis() const { return fun().n_basis(); }
-    MDV_NODISCARD const Eigen::MatrixXd& weights() const { return fun().weights(); }
+    MDV_NODISCARD const Function::WeightsMatrix& weights() const { return fun().weights(); }
     MDV_NODISCARD Logger&                logger() const  { return *(_logger.get()); }
     MDV_NODISCARD CoordSystem&           coord_sys()     { return _cs; }
     MDV_NODISCARD TransfSystem&          transf_sys()    { return _ts; }

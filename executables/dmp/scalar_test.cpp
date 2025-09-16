@@ -38,7 +38,6 @@ main() {
     const Demo out =
             dmp.integrate(dem.front().y(), dem.back().y(), dem.size(), dem[1].t());
 
-    static_assert(mdv::dmp::internal::type_elems_size_v<double> == 1);
     const Eigen::VectorXd f_des = dmp.evaluate_desired_forcing_term(dem);
     Eigen::VectorXd       f_lrnd(f_des.size());
     for (auto i = 0; i < dem.size(); ++i)

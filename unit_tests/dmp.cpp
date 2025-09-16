@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <Eigen/Dense>
-#include <Eigen/src/Core/Matrix.h>
 #include <gtest/gtest.h>
 
 #include "mdv/containers/demonstration.hpp"
@@ -11,6 +10,13 @@
 #include "mdv/riemann_geometry/scalar.hpp"
 #include "mdv/riemann_geometry/se3.hpp"
 #include "mdv/utils/conditions.hpp"
+
+static_assert(mdv::Embedding<mdv::riemann::Scalar::TangentVector>::dimension == 1);
+static_assert(mdv::Embedding<mdv::riemann::S3::TangentVector>::dimension == 4);
+static_assert(mdv::Embedding<mdv::riemann::SE3::TangentVector>::dimension == 7);
+static_assert(mdv::embedding_dimension<mdv::riemann::Scalar::TangentVector> == 1);
+static_assert(mdv::embedding_dimension<mdv::riemann::S3::TangentVector> == 4);
+static_assert(mdv::embedding_dimension<mdv::riemann::SE3::TangentVector> == 7);
 
 TEST(Dmp, ScalarDmp) {
     using mdv::Dmp;
@@ -170,9 +176,9 @@ TEST(Dmp, SE3Dmp) {
     }
 
     for (std::size_t i = 0; i < se3_res.size(); ++i) {
-        const double s     = se3_dmp.time_to_s(mdv::convert::seconds(se3_res[i].t()));
-        const auto   se3_f = se3_dmp.fun()(s, s);
-        const auto   s3_f  = s3_dmp.fun()(s, s);
+        const double s = se3_dmp.time_to_s(mdv::convert::seconds(se3_res[i].t()));
+        const SE3::TangentVector se3_f = se3_dmp.fun()(s, s);
+        const auto               s3_f  = s3_dmp.fun()(s, s);
         ASSERT_TRUE(mdv::condition::is_zero_norm(se3_f.ori - s3_f))
                 << "At iter " << i << " of " << se3_res.size();
         ASSERT_EQ(se3_res[i].y().pos, r3_res[i].y());
@@ -183,10 +189,6 @@ TEST(Dmp, SE3Dmp) {
         ) << "At iter "
           << i << " of " << se3_res.size();
     }
-
-    static_assert(R3Dmp::Function::tan_vec_dim == 3);
-    static_assert(S3Dmp::Function::tan_vec_dim == 4);
-    static_assert(Se3Dmp::Function::tan_vec_dim == 7);
 
     // Eigen::VectorXd angle_error(n_ts);
     // for (auto i = 0; i < n_ts; ++i) {
