@@ -102,11 +102,10 @@ template <typename T>
 static constexpr int embedding_dimension = Embedding<T>::dimension;
 
 template <
-        riemann::concepts::manifold M,
-        transformation_system<M>    TS = dmp::TransformationSystem<M>,
-        typename CoordSystem           = dmp::ExponentialCoordinateSystem,
-        concepts::embedding<M> E       = DefaultManifoldEmbedding<M>>
-// typename E = DefaultManifoldEmbedding<M>>
+        concepts::manifold                 M,
+        concepts::transformation_system<M> TS = dmp::TransformationSystem<M>,
+        typename CoordSystem                  = dmp::ExponentialCoordinateSystem,
+        concepts::embedding<M> E              = DefaultManifoldEmbedding<M>>
 class Dmp {
 public:
     // static_assert(concepts::embedding<E, M>);

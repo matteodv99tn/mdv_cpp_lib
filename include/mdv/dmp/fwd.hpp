@@ -11,7 +11,7 @@ namespace mdv {
 template <typename T>
 struct TrivialTypeEmbedding;
 
-template <::mdv::riemann::concepts::euclidean_type T>
+template <concepts::euclidean_type T>
 struct TrivialTypeEmbedding<T> {
     using Input  = T;
     using Output = T;

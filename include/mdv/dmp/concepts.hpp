@@ -8,11 +8,11 @@
 #include "mdv/dmp/fwd.hpp"
 #include "mdv/riemann_geometry/concepts.hpp"
 
-namespace mdv {
+namespace mdv::concepts {
 
 template <typename TS, typename M>
 concept transformation_system = requires(TS ts) {
-    requires riemann::concepts::manifold<M>;
+    requires concepts::manifold<M>;
     typename TS::Manifold;
     std::is_same_v<typename TS::Manifold, M>;
     std::is_same_v<typename TS::Point, typename M::Point>;
@@ -26,13 +26,6 @@ concept transformation_system = requires(TS ts) {
     requires manifold_sample<typename TS::MinimumSample, 0, M>;
     requires manifold_sample<typename TS::MinimumGoalSample, 0, M>;
 };
-
-
-}  // namespace mdv
-
-namespace mdv::concepts {
-
-using namespace ::mdv::riemann::concepts;
 
 template <typename Embedding, typename Manifold>
 concept embedding = requires(Embedding e, Manifold m) {

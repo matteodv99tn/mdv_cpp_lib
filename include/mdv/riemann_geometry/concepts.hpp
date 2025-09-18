@@ -5,7 +5,7 @@
 
 #include "mdv/utils/concepts.hpp"
 
-namespace mdv::riemann::concepts {
+namespace mdv::concepts {
 
 template <typename M>
 concept manifold = requires(M m, M::Point x, M::TangentVector v) {
@@ -32,7 +32,7 @@ concept euclidean_space = requires {
     requires euclidean_type<typename M::Point>;
 };
 
-}  // namespace mdv::riemann::concepts
+}  // namespace mdv::concepts
 
 
 #endif  // MDV_RIEMANN_CONCEPTS_HPP

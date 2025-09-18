@@ -7,11 +7,11 @@
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/concepts.hpp"
 #include "mdv/dmp/dmp_utilities.hpp"
-#include "mdv/riemann_geometry/se3.hpp"
 #include "mdv/dmp/fwd.hpp"
 #include "mdv/riemann_geometry/concepts.hpp"
 #include "mdv/riemann_geometry/euclidean.hpp"
 #include "mdv/riemann_geometry/scalar.hpp"
+#include "mdv/riemann_geometry/se3.hpp"
 #include "mdv/riemann_geometry/utils.hpp"
 #include "mdv/utils/conditions.hpp"
 
@@ -22,11 +22,15 @@ static_assert(mdv::riemann::space_dimension_v<mdv::riemann::S3::TangentVector> =
 // static_assert(mdv::riemann::space_dimension_v<mdv::riemann::SE3::TangentVector> ==
 // 7);
 
-static_assert(mdv::riemann::concepts::euclidean_space<mdv::riemann::Scalar>);
+static_assert(mdv::concepts::euclidean_space<mdv::riemann::Scalar>);
 static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::Scalar>);
 static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::Rn<3>>);
 static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::S3>);
 static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::SE3>);
+
+static_assert(mdv::concepts::transformation_system<
+              mdv::dmp::TransformationSystem<mdv::riemann::Scalar>,
+              mdv::riemann::Scalar>);
 
 TEST(Dmp, ScalarDmp) {
     using mdv::Dmp;
@@ -214,7 +218,3 @@ TEST(Dmp, SE3Dmp) {
     // const double mae = angle_error.cwiseAbs().mean();
     // ASSERT_LE(mae, 3) << "Reconstructed orientation mean absolute error (degrees) ";
 }
-
-static_assert(mdv::transformation_system<
-              mdv::dmp::TransformationSystem<mdv::riemann::Scalar>,
-              mdv::riemann::Scalar>);

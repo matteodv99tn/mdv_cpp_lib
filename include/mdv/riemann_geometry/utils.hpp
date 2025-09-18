@@ -13,7 +13,6 @@ struct SpaceDimension;
 template <concepts::euclidean_type T>
 constexpr long space_dimension_v = SpaceDimension<T>::value;
 
-
 template <>
 struct SpaceDimension<double> {
     static constexpr long value = 1;

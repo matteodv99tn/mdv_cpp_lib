@@ -12,9 +12,9 @@ using mdv::Demonstration;
 using mdv::riemann::S3;
 using mdv::riemann::Scalar;
 
-TEST(Demonstration2Assertions, Demonstration) {
-    static_assert(mdv::riemann::concepts::manifold<S3>);
+static_assert(mdv::concepts::manifold<S3>);
 
+TEST(Demonstration2Assertions, Demonstration) {
     using row = std::tuple<
             std::chrono::steady_clock::duration,
             Eigen::Quaterniond,
