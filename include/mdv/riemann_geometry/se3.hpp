@@ -5,6 +5,8 @@
 #include <Eigen/Geometry>
 #include <utility>
 
+#include "mdv/riemann_geometry/utils.hpp"
+
 namespace mdv::riemann {
 
 struct SE3Point {
@@ -100,6 +102,36 @@ public:
 
     static TangentVector default_tangent_vector();
 };
+
 }  // namespace mdv::riemann
+
+#include "mdv/dmp/fwd.hpp"
+
+namespace mdv {
+
+template <>
+struct TrivialTypeEmbedding<riemann::SE3TangentVector> {
+    using Input  = riemann::SE3TangentVector;
+    using Output = Eigen::Vector<double, 7>;
+
+    Output
+    embed(const Input& in) const {
+        return {in.pos(0),
+                in.pos(1),
+                in.pos(2),
+                in.ori(0),
+                in.ori(1),
+                in.ori(2),
+                in.ori(3)};
+    }
+
+    Input
+    decode(const Output& out) const {
+        return out;
+    }
+};
+
+
+}  // namespace mdv
 
 #endif  // MDV_SE3_MANIFOLD_HPP

@@ -5,7 +5,7 @@
 
 #include "mdv/dmp/dmp.hpp"
 #include "mdv/dmp/dmp_utilities.hpp"
-#include "mdv/riemann_geometry/manifold.hpp"
+#include "mdv/riemann_geometry/concepts.hpp"
 #include "mdv/utils/conversions.hpp"
 
 using mdv::Demonstration;
@@ -13,7 +13,7 @@ using mdv::riemann::S3;
 using mdv::riemann::Scalar;
 
 TEST(Demonstration2Assertions, Demonstration) {
-    static_assert(mdv::riemann::manifold<S3>);
+    static_assert(mdv::riemann::concepts::manifold<S3>);
 
     using row = std::tuple<
             std::chrono::steady_clock::duration,

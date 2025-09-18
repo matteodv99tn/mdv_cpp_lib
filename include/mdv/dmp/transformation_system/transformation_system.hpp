@@ -10,7 +10,7 @@
 namespace mdv::dmp {
 
 
-template <riemann::manifold M>
+template <riemann::concepts::manifold M>
 class TransformationSystem {
 public:
     using MinimumSample     = DemonstrationSample<M, 1>;

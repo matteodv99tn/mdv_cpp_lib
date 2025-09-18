@@ -6,17 +6,45 @@
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/concepts.hpp"
 #include "mdv/dmp/coordinate_system/coordinate_system.hpp"
+#include "mdv/dmp/fwd.hpp"
 #include "mdv/dmp/learnable_function.hpp"
 #include "mdv/dmp/transformation_system/transformation_system.hpp"
 #include "mdv/macros.hpp"
 #include "mdv/riemann_geometry/manifold.hpp"
 #include "mdv/riemann_geometry/se3.hpp"
+#include "mdv/riemann_geometry/utils.hpp"
+#include "mdv/utils/conditions.hpp"
 #include "mdv/utils/conversions.hpp"
 #include "mdv/utils/logging.hpp"
 
 #define SQUARE(x) ((x) * (x))
 
 namespace mdv {
+
+template <concepts::trivially_embeddable M>
+struct DefaultManifoldEmbedding {
+    using TrivialEmbedder = TrivialTypeEmbedding<typename M::TangentVector>;
+    using Input           = TrivialEmbedder::Input;
+    using Output          = TrivialEmbedder::Output;
+
+    DefaultManifoldEmbedding(const M* manifold) : _m(manifold) {};
+
+    template <typename StateType, typename GoalType>
+    Output
+    embed(const Input& in, const StateType& x, const GoalType& g) const {
+        return _impl.embed(in);
+    }
+
+    template <typename StateType, typename GoalType>
+    Input
+    decode(const Output& out, const StateType& x, const GoalType& g) const {
+        return _impl.decode(out);
+    }
+
+private:
+    TrivialEmbedder _impl;
+    const M*        _m;
+};
 
 template <typename T>
 struct Embedding;
@@ -74,19 +102,27 @@ template <typename T>
 static constexpr int embedding_dimension = Embedding<T>::dimension;
 
 template <
-        riemann::manifold        M,
-        transformation_system<M> TransfSystem = dmp::TransformationSystem<M>,
-        typename CoordSystem                  = dmp::ExponentialCoordinateSystem>
+        riemann::concepts::manifold M,
+        transformation_system<M>    TS = dmp::TransformationSystem<M>,
+        typename CoordSystem           = dmp::ExponentialCoordinateSystem,
+        concepts::embedding<M> E       = DefaultManifoldEmbedding<M>>
+// typename E = DefaultManifoldEmbedding<M>>
 class Dmp {
 public:
-    using Manifold = M;
+    // static_assert(concepts::embedding<E, M>);
+
+    using Embedding            = E;
+    using Manifold             = M;
+    using TransformationSystem = TS;
+    using TransfSystem         = TS;
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
 
-    using TvEmbedding = Embedding<TangentVector>;
-    using Function    = dmp::LearnableFunction<TvEmbedding::dimension>;
+    static constexpr long embedding_dimension =
+            ::mdv::riemann::space_dimension_v<typename Embedding::Output>;
+    using Function = dmp::LearnableFunction<embedding_dimension>;
 
-    using MinimumGoalSample = TransfSystem::MinimumGoalSample;
-    using MinimumSample     = TransfSystem::MinimumSample;
+    using MinimumGoalSample = TransformationSystem::MinimumGoalSample;
+    using MinimumSample     = TransformationSystem::MinimumSample;
 
     using basis_size_t = unsigned long;
     using weights_t    = Eigen::MatrixXd;
@@ -119,17 +155,17 @@ public:
     MDV_NODISCARD Eigen::MatrixXd
                   evaluate_desired_forcing_term(const Demonstration& demo) {
         using mdv::convert::seconds;
-        static constexpr bool is_scalar = TvEmbedding::dimension == 1;
+        static constexpr bool is_scalar = embedding_dimension == 1;
 
-        Eigen::MatrixXd f_des(demo.size(), TvEmbedding::dimension);
+        Eigen::MatrixXd f_des(demo.size(), embedding_dimension);
         const auto      goal = demo.back();
 
         for (long i = 0; i < demo.size(); ++i) {
             const TangentVector force = _ts.eval_forcing(demo[i], goal, tau);
 
-            TvEmbedding emb;
+            Embedding emb(&_m);
             if constexpr (is_scalar) f_des(i) = force;
-            else f_des.row(i) = emb(force);
+            else f_des.row(i) = emb.embed(force, demo[i], goal);
         }
         assert(!f_des.hasNaN());
         return f_des;
@@ -160,7 +196,7 @@ public:
         assert(phi.rows() == demo.size());
         assert(phi.cols() == n_basis());
         assert(f_des.rows() == demo.size());
-        assert(f_des.cols() == TvEmbedding::dimension);
+        assert(f_des.cols() == embedding_dimension);
         fun().learn(phi, f_des);
         logger().info("DMP succesfully learned");
 
@@ -219,11 +255,13 @@ public:
         typename Demonstration<M>::Sample goal;
         goal.y() = g;
 
+        Embedding  embedder(&_m);
         const auto dts = seconds(dt);
         for (auto i = 0; i < n_steps - 1; ++i) {
-            const double        s = time_to_s(i * dt);
-            const TangentVector f = fun()(s, s);
-            _ts.step(res[i], goal, f, tau, dts, res[i + 1]);
+            const double                     s    = time_to_s(i * dt);
+            const typename Embedding::Output f    = fun()(s, s);
+            const TangentVector              f_tv = embedder.decode(f, res[i], goal);
+            _ts.step(res[i], goal, f_tv, tau, dts, res[i + 1]);
         }
         return res;
     }
@@ -258,6 +296,7 @@ public:
 
 private:
     // Transformation - Coordinate System
+    Manifold     _m;
     CoordSystem  _cs;
     TransfSystem _ts;
 

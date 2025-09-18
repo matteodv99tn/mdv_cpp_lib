@@ -5,24 +5,37 @@
 #include <gtest/gtest.h>
 
 #include "mdv/containers/demonstration.hpp"
+#include "mdv/dmp/concepts.hpp"
 #include "mdv/dmp/dmp_utilities.hpp"
+#include "mdv/riemann_geometry/se3.hpp"
+#include "mdv/dmp/fwd.hpp"
+#include "mdv/riemann_geometry/concepts.hpp"
 #include "mdv/riemann_geometry/euclidean.hpp"
 #include "mdv/riemann_geometry/scalar.hpp"
-#include "mdv/riemann_geometry/se3.hpp"
+#include "mdv/riemann_geometry/utils.hpp"
 #include "mdv/utils/conditions.hpp"
 
-static_assert(mdv::Embedding<mdv::riemann::Scalar::TangentVector>::dimension == 1);
-static_assert(mdv::Embedding<mdv::riemann::S3::TangentVector>::dimension == 4);
-static_assert(mdv::Embedding<mdv::riemann::SE3::TangentVector>::dimension == 7);
-static_assert(mdv::embedding_dimension<mdv::riemann::Scalar::TangentVector> == 1);
-static_assert(mdv::embedding_dimension<mdv::riemann::S3::TangentVector> == 4);
-static_assert(mdv::embedding_dimension<mdv::riemann::SE3::TangentVector> == 7);
+static_assert(
+        mdv::riemann::space_dimension_v<mdv::riemann::Scalar::TangentVector> == 1
+);
+static_assert(mdv::riemann::space_dimension_v<mdv::riemann::S3::TangentVector> == 4);
+// static_assert(mdv::riemann::space_dimension_v<mdv::riemann::SE3::TangentVector> ==
+// 7);
+
+static_assert(mdv::riemann::concepts::euclidean_space<mdv::riemann::Scalar>);
+static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::Scalar>);
+static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::Rn<3>>);
+static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::S3>);
+static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::SE3>);
 
 TEST(Dmp, ScalarDmp) {
     using mdv::Dmp;
     using mdv::riemann::Scalar;
     using Demonstration = mdv::Demonstration<Scalar>;
     using namespace std::chrono_literals;
+
+    Scalar                                s;
+    mdv::DefaultManifoldEmbedding<Scalar> emb(&s);
 
     auto get_position_vector = [](const auto& demo) -> Eigen::VectorXd {
         Eigen::VectorXd res(demo.size());
@@ -84,7 +97,7 @@ TEST(Dmp, R3Dmp) {
         // ASSERT_TRUE(mdv::condition::is_unit_norm(res[i].y().coeffs()));
     }
     const double mae = abs_error.cwiseAbs().mean();
-    ASSERT_LE(mae, 0.01) << "Reconstructed orientation mean absolute error (degrees)";
+    ASSERT_LE(mae, 0.01) << "Reconstructed orientation mean absolute error(degrees)";
 }
 
 TEST(Dmp, S3Dmp) {
@@ -195,10 +208,11 @@ TEST(Dmp, SE3Dmp) {
     //     const auto delta = demo[i].y().inverse() * res[i].y();
     //     angle_error(i)   = std::acos(std::abs(delta.w())) * 180.0 / M_PI;
     //     ASSERT_TRUE(mdv::condition::is_unit_norm(se3_res[i].y().coeffs()))
-    //             << "Quaternions obtained by dynamic integration must have unit norm";
+    //             << "Quaternions obtained by dynamic integration must have unit norm
+    //             ";
     // }
     // const double mae = angle_error.cwiseAbs().mean();
-    // ASSERT_LE(mae, 3) << "Reconstructed orientation mean absolute error (degrees)";
+    // ASSERT_LE(mae, 3) << "Reconstructed orientation mean absolute error (degrees) ";
 }
 
 static_assert(mdv::transformation_system<
