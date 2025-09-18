@@ -6,7 +6,6 @@
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/concepts.hpp"
 #include "mdv/dmp/coordinate_system/coordinate_system.hpp"
-#include "mdv/dmp/fwd.hpp"
 #include "mdv/dmp/learnable_function.hpp"
 #include "mdv/dmp/transformation_system/transformation_system.hpp"
 #include "mdv/macros.hpp"
@@ -21,9 +20,9 @@
 
 namespace mdv {
 
-template <concepts::trivially_embeddable M>
+template <concepts::trivially_embeddable_manifold M>
 struct DefaultManifoldEmbedding {
-    using TrivialEmbedder = TrivialTypeEmbedding<typename M::TangentVector>;
+    using TrivialEmbedder = riemann::TrivialTypeEmbedding<typename M::TangentVector>;
     using Input           = TrivialEmbedder::Input;
     using Output          = TrivialEmbedder::Output;
 

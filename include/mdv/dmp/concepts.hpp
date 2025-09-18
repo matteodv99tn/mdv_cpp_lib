@@ -5,7 +5,6 @@
 #include <type_traits>
 
 #include "mdv/containers/demonstration.hpp"
-#include "mdv/dmp/fwd.hpp"
 #include "mdv/riemann_geometry/concepts.hpp"
 
 namespace mdv::concepts {
@@ -44,12 +43,9 @@ concept default_embeddable = requires {
 };
 
 template <typename Manifold>
-concept trivially_embeddable = requires {
+concept trivially_embeddable_manifold = requires {
     requires manifold<Manifold>;
-    typename TrivialTypeEmbedding<typename Manifold::TangentVector>::Input;
-    typename TrivialTypeEmbedding<typename Manifold::TangentVector>::Output;
-    requires std::is_default_constructible_v<
-            TrivialTypeEmbedding<typename Manifold::TangentVector>>;
+    requires trivially_embeddable_type<typename Manifold::TangentVector>;
 };
 
 

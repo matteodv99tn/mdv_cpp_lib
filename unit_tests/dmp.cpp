@@ -7,7 +7,6 @@
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/concepts.hpp"
 #include "mdv/dmp/dmp_utilities.hpp"
-#include "mdv/dmp/fwd.hpp"
 #include "mdv/riemann_geometry/concepts.hpp"
 #include "mdv/riemann_geometry/euclidean.hpp"
 #include "mdv/riemann_geometry/scalar.hpp"
@@ -23,10 +22,10 @@ static_assert(mdv::riemann::space_dimension_v<mdv::riemann::S3::TangentVector> =
 // 7);
 
 static_assert(mdv::concepts::euclidean_space<mdv::riemann::Scalar>);
-static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::Scalar>);
-static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::Rn<3>>);
-static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::S3>);
-static_assert(mdv::concepts::trivially_embeddable<mdv::riemann::SE3>);
+static_assert(mdv::concepts::trivially_embeddable_manifold<mdv::riemann::Scalar>);
+static_assert(mdv::concepts::trivially_embeddable_manifold<mdv::riemann::Rn<3>>);
+static_assert(mdv::concepts::trivially_embeddable_manifold<mdv::riemann::S3>);
+static_assert(mdv::concepts::trivially_embeddable_manifold<mdv::riemann::SE3>);
 
 static_assert(mdv::concepts::transformation_system<
               mdv::dmp::TransformationSystem<mdv::riemann::Scalar>,
@@ -206,15 +205,4 @@ TEST(Dmp, SE3Dmp) {
         ) << "At iter "
           << i << " of " << se3_res.size();
     }
-
-    // Eigen::VectorXd angle_error(n_ts);
-    // for (auto i = 0; i < n_ts; ++i) {
-    //     const auto delta = demo[i].y().inverse() * res[i].y();
-    //     angle_error(i)   = std::acos(std::abs(delta.w())) * 180.0 / M_PI;
-    //     ASSERT_TRUE(mdv::condition::is_unit_norm(se3_res[i].y().coeffs()))
-    //             << "Quaternions obtained by dynamic integration must have unit norm
-    //             ";
-    // }
-    // const double mae = angle_error.cwiseAbs().mean();
-    // ASSERT_LE(mae, 3) << "Reconstructed orientation mean absolute error (degrees) ";
 }

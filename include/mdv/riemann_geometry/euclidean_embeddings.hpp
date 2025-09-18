@@ -1,15 +1,10 @@
-#ifndef MDV_DMP_FWD_HPP
-#define MDV_DMP_FWD_HPP
+#ifndef MDV_RIEMANN_TYPE_EUCLIDEAN_EMBEDDINGS_HPP
+#define MDV_RIEMANN_TYPE_EUCLIDEAN_EMBEDDINGS_HPP
 
 #include "mdv/riemann_geometry/concepts.hpp"
+#include "mdv/riemann_geometry/fwd.hpp"
 
-namespace mdv {
-
-// template <typename T>
-// struct DefaultManifoldEmbedding;
-
-template <typename T>
-struct TrivialTypeEmbedding;
+namespace mdv::riemann {
 
 template <concepts::euclidean_type T>
 struct TrivialTypeEmbedding<T> {
@@ -28,7 +23,7 @@ struct TrivialTypeEmbedding<T> {
 };
 
 
-}  // namespace mdv
+}  // namespace mdv::riemann
 
 
-#endif  // MDV_DMP_FWD_HPP
+#endif  // MDV_RIEMANN_TYPE_EUCLIDEAN_EMBEDDINGS_HPP

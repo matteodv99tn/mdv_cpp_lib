@@ -45,5 +45,6 @@ public:
 
 }  // namespace mdv::riemann
 
+#include "mdv/riemann_geometry/euclidean_embeddings.hpp"
 
 #endif  // MDV_EUCLIDEAN_MANIFOLD_HPP

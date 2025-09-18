@@ -5,6 +5,7 @@
 #include <Eigen/Geometry>
 #include <utility>
 
+#include "mdv/riemann_geometry/fwd.hpp"
 #include "mdv/riemann_geometry/utils.hpp"
 
 namespace mdv::riemann {
@@ -103,12 +104,6 @@ public:
     static TangentVector default_tangent_vector();
 };
 
-}  // namespace mdv::riemann
-
-#include "mdv/dmp/fwd.hpp"
-
-namespace mdv {
-
 template <>
 struct TrivialTypeEmbedding<riemann::SE3TangentVector> {
     using Input  = riemann::SE3TangentVector;
@@ -131,7 +126,6 @@ struct TrivialTypeEmbedding<riemann::SE3TangentVector> {
     }
 };
 
-
-}  // namespace mdv
+}  // namespace mdv::riemann
 
 #endif  // MDV_SE3_MANIFOLD_HPP

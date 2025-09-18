@@ -2,7 +2,9 @@
 #define MDV_RIEMANN_CONCEPTS_HPP
 
 #include <concepts>
+#include <type_traits>
 
+#include "mdv/riemann_geometry/fwd.hpp"
 #include "mdv/utils/concepts.hpp"
 
 namespace mdv::concepts {
@@ -32,6 +34,31 @@ concept euclidean_space = requires {
     requires euclidean_type<typename M::Point>;
 };
 
+namespace internal {
+
+    template <typename T, typename = void>
+    struct HasTrivialTypeEmbedding : std::false_type {};
+
+    template <typename T>
+    struct HasTrivialTypeEmbedding<
+            T,
+            std::void_t<decltype(sizeof(riemann::TrivialTypeEmbedding<T>))>>
+            : std::true_type {};
+
+    template <typename T>
+    concept trivial_type_requirements = requires {
+        typename riemann::TrivialTypeEmbedding<T>::Input;
+        typename riemann::TrivialTypeEmbedding<T>::Output;
+
+        std::is_default_constructible_v<riemann::TrivialTypeEmbedding<T>>;
+    };
+
+
+}  // namespace internal
+
+template <typename T>
+concept trivially_embeddable_type = internal::HasTrivialTypeEmbedding<T>::value
+                                    && internal::trivial_type_requirements<T>;
 }  // namespace mdv::concepts
 
 

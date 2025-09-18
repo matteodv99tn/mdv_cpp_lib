@@ -42,5 +42,6 @@ public:
 
 }  // namespace mdv::riemann
 
+#include "mdv/riemann_geometry/euclidean_embeddings.hpp"
 
 #endif  // MDV_SCALAR_MANIFOLD_HPP
