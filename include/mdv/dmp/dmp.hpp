@@ -45,61 +45,6 @@ private:
     const M*        _m;
 };
 
-template <typename T>
-struct Embedding;
-
-template <>
-struct Embedding<double> {
-    static constexpr int dimension = 1;
-    using type                     = double;
-
-    double
-    operator()(double in) const {
-        return in;
-    };
-};
-
-template <int Dim>
-struct Embedding<Eigen::Vector<double, Dim>> {
-    static constexpr int dimension = Dim;
-    using type                     = Eigen::Vector<double, Dim>;
-
-    type&
-    operator()(type& in) const {
-        return in;
-    }
-
-    const type&
-    operator()(const type& in) const {
-        return in;
-    }
-
-    type
-    operator()(type&& in) const {
-        return std::move(in);
-    }
-};
-
-template <>
-struct Embedding<mdv::riemann::SE3TangentVector> {
-    static constexpr int dimension = 7;
-    using type                     = Eigen::Vector<double, 7>;
-
-    type
-    operator()(const mdv::riemann::SE3TangentVector& in) const {
-        return {in.pos(0),
-                in.pos(1),
-                in.pos(2),
-                in.ori(0),
-                in.ori(1),
-                in.ori(2),
-                in.ori(3)};
-    }
-};
-
-template <typename T>
-static constexpr int embedding_dimension = Embedding<T>::dimension;
-
 template <
         concepts::manifold                 M,
         concepts::transformation_system<M> TS = dmp::TransformationSystem<M>,
