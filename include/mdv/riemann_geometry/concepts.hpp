@@ -10,7 +10,7 @@
 namespace mdv::concepts {
 
 template <typename M>
-concept manifold = requires(M m, M::Point x, M::TangentVector v) {
+concept manifold = requires(const M m, M::Point x, M::TangentVector v) {
     typename M::Point;
     typename M::TangentVector;
 

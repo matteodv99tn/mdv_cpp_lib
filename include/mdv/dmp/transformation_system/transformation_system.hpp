@@ -19,8 +19,12 @@ public:
     using Manifold = M;
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
 
-    TransformationSystem(const double alpha = 48.0, const double beta = 12.0) :
-            _alpha(alpha), _beta(beta) {}
+    TransformationSystem(
+            const double       alpha    = 48.0,
+            const double       beta     = 12.0,
+            std::shared_ptr<M> manifold = std::make_shared<M>()
+    ) :
+            _alpha(alpha), _beta(beta), _m(manifold) {}
 
     MDV_NODISCARD TangentVector
     eval_forcing(
@@ -28,7 +32,7 @@ public:
             const manifold_sample<0, M> auto& goal_state,
             const double                      tau
     ) const {
-        const auto  pos_err = M::logarithmic_map(curr_state.y(), goal_state.y());
+        const auto pos_err = manifold().logarithmic_map(curr_state.y(), goal_state.y());
         const auto& vel_err = curr_state.yd();
         const auto& acc_err = curr_state.ydd();
         return tau * tau * acc_err - _alpha * (_beta * pos_err - tau * vel_err);
@@ -42,25 +46,30 @@ public:
          const double                      dt,
          manifold_sample<1, M> auto&       next_state) const {
         const TangentVector log_y_g =
-                M::logarithmic_map(curr_state.y(), goal_state.y());
+                manifold().logarithmic_map(curr_state.y(), goal_state.y());
         const TangentVector dz_dt_original =
                 _alpha * (_beta * log_y_g - curr_state.yd()) + force;
         const TangentVector dz_dt =
-                M::covariant_derivative(curr_state.y(), dz_dt_original);
+                manifold().covariant_derivative(curr_state.y(), dz_dt_original);
         const TangentVector z_next = curr_state.yd() + dz_dt * dt / tau;
-        next_state.y() = M::exponential_map(curr_state.y(), curr_state.yd() * dt / tau);
-        next_state.yd() = M::parallel_transport(curr_state.y(), next_state.y(), z_next);
+        next_state.y() =
+                manifold().exponential_map(curr_state.y(), curr_state.yd() * dt / tau);
+        next_state.yd() =
+                manifold().parallel_transport(curr_state.y(), next_state.y(), z_next);
     }
 
     // clang-format off
-    MDV_NODISCARD double alpha() const noexcept { return _alpha; }
-    MDV_NODISCARD double beta() const noexcept  { return _beta; }
+    MDV_NODISCARD double   alpha() const noexcept { return _alpha; }
+    MDV_NODISCARD double   beta() const noexcept  { return _beta; }
+    MDV_NODISCARD M&       manifold()             { assert(_m); return *_m; }
+    MDV_NODISCARD const M& manifold() const       { assert(_m); return *_m; }
 
     // clang-format on
 
 private:
-    double _alpha;
-    double _beta;
+    double             _alpha;
+    double             _beta;
+    std::shared_ptr<M> _m = nullptr;
 };
 
 }  // namespace mdv::dmp

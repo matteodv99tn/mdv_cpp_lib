@@ -12,19 +12,19 @@ public:
     using Point         = mdv::mesh::Point;
     using TangentVector = Eigen::Vector3d;
 
-    static TangentVector logarithmic_map(const Point& q1, const Point& q2);
+    TangentVector logarithmic_map(const Point& q1, const Point& q2) const;
 
-    static Point exponential_map(const Point& q, const TangentVector& v);
+    Point exponential_map(const Point& q, const TangentVector& v) const;
 
-    static TangentVector parallel_transport(
+    TangentVector parallel_transport(
             const Point& q, const Point& p, const TangentVector& v
-    );
+    ) const;
 
-    static TangentVector covariant_derivative(const Point& q, const TangentVector& v);
+    TangentVector covariant_derivative(const Point& q, const TangentVector& v) const;
 
-    static Point default_point();
+    Point default_point() const;
 
-    static TangentVector default_tangent_vector();
+    TangentVector default_tangent_vector() const;
 };
 }  // namespace mdv::riemann
 

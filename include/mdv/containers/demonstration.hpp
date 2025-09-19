@@ -172,7 +172,7 @@ public:
 
     MDV_NODISCARD static DemonstrationBuilder
     builder(std::size_t initial_size = 0) {
-        return DemonstrationBuilder(initial_size);
+        return DemonstrationBuilder(std::make_shared<M>(), initial_size);
     }
 
     SampleBuilder
@@ -269,7 +269,12 @@ class Demonstration<M, Order, ClockT>::DemonstrationBuilder {
     using Dem = Demonstration<M, Order, ClockT>;
 
 public:
-    DemonstrationBuilder(std::size_t size = 0) { data().resize(size); }
+    DemonstrationBuilder(
+            std::shared_ptr<M> manifold = std::make_unique<M>(), std::size_t size = 0
+    ) :
+            _m(std::move(manifold)) {
+        data().resize(size);
+    }
 
     Dem
     create() {
@@ -282,13 +287,14 @@ public:
                 auto&        curr = data(i);
                 const auto&  next = data(i + 1);
                 const double dt   = seconds(next.t() - curr.t());
-                curr.yd()         = M::logarithmic_map(curr.y(), next.y()) / dt;
+                curr.yd()         = manifold().logarithmic_map(curr.y(), next.y()) / dt;
             }
             auto&       last_sample       = data(data_size - 1);
             const auto& secondlast_sample = data(data_size - 2);
 
-            last_sample.yd() =
-                    M::covariant_derivative(last_sample.y(), secondlast_sample.yd());
+            last_sample.yd() = manifold().covariant_derivative(
+                    last_sample.y(), secondlast_sample.yd()
+            );
         }
 
         if (_acc_autodiff) {
@@ -301,13 +307,14 @@ public:
                 const auto&  curr_yd = curr.yd();
                 const double dt      = seconds(next.t() - curr.t());
                 const auto&  yd_next_transp =
-                        M::parallel_transport(next_y, curr_y, next_yd);
+                        manifold().parallel_transport(next_y, curr_y, next_yd);
                 curr.ydd() = (yd_next_transp - curr.yd()) / dt;
             }
             auto&       last_sample       = data(data_size - 1);
             const auto& secondlast_sample = data(data_size - 2);
-            last_sample.ydd() =
-                    M::covariant_derivative(last_sample.y(), secondlast_sample.ydd());
+            last_sample.ydd()             = manifold().covariant_derivative(
+                    last_sample.y(), secondlast_sample.ydd()
+            );
         }
         return std::move(_dem);
     }
@@ -385,6 +392,8 @@ protected:
     MDV_NODISCARD const Dem::Container& data() const                    { return _dem._data; }
     MDV_NODISCARD Dem::Sample&          data(const std::size_t i)       { return _dem._data[i]; }
     MDV_NODISCARD const Dem::Sample&    data(const std::size_t i) const { return _dem._data[i]; }
+    MDV_NODISCARD M&                    manifold()                      { assert(_m); return *_m; }
+    MDV_NODISCARD const M&              manifold() const                { assert(_m); return *_m; }
 
     // clang-format on
 
@@ -393,6 +402,7 @@ private:
     internal::tuple_lazy_function_t<BaseTuple> _lazy_funcs;
     bool                                       _vel_autodiff = false;
     bool                                       _acc_autodiff = false;
+    std::shared_ptr<M>                         _m            = nullptr;
 
     template <std::size_t Index>
     using ElementIterator =

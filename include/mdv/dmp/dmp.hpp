@@ -127,12 +127,18 @@ public:
 
     double tau;
 
-    Dmp(Logger::SharedPtr  logger  = mdv::get_default_logger(),
-        const double       alpha   = 48.0,
-        const double       beta    = 12.0,
-        const double       gamma   = 3.0,
-        const basis_size_t n_basis = 12) :
-            _logger(logger), _cs(gamma), _ts(alpha, beta), tau(1.0) {
+    Dmp(Logger::SharedPtr         logger   = mdv::get_default_logger(),
+        const double              alpha    = 48.0,
+        const double              beta     = 12.0,
+        const double              gamma    = 3.0,
+        const basis_size_t        n_basis  = 12,
+        std::shared_ptr<Manifold> manifold = std::make_shared<Manifold>()) :
+            _logger(logger),
+            _m(std::move(manifold)),
+            _cs(std::make_shared<dmp::ExponentialCoordinateSystem>(gamma)),
+            _ts(std::make_shared<TransformationSystem>(alpha, beta)),
+            tau(1.0),
+            _emb(_m.get()) {
         initialise_function(n_basis);
 
         logger->debug("Initialised DMP object");
@@ -159,11 +165,10 @@ public:
         const auto      goal = demo.back();
 
         for (long i = 0; i < demo.size(); ++i) {
-            const TangentVector force = _ts.eval_forcing(demo[i], goal, tau);
+            const TangentVector force = transf_sys().eval_forcing(demo[i], goal, tau);
 
-            Embedding emb(&_m);
             if constexpr (is_scalar) f_des(i) = force;
-            else f_des.row(i) = emb.embed(force, demo[i], goal);
+            else f_des.row(i) = embedding().embed(force, demo[i], goal);
         }
         assert(!f_des.hasNaN());
         return f_des;
@@ -213,11 +218,11 @@ public:
         for (auto i = 0; i < demo.size(); ++i) {
             if constexpr (std::is_scalar_v<Point>) {
                 pos_err(i, 0) =
-                        M::logarithmic_map(demo[i].y(), reconstructed_demo[i].y());
+                        _m.logarithmic_map(demo[i].y(), reconstructed_demo[i].y());
                 // pos_err_norm(i) = std::abs(pos_err(i, 0));
             } else {
                 pos_err.row(i) =
-                        M::logarithmic_map(demo[i].y(), reconstructed_demo[i].y());
+                        _m.logarithmic_map(demo[i].y(), reconstructed_demo[i].y());
             }
             pos_err_norm(i) = pos_err.row(i).norm();
         }
@@ -248,25 +253,24 @@ public:
         Demonstration<M> res =
                 Demonstration<M>::builder(n_steps).set_sampling_period(dt).create();
         res.front().y()   = y0;
-        res.front().yd()  = M::default_tangent_vector();
-        res.front().ydd() = M::default_tangent_vector();
+        res.front().yd()  = manifold().default_tangent_vector();
+        res.front().ydd() = manifold().default_tangent_vector();
         typename Demonstration<M>::Sample goal;
         goal.y() = g;
 
-        Embedding  embedder(&_m);
         const auto dts = seconds(dt);
         for (auto i = 0; i < n_steps - 1; ++i) {
             const double                     s    = time_to_s(i * dt);
             const typename Embedding::Output f    = fun()(s, s);
-            const TangentVector              f_tv = embedder.decode(f, res[i], goal);
-            _ts.step(res[i], goal, f_tv, tau, dts, res[i + 1]);
+            const TangentVector              f_tv = embedding().decode(f, res[i], goal);
+            transf_sys().step(res[i], goal, f_tv, tau, dts, res[i + 1]);
         }
         return res;
     }
 
     MDV_NODISCARD double
     time_to_s(const double t) const {
-        return _cs.eval_exact(t, tau);
+        return coord_sys().eval_exact(t, tau);
     }
 
     template <typename Duration>
@@ -281,22 +285,29 @@ public:
     }
 
     // clang-format off
-    MDV_NODISCARD std::size_t            n_basis() const { return fun().n_basis(); }
+    MDV_NODISCARD std::size_t            n_basis() const    { return fun().n_basis(); }
     MDV_NODISCARD const Function::WeightsMatrix& weights() const { return fun().weights(); }
-    MDV_NODISCARD Logger&                logger() const  { return *(_logger.get()); }
-    MDV_NODISCARD CoordSystem&           coord_sys()     { return _cs; }
-    MDV_NODISCARD TransfSystem&          transf_sys()    { return _ts; }
-    MDV_NODISCARD Function&              fun()           { assert(_fun); return *_fun; }
-    MDV_NODISCARD const Function&        fun() const     { assert(_fun); return *_fun; }
+    MDV_NODISCARD Logger&                logger() const     { return *(_logger.get()); }
+    MDV_NODISCARD Manifold&              manifold()         { assert(_m); return *_m; }
+    MDV_NODISCARD const Manifold&        manifold() const   { assert(_m); return *_m; }
+    MDV_NODISCARD CoordSystem&           coord_sys()        { assert(_cs); return *_cs; }
+    MDV_NODISCARD const CoordSystem&     coord_sys() const  { assert(_cs); return *_cs; }
+    MDV_NODISCARD TransfSystem&          transf_sys()       { assert(_ts); return *_ts; }
+    MDV_NODISCARD const TransfSystem&    transf_sys() const { assert(_ts); return *_ts; }
+    MDV_NODISCARD Function&              fun()              { assert(_fun); return *_fun; }
+    MDV_NODISCARD const Function&        fun() const        { assert(_fun); return *_fun; }
+    MDV_NODISCARD Embedding&             embedding()        { return _emb; }
+    MDV_NODISCARD const Embedding&       embedding() const  { return _emb; }
 
     // clang-format on
 
 
 private:
     // Transformation - Coordinate System
-    Manifold     _m;
-    CoordSystem  _cs;
-    TransfSystem _ts;
+    std::shared_ptr<Manifold>     _m;
+    std::shared_ptr<CoordSystem>  _cs;
+    std::shared_ptr<TransfSystem> _ts;
+    Embedding                     _emb;
 
     // Basis
     std::unique_ptr<Function> _fun;
@@ -308,7 +319,7 @@ private:
         Eigen::VectorXd hs = Eigen::VectorXd(n_basis);
 
         for (auto i = 0; i < n_basis; ++i)
-            cs(i) = _cs.eval_exact(double(i) / double(n_basis));
+            cs(i) = coord_sys().eval_exact(double(i) / double(n_basis));
 
         for (auto i = 0; i < n_basis - 1; ++i) hs(i) = 1 / SQUARE(cs(i + 1) - cs(i));
         hs(n_basis - 1) = hs(n_basis - 2);
