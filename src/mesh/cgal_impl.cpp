@@ -11,6 +11,8 @@
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/conditions.hpp"
 #include "mdv/mesh/point.hpp"
+#include "mdv/utils/logging.hpp"
+#include "mdv/utils/logging_extras.hpp"
 
 using std::filesystem::path;
 
@@ -81,7 +83,9 @@ mdv::mesh::internal::location_from_mesh_point(const ::mdv::mesh::Point& pt) noex
 
 ::mdv::mesh::Geodesic
 mdv::mesh::internal::construct_geodesic(
-        CgalImpl::ShortestPath& shpath, const ::mdv::mesh::Point& from
+        CgalImpl::ShortestPath&   shpath,
+        const ::mdv::mesh::Point& from,
+        const bool                construct_reversed
 ) {
     const auto [face_id, barycentric_coords] = location_from_mesh_point(from);
     std::vector<CgalImpl::Point3> cgal_geod;
@@ -89,25 +93,32 @@ mdv::mesh::internal::construct_geodesic(
             face_id, barycentric_coords, std::back_inserter(cgal_geod)
     );
 
-    Geodesic geod;
-    geod.reserve(cgal_geod.size());
-    rs::transform(
-            cgal_geod, std::back_inserter(geod), [](const auto& pt) -> Eigen::Vector3d {
-                return convert(pt);
-            }
-    );
+    Geodesic geod(cgal_geod.size());
+    if (construct_reversed) {
+        rs::transform(cgal_geod, geod.rbegin(), [](const auto& pt) -> Eigen::Vector3d {
+            return convert(pt);
+        });
+    } else {
+        rs::transform(cgal_geod, geod.begin(), [](const auto& pt) -> Eigen::Vector3d {
+            return convert(pt);
+        });
+    }
+
     return geod;
 }
 
 ::mdv::mesh::Geodesic
 mdv::mesh::internal::construct_geodesic(
-        const CgalImpl&           cgal_data,
-        const ::mdv::mesh::Point& from,
-        const ::mdv::mesh::Point& to
+        const CgalImpl& cgal_data, ::mdv::mesh::Point from, ::mdv::mesh::Point to
 ) {
     // require_on_same_mesh(from.face(), to.face());
 
-    auto& curr_target = cgal_data._current_shortpath_source;
+    mdv::mesh::Point* curr_target = cgal_data._current_shortpath_source;
+
+    const bool are_adjacent = from.face().adjacent_to(to.face()) != nullptr;
+    const bool swap_point =
+            (curr_target != nullptr) && (distance(*curr_target, from) < 1e-3);
+    if (swap_point) std::swap(from, to);
 
     if (curr_target == nullptr || distance(*curr_target, to) > 1e-3) {
         cgal_data.logger().trace("Updating shortest path source point");
@@ -119,7 +130,7 @@ mdv::mesh::internal::construct_geodesic(
         cgal_data._current_shortpath_source = new Point(to);
     }
 
-    return construct_geodesic(*cgal_data._shortest_path, from);
+    return construct_geodesic(*cgal_data._shortest_path, from, swap_point);
 }
 
 void

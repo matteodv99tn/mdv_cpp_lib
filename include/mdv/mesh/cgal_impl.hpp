@@ -101,7 +101,9 @@ CgalImpl::FaceLocation location_from_mesh_point(const ::mdv::mesh::Point& pt) no
  *         shortest path source point.
  */
 ::mdv::mesh::Geodesic construct_geodesic(
-        CgalImpl::ShortestPath& shpath, const ::mdv::mesh::Point& from
+        CgalImpl::ShortestPath&   shpath,
+        const ::mdv::mesh::Point& from,
+        bool                      construct_reversed = false
 );
 
 /**
@@ -113,9 +115,7 @@ CgalImpl::FaceLocation location_from_mesh_point(const ::mdv::mesh::Point& pt) no
  * @return Geodesic representing the path between the two points.
  */
 ::mdv::mesh::Geodesic construct_geodesic(
-        const CgalImpl&           cgal_data,
-        const ::mdv::mesh::Point& from,
-        const ::mdv::mesh::Point& to
+        const CgalImpl& cgal_data, ::mdv::mesh::Point from, ::mdv::mesh::Point to
 );
 
 //   ____                              _

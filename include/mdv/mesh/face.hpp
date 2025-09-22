@@ -35,6 +35,8 @@ public:
 
     MDV_NODISCARD std::string describe() const override;
 
+    HalfEdge* adjacent_to(const Face& other) const;
+
 private:
     friend class Mesh;
 

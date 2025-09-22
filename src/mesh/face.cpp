@@ -40,6 +40,20 @@ Face::describe() const {
     );
 }
 
+mdv::mesh::HalfEdge*
+Face::adjacent_to(const Face& other) const {
+    HalfEdge* he = this->half_edge();
+
+    bool first_iter = true;
+    while (first_iter || he != this->half_edge()) {
+        first_iter = false;
+        if (he->opposite_face() == other) return he;
+        he = he->next();
+    }
+
+    return nullptr;
+}
+
 void
 Face::bake_properties() {
     assert(&_he->face() == &_he->prev()->face());

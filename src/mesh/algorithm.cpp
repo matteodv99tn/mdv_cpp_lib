@@ -95,10 +95,7 @@ mdv::mesh::parallel_transport(const TangentVector& v, const Point& p) {
 
     const Point& o = v.application_point();
 
-    const Geodesic geod = internal::construct_geodesic(
-            o.face().mesh().cgal(), v.application_point(), p
-    );
-
+    const Geodesic geod = o.face().mesh().build_geodesic(v.application_point(), p);
 
     const auto  n  = geod.size();
     const auto& x1 = (geod[1] - geod[0]).normalized();
@@ -124,7 +121,7 @@ mdv::mesh::logarithmic_map(const Point& p, const Point& y) {
 
     if (p.face() == y.face()) return {p, Point::UvCoord(y.uv() - p.uv())};
 
-    const auto geod        = internal::construct_geodesic(p.face().mesh().cgal(), p, y);
+    const auto geod        = p.face().mesh().build_geodesic(p, y);
     auto       log_map_dir = (geod[1] - geod[0]).normalized();
     auto       log_map_len = length(geod);
     return {p, Vec3d(log_map_len * log_map_dir)};
@@ -178,4 +175,13 @@ mdv::mesh::distance(const Point& p1, const Point& p2) {
 bool
 mdv::mesh::uv_in_unitary_triangle(const Eigen::Vector2d& uv) {
     return (uv.sum() <= 1.0) && (uv(0) >= 0.0) && (uv(1) >= 0.0);
+}
+
+double
+mdv::mesh::distance(const HalfEdge& he, const Eigen::Vector3d& p) {
+    using Vec3         = Eigen::Vector3d;
+    const Vec3   o     = he.origin_position();
+    const Vec3   delta = p - o;
+    const double dot   = he.normalised_direction().dot(delta);
+    return (delta - dot * he.normalised_direction()).norm();
 }

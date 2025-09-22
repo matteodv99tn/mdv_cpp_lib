@@ -68,6 +68,12 @@ double distance(const Face& f, const CartesianPoint& pt);
 double distance(const Point& p1, const Point& p2);
 
 /**
+ * @brief Computes the edge-to-point distance
+ *
+ */
+double distance(const HalfEdge& he, const Eigen::Vector3d& p);
+
+/**
  * @brief Checks wether the provided UV coordinates are within the "unitary" triangle
  * with vertices
  *   (0, 0)

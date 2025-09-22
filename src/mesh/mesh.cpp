@@ -5,10 +5,12 @@
 #include <Eigen/Geometry>
 #include <gsl/assert>
 #include <random>
-#include <string_view>
 
+#include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/helpers.hpp"
+#include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
@@ -102,11 +104,60 @@ Mesh::transform(const Eigen::Affine3d& transformation) {
 
 mdv::mesh::Geodesic
 Mesh::build_geodesic(const Point& from, const Point& to) const {
+    using mdv::condition::are_orthogonal;
+    using Vec2  = Eigen::Vector2d;
+    using Vec3  = Eigen::Vector3d;
+    using Mat32 = Eigen::Matrix<double, 3, 2>;
+    using Mat33 = Eigen::Matrix<double, 3, 3>;
+
     logger().debug(
             "Building geodesic from {} to {}",
             eigen_to_str(from.position()),
             eigen_to_str(to.position())
     );
+
+    const HalfEdge* const he = from.face().adjacent_to(to.face());
+
+    if (he != nullptr) {
+        Mat33         base;
+        long          n_checks = 0;
+        HalfEdge*     to_he    = he->twin()->face().half_edge();
+        const Vertex* v_modify = &he->twin()->prev()->origin();
+        const Vec3    v0       = he->origin_position();
+        const Vec3    n_from   = from.face().normal();
+
+        for (long i = 0; i < 3; ++i) {
+            Vec3 vi = to_he->origin_position();
+            if (&to_he->origin() == v_modify) {
+                const Vec3 delta_to   = to_he->origin_position() - v0;
+                const Vec3 delta_from = he->aligning_rotation().inverse() * delta_to;
+                vi                    = v0 + delta_from;
+                ++n_checks;
+            }
+
+            assert(are_orthogonal(vi - v0, n_from));
+            base.col(i) = vi;
+
+            // step halfedge
+            to_he = to_he->next();
+        }
+        assert(n_checks == 1);
+
+        const Vec3 dest = base * to.barycentric();
+        assert(are_orthogonal(dest - v0, n_from));
+
+        const Edge             e1(*he);
+        const Edge             e2 = Edge::from_positions(from.position(), dest);
+        const EdgeIntersection intersection(e1, e2);
+        assert(mdv::condition::is_zero(distance(*he, intersection.intersection_point)));
+        assert(intersection.sols(0) < 1.0);
+        assert(intersection.sols(0) > 0.0);
+
+        return std::vector<Vec3>(
+                {from.position(), intersection.intersection_point, to.position()}
+        );
+    }
+
     return internal::construct_geodesic(cgal(), from, to);
 }
 
