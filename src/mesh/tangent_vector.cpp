@@ -5,6 +5,7 @@
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/helpers.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
@@ -84,32 +85,22 @@ TangentVector::trim() {
     if (_uv.cwiseAbs().maxCoeff() < 1e-5) return std::nullopt;
 
 
-    using Vec2  = Eigen::Vector2d;
-    using Vec3  = Eigen::Vector3d;
-    using Mat32 = Eigen::Matrix<double, 3, 2>;
-    Vec3  b;
-    Mat32 A;
+    HalfEdge* he    = face().half_edge();
+    Edge      edge1 = Edge::from_position_and_direction(
+            application_point().position(), cartesian_vector()
+    );
 
-    HalfEdge*  he = face().half_edge();
-    const auto p1 = application_point().position();
-    const auto v1 = cartesian_vector();
-
-    bool        first_iter         = true;
-    bool        intersection_found = false;
-    double      s;
-    double      t;
-    Vec2        res;
-    std::size_t iter = 0;
+    bool             first_iter         = true;
+    bool             intersection_found = false;
+    double           s;
+    double           t;
+    EdgeIntersection intersection(edge1, *he);
+    std::size_t      iter = 0;
     while (!intersection_found && (first_iter || he != face().half_edge())) {
         ++iter;
-        const auto v2 = he->direction();
-        const auto p2 = he->origin_position();
-        A.col(0)      = -v1;
-        A.col(1)      = v2;
-        b             = p1 - p2;
-        res           = A.colPivHouseholderQr().solve(b);
-        t             = res(0);
-        s             = res(1);
+        intersection = EdgeIntersection(edge1, *he);
+        t            = intersection.sols(0);
+        s            = intersection.sols(1);
 
         constexpr double zero          = 0.0;
         const bool       intersects_he = (s > -zero) && (s < 1.0 + zero);
@@ -124,20 +115,13 @@ TangentVector::trim() {
     }
 
     if (!intersection_found) throw std::runtime_error("Unable to find intersection!");
-    logger.trace("Intersection -> s: {}, t: {}", s, t);
-
-    const auto           v2  = he->direction();
-    const auto           p2  = he->origin_position();
-    const CartesianPoint tmp = p2 + s * v2;
 
     // Retrieve new point on the boarder
-    const CartesianPoint boarder_pos = p1 + t * v1;
-
-    const auto& new_face = he->twin()->face();
-
-    const auto& curr_face = application_point().face();
-    const auto  new_app_point =
-            Point::from_face_and_position(new_face, tmp).constrain_inside_triangle();
+    const CartesianPoint boarder_pos = intersection.intersection_point;
+    const auto&          new_face    = he->twin()->face();
+    const auto&          curr_face   = application_point().face();
+    const auto new_app_point = Point::from_face_and_position(new_face, boarder_pos)
+                                       .constrain_inside_triangle();
 
 
     // Compute vector that shall be projected onto the new face
