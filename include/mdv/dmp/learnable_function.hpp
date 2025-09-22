@@ -42,7 +42,9 @@ public:
             double,
             Eigen::Vector<double, FunctionDimension>>;
 
-    LearnableFunction(std::vector<BaseFunction>&& basis) : _bs(std::move(basis)) {}
+    LearnableFunction(std::vector<BaseFunction>&& basis) :
+            _bs(std::move(basis)),
+            _ws(WeightsMatrix::Zero(_bs.size(), FunctionDimension)) {}
 
     void
     learn(const Eigen::MatrixXd& phi, const Eigen::MatrixXd& fdes) {
