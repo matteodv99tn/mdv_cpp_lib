@@ -1,6 +1,7 @@
 #ifndef MDV_RIEMANN_HYPERSHPERE_HPP
 #define MDV_RIEMANN_HYPERSHPERE_HPP
 
+#include <cassert>
 #include <cmath>
 #include <Eigen/Dense>
 

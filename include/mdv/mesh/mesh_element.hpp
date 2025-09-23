@@ -1,6 +1,8 @@
 #ifndef MDV_MESH_ELEMENT_HPP
 #define MDV_MESH_ELEMENT_HPP
 
+#include <cassert>
+
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
 

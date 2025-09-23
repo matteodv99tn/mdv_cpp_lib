@@ -1,6 +1,7 @@
 #ifndef MDV_MESH_UV_MAP_HPP
 #define MDV_MESH_UV_MAP_HPP
 
+#include <cassert>
 #include <Eigen/Dense>
 
 #include "mdv/macros.hpp"

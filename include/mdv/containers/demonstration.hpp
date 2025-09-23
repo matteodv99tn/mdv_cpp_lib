@@ -1,6 +1,7 @@
 #ifndef MDV_DEMONSTRATION_HPP
 #define MDV_DEMONSTRATION_HPP
 
+#include <cassert>
 #include <chrono>
 #include <concepts>
 #include <fmt/format.h>

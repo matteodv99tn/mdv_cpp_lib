@@ -1,5 +1,6 @@
 #include "mdv/mesh/mesh_utilities.hpp"
 
+#include <cassert>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <filesystem>
