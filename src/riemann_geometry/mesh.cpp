@@ -5,6 +5,7 @@
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
+#include "mdv/riemann_geometry/hypershere.hpp"
 
 using MeshManifold = mdv::riemann::MeshManifold;
 
@@ -31,7 +32,9 @@ MeshManifold::parallel_transport(
 
 Vec3
 MeshManifold::covariant_derivative(const Point& p, const TangentVector& v) const {
-    return MeshTanVec(p, v).cartesian_vector();
+    using S2          = mdv::riemann::S<2>;
+    const Vec3 v_proj = S2::normal_projection(p.face().normal(), v);
+    return MeshTanVec(p, v_proj).cartesian_vector();
 }
 
 Point
