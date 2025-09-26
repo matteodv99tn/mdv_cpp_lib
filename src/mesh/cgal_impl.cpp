@@ -8,11 +8,10 @@
 
 #include <range/v3/algorithm/transform.hpp>
 
-#include "mdv/mesh/algorithm.hpp"
-#include "mdv/mesh/conditions.hpp"
+#include "mdv/mesh/cgal_geodesic.hpp"
+#include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/point.hpp"
 #include "mdv/utils/logging.hpp"
-#include "mdv/utils/logging_extras.hpp"
 
 using std::filesystem::path;
 
@@ -24,8 +23,9 @@ using ::mdv::mesh::internal::CgalImpl;
 
 CgalImpl::CgalImpl(const Mesh&& mesh, Logger::SharedPtr&& logger) :
         _mesh(mesh), _logger(std::move(logger)) {
-    _shortest_path = std::make_unique<ShortestPath>(_mesh);
-    this->logger().trace("Initialised shortest path object");
+    _shortest_path        = std::make_unique<ShortestPath>(_mesh);
+    _geodesic_constructor = new CgalGeodesicConstructor(&_mesh);
+    this->logger().trace("Initialised geodesic constructor");
 
     _shortest_path->build_aabb_tree(_aabb_tree);
     this->logger().trace("Built AABB tree of the mesh");
@@ -35,12 +35,13 @@ CgalImpl::CgalImpl(const Mesh&& mesh, Logger::SharedPtr&& logger) :
 
 CgalImpl::~CgalImpl() {
     delete _current_shortpath_source;
+    delete _geodesic_constructor;
 }
 
 CgalImpl::CgalImpl(CgalImpl&& other) noexcept :
         _logger(other._logger),
         _mesh(std::move(other._mesh)),
-        _shortest_path(std::move(other._shortest_path)),
+        _geodesic_constructor(other._geodesic_constructor),
         _aabb_tree(std::move(other._aabb_tree)),
         _current_shortpath_source(other._current_shortpath_source) {
     other._current_shortpath_source = nullptr;
@@ -79,58 +80,6 @@ mdv::mesh::internal::location_from_mesh_point(const ::mdv::mesh::Point& pt) noex
     assert(pt.face().is_valid());
     assert(f_id < num_f);
     return {static_cast<CGAL::SM_Face_index>(f_id), bar_coords};
-}
-
-::mdv::mesh::Geodesic
-mdv::mesh::internal::construct_geodesic(
-        CgalImpl::ShortestPath&   shpath,
-        const ::mdv::mesh::Point& from,
-        const bool                construct_reversed
-) {
-    const auto [face_id, barycentric_coords] = location_from_mesh_point(from);
-    std::vector<CgalImpl::Point3> cgal_geod;
-    shpath.shortest_path_points_to_source_points(
-            face_id, barycentric_coords, std::back_inserter(cgal_geod)
-    );
-
-    Geodesic geod(cgal_geod.size());
-    if (construct_reversed) {
-        rs::transform(cgal_geod, geod.rbegin(), [](const auto& pt) -> Eigen::Vector3d {
-            return convert(pt);
-        });
-    } else {
-        rs::transform(cgal_geod, geod.begin(), [](const auto& pt) -> Eigen::Vector3d {
-            return convert(pt);
-        });
-    }
-
-    return geod;
-}
-
-::mdv::mesh::Geodesic
-mdv::mesh::internal::construct_geodesic(
-        const CgalImpl& cgal_data, ::mdv::mesh::Point from, ::mdv::mesh::Point to
-) {
-    // require_on_same_mesh(from.face(), to.face());
-
-    mdv::mesh::Point* curr_target = cgal_data._current_shortpath_source;
-
-    const bool are_adjacent = from.face().adjacent_to(to.face()) != nullptr;
-    const bool swap_point =
-            (curr_target != nullptr) && (distance(*curr_target, from) < 1e-3);
-    if (swap_point) std::swap(from, to);
-
-    if (curr_target == nullptr || distance(*curr_target, to) > 1e-3) {
-        cgal_data.logger().trace("Updating shortest path source point");
-        if (curr_target != nullptr)
-            cgal_data._shortest_path->remove_all_source_points();
-        cgal_data._shortest_path->add_source_point(
-                internal::location_from_mesh_point(to)
-        );
-        cgal_data._current_shortpath_source = new Point(to);
-    }
-
-    return construct_geodesic(*cgal_data._shortest_path, from, swap_point);
 }
 
 void

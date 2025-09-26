@@ -7,6 +7,7 @@
 #include <random>
 
 #include "mdv/mesh/algorithm.hpp"
+#include "mdv/mesh/cgal_geodesic.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/helpers.hpp"
@@ -160,7 +161,7 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
         );
     }
 
-    return internal::construct_geodesic(cgal(), from, to);
+    return (*cgal()._geodesic_constructor)(from, to);
 }
 
 //   ____      _   _

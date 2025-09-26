@@ -21,6 +21,8 @@
 
 namespace mdv::mesh::internal {
 
+class CgalGeodesicConstructor;
+
 /**
  * @brief Implementation class for mesh data using CGAL.
  *
@@ -70,11 +72,12 @@ public:
     CgalImpl& operator=(CgalImpl&&) noexcept = delete;
     ~CgalImpl();
 
-    mutable Logger::SharedPtr             _logger;
-    Mesh                                  _mesh;
     std::unique_ptr<ShortestPath>         _shortest_path;
-    AabbTree                              _aabb_tree;
-    mutable gsl::owner<mdv::mesh::Point*> _current_shortpath_source = nullptr;
+    mutable Logger::SharedPtr                    _logger;
+    Mesh                                         _mesh;
+    AabbTree                                     _aabb_tree;
+    mutable gsl::owner<mdv::mesh::Point*>        _current_shortpath_source = nullptr;
+    mutable gsl::owner<CgalGeodesicConstructor*> _geodesic_constructor     = nullptr;
 
     void build_vertex_normals_map() noexcept;
 
@@ -90,33 +93,6 @@ public:
 };
 
 CgalImpl::FaceLocation location_from_mesh_point(const ::mdv::mesh::Point& pt) noexcept;
-
-/**
- * @brief Constructs a geodesic path from the given source point to the shortest
- *        path source point.
- *
- * @param shpath The shortest path object.
- * @param from The source point.
- * @return Geodesic representing the path from the source point to the current
- *         shortest path source point.
- */
-::mdv::mesh::Geodesic construct_geodesic(
-        CgalImpl::ShortestPath&   shpath,
-        const ::mdv::mesh::Point& from,
-        bool                      construct_reversed = false
-);
-
-/**
- * @brief Constructs a geodesic path between two points on the mesh.
- *
- * @param cgal_data The CGAL implementation data.
- * @param from The starting point of the geodesic.
- * @param to The ending point of the geodesic.
- * @return Geodesic representing the path between the two points.
- */
-::mdv::mesh::Geodesic construct_geodesic(
-        const CgalImpl& cgal_data, ::mdv::mesh::Point from, ::mdv::mesh::Point to
-);
 
 //   ____                              _
 //  / ___|___  _ ____   _____ _ __ ___(_) ___  _ __
