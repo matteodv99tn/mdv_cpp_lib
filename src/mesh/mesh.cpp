@@ -116,6 +116,8 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
             eigen_to_str(to.position())
     );
 
+    if (from.face() == to.face()) return {from.position(), to.position()};
+
     const HalfEdge* const he = from.face().adjacent_to(to.face());
 
     if (he != nullptr) {

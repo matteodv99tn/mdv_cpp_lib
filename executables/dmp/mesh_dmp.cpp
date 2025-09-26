@@ -1,10 +1,13 @@
 #include <cmath>
+#include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <fmt/base.h>
 #include <sstream>
 #include <string>
 
+#include "mdv/dmp/coordinate_system/coordinate_system.hpp"
+#include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/utils/logging.hpp"
 #include "mdv/utils/logging_extras.hpp"
 #include "mdv/utils/spdlog.hpp"
@@ -35,6 +38,74 @@ to_string(const Quat& q) {
     return ss.str();
 }
 
+struct MeshEmbedder {
+    using M      = mdv::riemann::MeshManifold;
+    using Input  = M::TangentVector;
+    using Output = Eigen::Vector2d;
+
+    using Vec3 = Eigen::Vector3d;
+    using Mat3 = Eigen::Matrix3d;
+
+    MeshEmbedder(const M* manifold) : _m(manifold) {};
+
+    void
+    setup(const M::Point& y0, const M::Point& g) {
+        using mdv::condition::are_orthogonal, mdv::condition::is_zero;
+        _y0 = y0;
+        _g  = g;
+
+        const Vec3 vx = -_m->logarithmic_map(g, y0).normalized();
+        const Vec3 vz = g.face().normal();
+        const Vec3 vy = vz.cross(vx);
+
+        _base.col(0) = vx;
+        _base.col(1) = vy;
+        _base.col(2) = vz;
+
+        assert(are_orthogonal(vx, vy));
+        assert(are_orthogonal(vx, vz));
+        assert(are_orthogonal(vy, vz));
+        assert(is_zero(_base.determinant() - 1.0));
+    }
+
+    template <typename StateType, typename GoalType>
+    Output
+    embed(const Input& in, const StateType& x, const GoalType& g) const {
+        const Vec3 v_in_g   = _m->parallel_transport(x.y(), g.y(), in);
+        const Vec3 v_coords = _base.inverse() * v_in_g;
+        if (!mdv::condition::is_zero(v_coords(2))) std::terminate();
+        return {v_coords(0), v_coords(1)};
+    }
+
+    template <typename StateType, typename GoalType>
+    Input
+    decode(const Output& out, const StateType& x, const GoalType& g) const {
+        using mdv::condition::are_orthogonal;
+
+        const Vec3 v_coords{out(0), out(1), 0.0};
+        const Vec3 v_in_g = _base * v_coords;
+
+        assert(g.y() == _g);
+        assert(are_orthogonal(v_in_g, g.y().face().normal()));
+        assert(are_orthogonal(v_in_g, _g.face().normal()));
+
+        const Vec3 res = _m->parallel_transport(g.y(), x.y(), v_in_g);
+        if (!mdv::condition::are_orthogonal(res, x.y().face().normal())) {
+            fmt::println("Scalar prod: {}", res.dot(_y0.face().normal()));
+        }
+
+        assert(are_orthogonal(res, x.y().face().normal()));
+        // assert(are_orthogonal(res, _y0.face().normal()));
+        return res;
+    }
+
+private:
+    const M* _m;
+    M::Point _y0;
+    M::Point _g;
+    Mat3     _base;
+};
+
 using namespace mdv::mesh;
 using std::filesystem::path;
 
@@ -46,7 +117,11 @@ main() {
     using M = mdv::riemann::MeshManifold;
 
     using Demo = mdv::Demonstration<M>;
-    using Dmp  = mdv::Dmp<M>;
+    using Dmp  = mdv::Dmp<
+             M,
+             mdv::dmp::TransformationSystem<M>,
+             mdv::dmp::ExponentialCoordinateSystem,
+             MeshEmbedder>;
     using Mesh = mdv::mesh::Mesh;
 
     const long ns_demo  = 101;  // Demonstration samples
@@ -57,12 +132,13 @@ main() {
     rec.spawn().exit_on_failure();
     mdv::RerunConverter rr_converter;
 
-    const rerun::components::Color c1(237, 135, 150); // red
-    const rerun::components::Color c2(166, 218, 149); // green
-    const rerun::components::Color c3(138, 173, 244); // blue
+
+    const rerun::components::Color c1(237, 135, 150);  // red
+    const rerun::components::Color c2(166, 218, 149);  // green
+    const rerun::components::Color c3(138, 173, 244);  // blue
     const rerun::components::Color c4(238, 212, 159);
 
-    const float demo_marker_size = 1.5;
+    const float demo_marker_size       = 1.5;
     const float integration_line_width = 1.0;
 
     // clang-format off
@@ -84,9 +160,12 @@ main() {
     };
 
     // Mesh retrieval
+    fmt::print("Creating mesh...\n");
     const path mesh_path = mdv::mesh::create_from_function(fun);
-    const auto mesh      = Mesh::from_file(mesh_path);
-    mesh.logger().set_log_level(mdv::Logger::LogLevel::Info);
+    fmt::print("Loading mesh...\n");
+    const auto mesh = Mesh::from_file(mesh_path);
+    fmt::print("Loading mesh... Done\n");
+    mesh.logger().set_log_level(mdv::Logger::LogLevel::Trace);
     rec.log_static("mesh", rr_converter(mesh));
 
     // Demonstration generation
@@ -143,13 +222,23 @@ main() {
 
     long ns_int = ns_demo * (dts_demo / 1ms);
 
-    Dmp dmp;
+    Dmp dmp(mdv::get_default_logger(), 48.0, 12.0, 3.0, 20);
     dmp.tau = 1.0;
     fmt::print("Learning...\n");
+    dmp.embedding().setup(demonstration.front().y(), demonstration.back().y());
     dmp.learn(demonstration);
     fmt::print("Learning... Done!\n");
+    Point new_g = Point::from_cartesian(mesh, 0.1 * y0.position() + 0.9 * g.position());
+    mdv::DemonstrationSample<M, 0, double> new_g_sample;
+    new_g_sample.y() = new_g;
+    fmt::print("Setting up embedding\n");
+    dmp.embedding().setup(demonstration.front().y(), new_g);
+    fmt::print("y0: {}\n", mdv::eigen_to_str(y0.position()));
+    fmt::print("g: {}\n", mdv::eigen_to_str(g.position()));
+    fmt::print("g': {}\n", mdv::eigen_to_str(new_g.position()));
+
     fmt::print("Integrating...\n");
-    const Demo out = dmp.integrate(y0, g, ns_int, 1ms);
+    const Demo out = dmp.integrate(y0, new_g, ns_int, 1ms);
     fmt::print("Integrating... Done!\n");
 
     std::vector<Eigen::Vector3d> res_traj(out.size());

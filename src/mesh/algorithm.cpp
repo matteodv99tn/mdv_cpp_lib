@@ -70,12 +70,27 @@ mdv::mesh::geodesic_resample(const Geodesic& geod, std::vector<double> coordinat
 };
 
 TangentVector
-mdv::mesh::parallel_transport(const TangentVector& v, const Point& p) {
-    auto trihedron = [](const Point& pt, const Vec3d& dir) -> Eigen::Matrix3d {
-        Eigen::Matrix3d res;
-        res.col(0) = dir;
-        res.col(2) = pt.face().normal();
+mdv::mesh::parallel_transport(
+        const TangentVector& tangent_vector, const Point& dest_point
+) {
+    using mdv::condition::are_orthogonal, mdv::condition::are_parallel;
+    using mdv::condition::is_zero, mdv::condition::is_unit_norm;
+    using Mat3 = Eigen::Matrix3d;
+
+    auto build_trihedron = [](const Point& pt, const Vec3d& dir) -> Mat3 {
+        assert(is_unit_norm(dir));
+
+        Mat3        res;
+        const Vec3d n = pt.face().normal();
+        res.col(0)    = dir;
+        res.col(2) = n;
         res.col(1) = res.col(2).cross(res.col(0));
+
+        assert(are_orthogonal(res.col(0), res.col(1)));
+        assert(are_orthogonal(res.col(0), res.col(2)));
+        assert(are_orthogonal(res.col(1), res.col(2)));
+        assert(is_zero(res.determinant() - 1.0));
+
         return res;
     };
 
@@ -86,27 +101,63 @@ mdv::mesh::parallel_transport(const TangentVector& v, const Point& p) {
             "Computing parallel transport of vector {} applied in {} to target "
             "point "
             "{}",
-            eigen_to_str(v.application_point().position()),
-            eigen_to_str(v.cartesian_vector()),
-            eigen_to_str(p.position())
+            eigen_to_str(tangent_vector.application_point().position()),
+            eigen_to_str(tangent_vector.cartesian_vector()),
+            eigen_to_str(dest_point.position())
     );
 
-    if (v.application_point().face() == p.face()) return {p, v.uv()};
+    if (tangent_vector.application_point().face() == dest_point.face())
+        return {dest_point, tangent_vector.uv()};
 
-    const Point& o = v.application_point();
+    const Point& start_point = tangent_vector.application_point();
 
-    const Geodesic geod = o.face().mesh().build_geodesic(v.application_point(), p);
+    const Geodesic geod = start_point.face().mesh().build_geodesic(
+            tangent_vector.application_point(), dest_point
+    );
 
-    const auto  n  = geod.size();
-    const auto& x1 = (geod[1] - geod[0]).normalized();
-    const auto& x2 = (geod[n - 1] - geod[n - 2]).normalized();
-    const auto  R1 = trihedron(o, x1);  // NOLINT
-    const auto  R2 = trihedron(p, x2);  // NOLINT
-    assert(mdv::condition::is_zero(R1.determinant() - 1.0));
-    assert(mdv::condition::is_zero(R2.determinant() - 1.0));
 
-    const Vec3d delta = R2 * R1.transpose() * v.cartesian_vector();
-    return TangentVector::from_tip_position(p, p.position() + delta);
+    const std::size_t n       = geod.size();
+    const Vec3d       x_start = (geod[1] - geod[0]).normalized();
+    const Vec3d       x_dest  = (geod[n - 1] - geod[n - 2]).normalized();
+
+    const Vec3d pt_start  = start_point.position();
+    const Vec3d pt_dest   = dest_point.position();
+    const Vec3d n_start   = start_point.face().normal();
+    const Vec3d n_dest    = dest_point.face().normal();
+    const Vec3d vec_start = tangent_vector.cartesian_vector();
+
+    assert((geod[1] - geod[0]).norm() > 1e-6);
+    assert((geod[n - 1] - geod[n - 2]).norm() > 1e-6);
+
+    const auto R1 = build_trihedron(start_point, x_start);  // NOLINT
+    const auto R2 = build_trihedron(dest_point, x_dest);    // NOLINT
+
+    assert(are_parallel(R1.col(2), n_start));
+    assert(are_parallel(R2.col(2), n_dest));
+
+
+    const Mat3  Rot      = R2 * R1.transpose();
+    const Vec3d vec_dest = Rot * vec_start;
+    assert(are_orthogonal(vec_start, n_start));
+    if (!mdv::condition::are_orthogonal(vec_dest, dest_point.face().normal())) {
+        const Vec3d  nf = start_point.face().normal();
+        const Vec3d  nt = dest_point.face().normal();
+        const Vec3d  vf = tangent_vector.cartesian_vector();
+        const double s1 = nf.dot(vf);
+        const double s2 = nt.dot(vec_dest);
+        std::cout << "from normal: " << nf.transpose() << "\n";
+        std::cout << "to normal: " << nt.transpose() << "\n";
+        std::cout << "Input: " << vf.transpose() << " -> " << s1 << "\n";
+        std::cout << "Rot matrix: \n" << Rot << "\n";
+        std::cout << "Output: " << vec_dest.transpose() << " -> " << s2 << "\n";
+    }
+    assert(are_orthogonal(vec_dest, n_dest));
+    // return TangentVector::from_tip_position(
+    //         dest_point, dest_point.position() + vec_dest
+    // );
+    const TangentVector res(dest_point, vec_dest);
+    assert(are_parallel(res.cartesian_vector(), vec_dest));
+    return res;
 }
 
 TangentVector

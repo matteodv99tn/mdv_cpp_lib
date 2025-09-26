@@ -192,6 +192,7 @@ struct HalfEdge : internal::MeshElement {
 
 private:
     friend class Mesh;
+    friend class Face;
     Vertex*   _origin = nullptr;
     HalfEdge* _twin   = nullptr;
     HalfEdge* _next   = nullptr;

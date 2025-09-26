@@ -27,6 +27,7 @@ Vec3
 MeshManifold::parallel_transport(
         const Point& q, const Point& p, const TangentVector& v
 ) const {
+    assert(mdv::condition::are_orthogonal(q.face().normal(), v));
     return mdv::mesh::parallel_transport(MeshTanVec(q, v), p).cartesian_vector();
 }
 
