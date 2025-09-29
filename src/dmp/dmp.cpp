@@ -3,6 +3,7 @@
 #include <cmath>
 #include <Eigen/Dense>
 #include <gsl/assert>
+#include <math.h>
 
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/dmp_utilities.hpp"
@@ -55,6 +56,41 @@ mdv::build_position_demonstration(const long n_samples) {
     return Demonstration<mdv::riemann::Rn<3>>::builder(n_samples)
             .set_sampling_period(5ms)
             .assign_position(pos_traj)
+            .velocity_automatic_differentiation()
+            .acceleration_automatic_differentiation()
+            .create();
+}
+
+std::vector<mdv::riemann::Rn<2>::Point>
+mdv::build_r2_position(
+        const long n_samples, const Eigen::Vector2d y0, const Eigen::Vector2d g
+) {
+    using namespace std::chrono_literals;
+
+    const std::vector<double> ts =
+            poly_5th(Eigen::VectorXd::LinSpaced(n_samples, 0.0, 1.0));
+
+    using Vec2 = Eigen::Vector2d;
+    std::vector<Vec2> pos_traj;
+    pos_traj.reserve(ts.size());
+    const double dx = g(0) - y0(0);
+    const double dy = g(1) - y0(1);
+    for (const auto& t : ts) {
+        Vec2 sample(dx * t, dy * std::sin(t * M_PI_2));
+        pos_traj.emplace_back(y0 + sample);
+    }
+    return pos_traj;
+}
+
+Demonstration<mdv::riemann::Rn<2>>
+mdv::build_r2_demonstration(
+        const long n_samples, const Eigen::Vector2d y0, const Eigen::Vector2d g
+) {
+    using namespace std::chrono_literals;
+
+    return Demonstration<mdv::riemann::Rn<2>>::builder(n_samples)
+            .set_sampling_period(5ms)
+            .assign_position(build_r2_position(n_samples, y0, g))
             .velocity_automatic_differentiation()
             .acceleration_automatic_differentiation()
             .create();

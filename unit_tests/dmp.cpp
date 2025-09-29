@@ -7,25 +7,30 @@
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/concepts.hpp"
 #include "mdv/dmp/dmp_utilities.hpp"
+#include "mdv/mesh/mesh_utilities.hpp"
 #include "mdv/riemann_geometry/concepts.hpp"
 #include "mdv/riemann_geometry/euclidean.hpp"
+#include "mdv/riemann_geometry/mesh.hpp"
 #include "mdv/riemann_geometry/scalar.hpp"
 #include "mdv/riemann_geometry/se3.hpp"
 #include "mdv/riemann_geometry/utils.hpp"
 #include "mdv/utils/conditions.hpp"
 
-static_assert(
-        mdv::riemann::space_dimension_v<mdv::riemann::Scalar::TangentVector> == 1
-);
-static_assert(mdv::riemann::space_dimension_v<mdv::riemann::S3::TangentVector> == 4);
+
+using mdv::concepts::euclidean_space;
+using mdv::concepts::trivially_embeddable_manifold;
+using mdv::riemann::space_dimension_v;
+
+static_assert(space_dimension_v<mdv::riemann::Scalar::TangentVector> == 1);
+static_assert(space_dimension_v<mdv::riemann::S3::TangentVector> == 4);
 // static_assert(mdv::riemann::space_dimension_v<mdv::riemann::SE3::TangentVector> ==
 // 7);
 
-static_assert(mdv::concepts::euclidean_space<mdv::riemann::Scalar>);
-static_assert(mdv::concepts::trivially_embeddable_manifold<mdv::riemann::Scalar>);
-static_assert(mdv::concepts::trivially_embeddable_manifold<mdv::riemann::Rn<3>>);
-static_assert(mdv::concepts::trivially_embeddable_manifold<mdv::riemann::S3>);
-static_assert(mdv::concepts::trivially_embeddable_manifold<mdv::riemann::SE3>);
+static_assert(euclidean_space<mdv::riemann::Scalar>);
+static_assert(trivially_embeddable_manifold<mdv::riemann::Scalar>);
+static_assert(trivially_embeddable_manifold<mdv::riemann::Rn<3>>);
+static_assert(trivially_embeddable_manifold<mdv::riemann::S3>);
+static_assert(trivially_embeddable_manifold<mdv::riemann::SE3>);
 
 static_assert(mdv::concepts::transformation_system<
               mdv::dmp::TransformationSystem<mdv::riemann::Scalar>,
@@ -205,4 +210,86 @@ TEST(Dmp, SE3Dmp) {
         ) << "At iter "
           << i << " of " << se3_res.size();
     }
+}
+
+TEST(Dmp, R2MeshDmpComparison) {
+    using namespace std::chrono_literals;
+
+    using Vec2     = Eigen::Vector2d;
+    using Vec3     = Eigen::Vector3d;
+    using R2       = mdv::riemann::Rn<2>;
+    using MeshMan  = mdv::riemann::MeshManifold;
+    using R2Demo   = mdv::Demonstration<R2>;
+    using MeshDemo = mdv::Demonstration<MeshMan>;
+    using R2Dmp    = mdv::Dmp<R2>;
+    using MeshDmp  = mdv::Dmp<
+             MeshMan,
+             mdv::dmp::TransformationSystem<MeshMan>,
+             mdv::dmp::ExponentialCoordinateSystem,
+             mdv::riemann::MeshEmbedder>;
+
+    const auto fun       = [](const double x, const double y) -> double { return 0.0; };
+    const auto file_path = mdv::mesh::create_from_function(fun);
+    const auto mesh      = mdv::mesh::Mesh::from_file(file_path);
+
+    // TODO: fix numeric issue when using this initial conditions
+    // const R2::Point y0{-0.5, -0.5};
+    // const R2::Point g{0.5, 0.5};
+    const R2::Point y0{-0.504, -0.534};
+    const R2::Point g{0.52, 0.541};
+
+    const std::vector<Vec2> r2_positions = mdv::build_r2_position(101, y0, g);
+    ASSERT_TRUE(mdv::condition::are_equal(y0, r2_positions.front()));
+    ASSERT_TRUE(mdv::condition::are_equal(g, r2_positions.back()));
+
+    std::vector<MeshMan::Point> mesh_positions;
+    mesh_positions.reserve(r2_positions.size());
+    for (const Vec2& p : r2_positions) {
+        mesh_positions.emplace_back(
+                MeshMan::Point::from_cartesian(mesh, {p(0), p(1), 0})
+        );
+    }
+
+
+    const R2Demo r2_demo = R2Demo::builder(r2_positions.size())
+                                   .set_sampling_period(5ms)
+                                   .assign_position(r2_positions)
+                                   .velocity_automatic_differentiation()
+                                   .acceleration_automatic_differentiation()
+                                   .create();
+    const MeshDemo mesh_demo = MeshDemo::builder(mesh_positions.size())
+                                       .set_sampling_period(5ms)
+                                       .assign_position(mesh_positions)
+                                       .velocity_automatic_differentiation()
+                                       .acceleration_automatic_differentiation()
+                                       .create();
+
+    for (std::size_t i = 0; i < r2_demo.size(); ++i) {
+        const Vec2 r2_p = r2_demo[i].y();
+        const Vec3 r2pos_in_r3{r2_p(0), r2_p(1), 0.0};
+        const Vec3 mesh_pos = mesh_demo[i].y().position();
+        ASSERT_TRUE(mdv::condition::are_equal(r2pos_in_r3, mesh_pos));
+    };
+
+    R2Dmp   r2_dmp;
+    MeshDmp mesh_dmp;
+    mesh_dmp.embedding().setup(mesh_demo.front().y(), mesh_demo.back().y());
+    r2_dmp.learn(r2_demo);
+    mesh_dmp.learn(mesh_demo);
+    const auto r2_res = r2_dmp.integrate(
+            r2_demo.front().y(), r2_demo.back().y(), r2_demo.size(), r2_demo[1].t()
+    );
+    const auto mesh_res = mesh_dmp.integrate(
+            mesh_demo.front().y(),
+            mesh_demo.back().y(),
+            mesh_demo.size(),
+            mesh_demo[1].t()
+    );
+
+    for (std::size_t i = 0; i < r2_res.size(); ++i) {
+        const Vec2 r2_p = r2_res[i].y();
+        const Vec3 r2pos_in_r3{r2_p(0), r2_p(1), 0.0};
+        const Vec3 mesh_pos = mesh_res[i].y().position();
+        ASSERT_TRUE(mdv::condition::are_equal(r2pos_in_r3, mesh_pos));
+    };
 }
