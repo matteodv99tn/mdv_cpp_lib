@@ -2,6 +2,7 @@
 
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <cstdlib>
+#include <Eigen/Core>
 
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
@@ -81,29 +82,39 @@ Point::is_undefined() const noexcept {
 
 Eigen::Vector3d
 Point::barycentric() const noexcept {
+    using Vec3     = Eigen::Vector3d;
     const auto& he = face().half_edge();
-    const auto& v1 = he->origin_position();
-    const auto& v2 = he->next()->origin_position();
-    const auto& v3 = he->next()->next()->origin_position();
+    const auto& a0 = he->origin_position();
+    const auto& a1 = he->next()->origin_position();
+    const auto& a2 = he->next()->next()->origin_position();
+    const Vec3  pt = position();
+
+    const Vec3 v0 = a1 - a0;
+    const Vec3 v1 = a2 - a0;
+    const Vec3 v2 = pt - a0;
+
+    const double d00 = v0.dot(v0);
+    const double d01 = v0.dot(v1);
+    const double d11 = v1.dot(v1);
+    const double d20 = v2.dot(v0);
+    const double d21 = v2.dot(v1);
+
+    const double denom = d00 * d11 - d01 * d01;
+
+    const double v = (d11 * d20 - d01 * d21) / denom;
+    const double w = (d00 * d21 - d01 * d20) / denom;
+    const double u = 1.0 - v - w;
+
+    const Vec3 res{u, v, w};
+
 
     Eigen::Matrix3d A;
-    A.col(0) = v1;
-    A.col(1) = v2;
-    A.col(2) = v3;
+    A.col(0) = a0;
+    A.col(1) = a1;
+    A.col(2) = a2;
 
-    const Eigen::Vector3d b   = position();
-    const Eigen::Vector3d sol = A.colPivHouseholderQr().solve(b);
-    if (!mdv::condition::is_zero(sol.sum() - 1.0)) {
-        assert(Mesh::default_logger);
-        mdv::Logger& logger = *Mesh::default_logger.get();
-        logger.error(
-                "When converting from UV coords. to barycentric, sum ({}) is different "
-                "1.0",
-                sol.sum()
-        );
-    }
-    Ensures(mdv::condition::is_zero(sol.sum() - 1.0));
-    return sol;
+    assert(mdv::condition::are_equal(A * res, pt));
+    return res;
 };
 
 mdv::mesh::CartesianPoint
