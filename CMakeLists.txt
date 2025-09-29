@@ -6,7 +6,6 @@ set(FIND_LIBRARY_USE_LIB64_PATHS OFF)
 
 option(BUILD_TESTING "" OFF)
 option(BUILD_EXECUTABLES "" OFF)
-option(MDV_VERBOSE_DMP "Includes verbose DMP logging in learning/executing")
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -139,13 +138,6 @@ target_compile_definitions(
     mdvcpplib
     PUBLIC -DFMT_HEADER_ONLY=1
 )
-if(${MDV_VERBOSE_DMP})
-    target_compile_definitions(
-        mdvcpplib
-        PUBLIC
-        MDV_VERBOSE_DMP    
-    )
-endif()
 
 
 #  ____   ___  ____ ____  

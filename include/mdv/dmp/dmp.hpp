@@ -87,12 +87,6 @@ public:
         initialise_function(n_basis);
 
         logger->debug("Initialised DMP object");
-#ifdef MDV_VERBOSE_DMP
-        logger->debug("  alpha = {}", _ts.alpha());
-        logger->debug("  beta  = {}", _ts.beta());
-        logger->debug("  gamma = {}", _cs.gamma());
-        logger->debug("  number of basis: {}", this->n_basis());
-#endif
     }
 
     Dmp(const Dmp&)            = default;
@@ -126,12 +120,6 @@ public:
         tau = seconds(demo.back().t() - demo.front().t());
 
         logger().info("Training DMP on a demonstration with {} samples", demo.size());
-#ifdef MDV_VERBOSE_DMP
-        logger().info("  tau = {}s", tau);
-        logger().info("  dt  = {}s", mdv::convert::seconds(demo[1].t()));
-        logger().info("  y0  = {}", demo.front().y());
-        logger().info("  g   = {}", demo.back().y());
-#endif
 
         logger().trace("Evaluating desired forcing term");
         const Eigen::MatrixXd f_des = evaluate_desired_forcing_term(demo);
@@ -147,35 +135,6 @@ public:
         assert(f_des.cols() == embedding_dimension);
         fun().learn(phi, f_des);
         logger().info("DMP succesfully learned");
-
-
-#ifdef MDV_VERBOSE_DMP
-        const Eigen::MatrixXd ae = (phi * _fun.weights() - f_des).cwiseAbs();
-        logger().info("Linear regression mean absolute error: {}", ae.mean());
-        logger().info("Linear regression maximum absolute error: {}", ae.maxCoeff());
-
-        logger().info("Integrating learned dynamics to compare learning outcome...");
-        const auto reconstructed_demo =
-                integrate(demo.front().y(), demo.back().y(), demo.size(), demo[1].t());
-
-        Eigen::MatrixXd pos_err(f_des.rows(), f_des.cols());
-        Eigen::VectorXd pos_err_norm(f_des.rows());
-        for (auto i = 0; i < demo.size(); ++i) {
-            if constexpr (std::is_scalar_v<Point>) {
-                pos_err(i, 0) =
-                        _m.logarithmic_map(demo[i].y(), reconstructed_demo[i].y());
-                // pos_err_norm(i) = std::abs(pos_err(i, 0));
-            } else {
-                pos_err.row(i) =
-                        _m.logarithmic_map(demo[i].y(), reconstructed_demo[i].y());
-            }
-            pos_err_norm(i) = pos_err.row(i).norm();
-        }
-        logger().info("Position error (norm in the tangent space):");
-        logger().info("  mean: {}", double(pos_err_norm.mean()));
-        logger().info("  min:  {}", double(pos_err_norm.minCoeff()));
-        logger().info("  max:  {}", double(pos_err_norm.maxCoeff()));
-#endif
     }
 
     Demonstration<M>
@@ -188,12 +147,6 @@ public:
         using mdv::condition::are_orthogonal;
         using mdv::convert::seconds;
         logger().info("Performing integration");
-#ifdef MDV_VERBOSE_DMP
-        logger().info("  y0: {}", y0);
-        logger().info("  g:  {}", g);
-        logger().info("  dt: {}s", mdv::convert::seconds(dt));
-        logger().info("  number of steps: {}", n_steps);
-#endif
 
         Demonstration<M> res =
                 Demonstration<M>::builder(n_steps).set_sampling_period(dt).create();
