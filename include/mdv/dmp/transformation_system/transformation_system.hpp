@@ -11,6 +11,27 @@ namespace mdv::dmp {
 
 
 template <concepts::manifold M>
+struct RiemannOdeSolver {
+    MDV_MANIFOLD_TYPENAMES_IMPORT(M);
+
+    using TangentBundle = std::pair<Point, TangentVector>;
+
+    RiemannOdeSolver(const double dt) : _dt(dt) {};
+
+    TangentBundle
+    operator()(const TangentBundle& xk, const TangentVector& f, const double tau) {
+        const auto& [y, z]   = xk;
+        TangentVector z_next = z + f * _dt / tau;
+        const Point   y_next = M().exponential_map(y, z_next * _dt / tau);
+        return {y_next, M().parallel_transport(y, y_next, z_next)};
+    };
+
+
+private:
+    const double _dt;
+};
+
+template <concepts::manifold M>
 class TransformationSystem {
 public:
     using MinimumSample     = DemonstrationSample<M, 1>;
@@ -51,11 +72,11 @@ public:
                 _alpha * (_beta * log_y_g - curr_state.yd()) + force;
         const TangentVector dz_dt =
                 manifold().covariant_derivative(curr_state.y(), dz_dt_original);
-        const TangentVector z_next = curr_state.yd() + dz_dt * dt / tau;
-        next_state.y() =
-                manifold().exponential_map(curr_state.y(), curr_state.yd() * dt / tau);
-        next_state.yd() =
-                manifold().parallel_transport(curr_state.y(), next_state.y(), z_next);
+
+        RiemannOdeSolver<M> solver(dt);
+        const auto next = solver({curr_state.y(), curr_state.yd()}, dz_dt, tau);
+        next_state.y()  = next.first;
+        next_state.yd() = next.second;
     }
 
     // clang-format off
