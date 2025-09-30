@@ -55,7 +55,7 @@ main() {
     const std::size_t integration_steps = dem.back().t() / integration_dt;
     const double      alpha             = 48.0;
     auto              logger = mdv::static_logger_factory("interpolation dmp");
-    Dmp               dmp(logger, alpha, alpha / 4.0, 4.0, 12);
+    Dmp               dmp;
     dmp.learn(dem);
     dmp.tau = mdv::convert::seconds(integration_dt * integration_steps);
     std::cout << "tau = " << dmp.tau << "\n";

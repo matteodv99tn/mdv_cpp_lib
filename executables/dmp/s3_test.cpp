@@ -159,7 +159,7 @@ main() {
         rec.log("coord_system", Scalar(s));
 
         // Export basis
-        const Eigen::VectorXd b = dmp.eval_basis(s);
+        const Eigen::VectorXd b = dmp.fun().eval_basis(s);
         for(auto i = 0; i < b.size();++i)
             rec.log("basis/c" + std::to_string(i+1), Scalar(b(i)));
 

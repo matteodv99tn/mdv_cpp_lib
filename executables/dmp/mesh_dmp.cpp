@@ -53,6 +53,7 @@ main() {
              M,
              mdv::dmp::TransformationSystem<M>,
              mdv::dmp::ExponentialCoordinateSystem,
+             mdv::DefaultFunction,
              mdv::riemann::MeshEmbedder>;
     using Mesh = mdv::mesh::Mesh;
 

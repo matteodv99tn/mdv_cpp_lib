@@ -45,24 +45,38 @@ private:
     const M*        _m;
 };
 
+template <concepts::manifold M>
+using DefaultTransformationSystem = dmp::TransformationSystem<M>;
+
+template <int Dim>
+using DefaultFunction = dmp::LearnableFunction<Dim, dmp::ExponentialBasis>;
+
 template <
         concepts::manifold                 M,
-        concepts::transformation_system<M> TS = dmp::TransformationSystem<M>,
-        typename CoordSystem                  = dmp::ExponentialCoordinateSystem,
+        concepts::transformation_system<M> TS = DefaultTransformationSystem<M>,
+        typename CS                           = dmp::ExponentialCoordinateSystem,
+        template <int> typename Func          = DefaultFunction,
         concepts::embedding<M> E              = DefaultManifoldEmbedding<M>>
 class Dmp {
 public:
     // static_assert(concepts::embedding<E, M>);
 
-    using Embedding            = E;
     using Manifold             = M;
+    using Embedding            = E;
     using TransformationSystem = TS;
-    using TransfSystem         = TS;
-    MDV_MANIFOLD_TYPENAMES_IMPORT(M);
+    using CoordinateSystem     = CS;
+
+    using EmbeddingPtr            = std::shared_ptr<Embedding>;
+    using TransformationSystemPtr = std::shared_ptr<TransformationSystem>;
+    using CoordinateSystemPtr     = std::shared_ptr<CoordinateSystem>;
 
     static constexpr long embedding_dimension =
             ::mdv::riemann::space_dimension_v<typename Embedding::Output>;
-    using Function = dmp::LearnableFunction<embedding_dimension>;
+
+    using Function    = Func<embedding_dimension>;
+    using FunctionPtr = std::unique_ptr<Function>;
+
+    MDV_MANIFOLD_TYPENAMES_IMPORT(M);
 
     using MinimumGoalSample = TransformationSystem::MinimumGoalSample;
     using MinimumSample     = TransformationSystem::MinimumSample;
@@ -72,21 +86,23 @@ public:
 
     double tau;
 
-    Dmp(Logger::SharedPtr         logger   = mdv::get_default_logger(),
-        const double              alpha    = 48.0,
-        const double              beta     = 12.0,
-        const double              gamma    = 3.0,
-        const basis_size_t        n_basis  = 12,
-        std::shared_ptr<Manifold> manifold = std::make_shared<Manifold>()) :
-            _logger(logger),
+    Dmp(long                          n_basis  = 12,
+        const TransformationSystemPtr ts       = std::make_shared<TS>(),
+        const CoordinateSystemPtr     cs       = std::make_shared<CS>(),
+        Logger::SharedPtr             logger   = mdv::get_default_logger(),
+        std::shared_ptr<Manifold>     manifold = std::make_shared<M>()) :
+            _logger(std::move(logger)),
             _m(std::move(manifold)),
-            _cs(std::make_shared<dmp::ExponentialCoordinateSystem>(gamma)),
-            _ts(std::make_shared<TransformationSystem>(alpha, beta)),
+            _cs(std::move(cs)),
+            _ts(std::move(ts)),
             tau(1.0),
-            _emb(_m.get()) {
-        initialise_function(n_basis);
+            _emb(std::make_shared<Embedding>(_m.get())) {
+        _logger->debug("Constructing parameters for a basis of size {}", n_basis);
+        const Eigen::VectorXd s_places = Eigen::VectorXd::LinSpaced(n_basis, 0.0, 1.0);
+        auto basis = dmp::ExponentialBasis::create_from_centers(s_places);
+        _fun       = std::make_unique<Function>(std::move(basis));
 
-        logger->debug("Initialised DMP object");
+        _logger->debug("Initialised DMP object");
     }
 
     Dmp(const Dmp&)            = default;
@@ -127,7 +143,8 @@ public:
         logger().trace("Evaluating matrix Phi");
         Eigen::MatrixXd phi(demo.size(), n_basis());
         for (auto i = 0; i < demo.size(); ++i)
-            phi.row(i) = eval_basis(time_to_s(demo[i].t())) * time_to_s(demo[i].t());
+            phi.row(i) =
+                    fun().eval_basis(time_to_s(demo[i].t())) * time_to_s(demo[i].t());
 
         assert(phi.rows() == demo.size());
         assert(phi.cols() == n_basis());
@@ -177,57 +194,31 @@ public:
         return time_to_s(mdv::convert::seconds(t));
     }
 
-    Eigen::VectorXd
-    eval_basis(const double s) const {
-        return fun().eval_basis(s);
-    }
-
     // clang-format off
-    MDV_NODISCARD std::size_t            n_basis() const    { return fun().n_basis(); }
+    MDV_NODISCARD std::size_t                 n_basis() const    { return fun().n_basis(); }
     MDV_NODISCARD const Function::WeightsMatrix& weights() const { return fun().weights(); }
-    MDV_NODISCARD Logger&                logger() const     { return *(_logger.get()); }
-    MDV_NODISCARD Manifold&              manifold()         { assert(_m); return *_m; }
-    MDV_NODISCARD const Manifold&        manifold() const   { assert(_m); return *_m; }
-    MDV_NODISCARD CoordSystem&           coord_sys()        { assert(_cs); return *_cs; }
-    MDV_NODISCARD const CoordSystem&     coord_sys() const  { assert(_cs); return *_cs; }
-    MDV_NODISCARD TransfSystem&          transf_sys()       { assert(_ts); return *_ts; }
-    MDV_NODISCARD const TransfSystem&    transf_sys() const { assert(_ts); return *_ts; }
-    MDV_NODISCARD Function&              fun()              { assert(_fun); return *_fun; }
-    MDV_NODISCARD const Function&        fun() const        { assert(_fun); return *_fun; }
-    MDV_NODISCARD Embedding&             embedding()        { return _emb; }
-    MDV_NODISCARD const Embedding&       embedding() const  { return _emb; }
+    MDV_NODISCARD Logger&                     logger() const     { return *(_logger.get()); }
+    MDV_NODISCARD Manifold&                   manifold()         { assert(_m); return *_m; }
+    MDV_NODISCARD const Manifold&             manifold() const   { assert(_m); return *_m; }
+    MDV_NODISCARD CoordinateSystem&           coord_sys()        { assert(_cs); return *_cs; }
+    MDV_NODISCARD const CoordinateSystem&     coord_sys() const  { assert(_cs); return *_cs; }
+    MDV_NODISCARD TransformationSystem&       transf_sys()       { assert(_ts); return *_ts; }
+    MDV_NODISCARD const TransformationSystem& transf_sys() const { assert(_ts); return *_ts; }
+    MDV_NODISCARD Function&                   fun()              { assert(_fun); return *_fun; }
+    MDV_NODISCARD const Function&             fun() const        { assert(_fun); return *_fun; }
+    MDV_NODISCARD Embedding&                  embedding()        { assert(_emb); return *_emb; }
+    MDV_NODISCARD const Embedding&            embedding() const  { assert(_emb); return *_emb; }
 
     // clang-format on
 
 
 private:
     // Transformation - Coordinate System
-    std::shared_ptr<Manifold>     _m;
-    std::shared_ptr<CoordSystem>  _cs;
-    std::shared_ptr<TransfSystem> _ts;
-    Embedding                     _emb;
-
-    // Basis
-    std::unique_ptr<Function> _fun;
-
-    void
-    initialise_function(long n_basis) {
-        logger().debug("Constructing parameters for a basis of size {}", n_basis);
-        Eigen::VectorXd cs = Eigen::VectorXd(n_basis);
-        Eigen::VectorXd hs = Eigen::VectorXd(n_basis);
-
-        for (auto i = 0; i < n_basis; ++i)
-            cs(i) = coord_sys().eval_exact(double(i) / double(n_basis));
-
-        for (auto i = 0; i < n_basis - 1; ++i) hs(i) = 1 / SQUARE(cs(i + 1) - cs(i));
-        hs(n_basis - 1) = hs(n_basis - 2);
-
-        std::vector<dmp::ExponentialBasis> basis;
-        basis.reserve(n_basis);
-        for (long i = 0; i < n_basis; ++i) basis.emplace_back(cs(i), hs(i));
-
-        _fun = std::make_unique<Function>(std::move(basis));
-    }
+    std::shared_ptr<Manifold> _m;
+    CoordinateSystemPtr       _cs;
+    TransformationSystemPtr   _ts;
+    FunctionPtr               _fun;
+    EmbeddingPtr              _emb;
 
     mutable Logger::SharedPtr _logger;
 };

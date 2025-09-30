@@ -4,6 +4,7 @@
 #include <cassert>
 #include <Eigen/Dense>
 #include <type_traits>
+#include <vector>
 
 #include "mdv/macros.hpp"
 
@@ -13,9 +14,23 @@ namespace mdv::dmp {
 
 class ExponentialBasis {
 public:
-    using Input = double;
+    using Input  = double;
+    using Vector = std::vector<ExponentialBasis>;
 
-    ExponentialBasis(const double c, const double h) : _c(c), _h(h) {}
+    static Vector
+    create_from_centers(const Eigen::VectorXd& cs) {
+        // cs: set of desired base centers
+        Vector basis(cs.size());
+        for (long i = 0; i < cs.size(); ++i) {
+            basis[i]._c = cs(i);
+            if (i < cs.size() - 1) basis[i]._h = 1 / SQUARE(cs(i + 1) - cs(i));
+            else basis[i]._h = basis[i - 1]._h;
+        }
+
+        return basis;
+    }
+
+    ExponentialBasis(const double c = 0.0, const double h = 1.0) : _c(c), _h(h) {}
 
     double
     operator()(const Input& in) const {

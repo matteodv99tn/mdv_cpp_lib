@@ -226,6 +226,7 @@ TEST(Dmp, R2MeshDmpComparison) {
              MeshMan,
              mdv::dmp::TransformationSystem<MeshMan>,
              mdv::dmp::ExponentialCoordinateSystem,
+             mdv::DefaultFunction,
              mdv::riemann::MeshEmbedder>;
 
     const auto fun       = [](const double x, const double y) -> double { return 0.0; };
