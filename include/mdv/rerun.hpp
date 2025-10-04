@@ -9,7 +9,7 @@
 #include <rerun/archetypes/line_strips3d.hpp>
 #include <rerun/archetypes/mesh3d.hpp>
 #include <rerun/archetypes/points3d.hpp>
-#include <rerun/archetypes/series_point.hpp>
+#include <rerun/archetypes/series_points.hpp>
 
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"

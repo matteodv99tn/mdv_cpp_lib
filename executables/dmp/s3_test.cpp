@@ -5,8 +5,8 @@
 
 #ifdef MDV_WITH_RERUN_SDK
 #include <rerun.hpp>
-#include <rerun/archetypes/series_line.hpp>
-#include <rerun/archetypes/series_point.hpp>
+#include <rerun/archetypes/series_lines.hpp>
+#include <rerun/archetypes/series_points.hpp>
 #endif  // MDV_WITH_RERUN_SDK
 
 #include "mdv/containers/demonstration.hpp"
@@ -57,9 +57,9 @@ main() {
     // |  __/| | (_) | |_| |_| | | | | (_| |
     // |_|   |_|\___/ \__|\__|_|_| |_|\__, |
     //                                |___/
-    using rerun::Scalar;
-    using rerun::archetypes::SeriesLine;
-    using rerun::archetypes::SeriesPoint;
+    using rerun::Scalars;
+    using rerun::archetypes::SeriesLines;
+    using rerun::archetypes::SeriesPoints;
     using rerun::components::Color;
 
     const Color c1(237, 135, 150);
@@ -73,95 +73,95 @@ main() {
 
     // clang-format off
     // Position styling
-    rec.log_static("demonstration/pos/qw", SeriesPoint().with_color(c1).with_name("qw").with_marker_size(1.5));
-    rec.log_static("demonstration/pos/qx", SeriesPoint().with_color(c2).with_name("qx").with_marker_size(1.5));
-    rec.log_static("demonstration/pos/qy", SeriesPoint().with_color(c3).with_name("qy").with_marker_size(1.5));
-    rec.log_static("demonstration/pos/qz", SeriesPoint().with_color(c4).with_name("qz").with_marker_size(1.5));
-    rec.log_static("execution/pos/qw", SeriesLine().with_color(c1).with_name(""));
-    rec.log_static("execution/pos/qx", SeriesLine().with_color(c2).with_name(""));
-    rec.log_static("execution/pos/qy", SeriesLine().with_color(c3).with_name(""));
-    rec.log_static("execution/pos/qz", SeriesLine().with_color(c4).with_name(""));
+    rec.log_static("demonstration/pos/qw", SeriesPoints().with_colors(c1).with_names("qw").with_marker_sizes(1.5));
+    rec.log_static("demonstration/pos/qx", SeriesPoints().with_colors(c2).with_names("qx").with_marker_sizes(1.5));
+    rec.log_static("demonstration/pos/qy", SeriesPoints().with_colors(c3).with_names("qy").with_marker_sizes(1.5));
+    rec.log_static("demonstration/pos/qz", SeriesPoints().with_colors(c4).with_names("qz").with_marker_sizes(1.5));
+    rec.log_static("execution/pos/qw", SeriesLines().with_colors(c1).with_names(""));
+    rec.log_static("execution/pos/qx", SeriesLines().with_colors(c2).with_names(""));
+    rec.log_static("execution/pos/qy", SeriesLines().with_colors(c3).with_names(""));
+    rec.log_static("execution/pos/qz", SeriesLines().with_colors(c4).with_names(""));
     // Velocity styling
-    rec.log_static("demonstration/vel/v1", SeriesPoint().with_color(c1).with_name("v[1]").with_marker_size(1.5));
-    rec.log_static("demonstration/vel/v2", SeriesPoint().with_color(c2).with_name("v[2]").with_marker_size(1.5));
-    rec.log_static("demonstration/vel/v3", SeriesPoint().with_color(c3).with_name("v[3]").with_marker_size(1.5));
-    rec.log_static("demonstration/vel/v4", SeriesPoint().with_color(c4).with_name("v[4]").with_marker_size(1.5));
-    rec.log_static("execution/vel/v1", SeriesLine().with_color(c1).with_name(""));
-    rec.log_static("execution/vel/v2", SeriesLine().with_color(c2).with_name(""));
-    rec.log_static("execution/vel/v3", SeriesLine().with_color(c3).with_name(""));
-    rec.log_static("execution/vel/v4", SeriesLine().with_color(c4).with_name(""));
+    rec.log_static("demonstration/vel/v1", SeriesPoints().with_colors(c1).with_names("v[1]").with_marker_sizes(1.5));
+    rec.log_static("demonstration/vel/v2", SeriesPoints().with_colors(c2).with_names("v[2]").with_marker_sizes(1.5));
+    rec.log_static("demonstration/vel/v3", SeriesPoints().with_colors(c3).with_names("v[3]").with_marker_sizes(1.5));
+    rec.log_static("demonstration/vel/v4", SeriesPoints().with_colors(c4).with_names("v[4]").with_marker_sizes(1.5));
+    rec.log_static("execution/vel/v1", SeriesLines().with_colors(c1).with_names(""));
+    rec.log_static("execution/vel/v2", SeriesLines().with_colors(c2).with_names(""));
+    rec.log_static("execution/vel/v3", SeriesLines().with_colors(c3).with_names(""));
+    rec.log_static("execution/vel/v4", SeriesLines().with_colors(c4).with_names(""));
     // Acceleration styling
-    rec.log_static("demonstration/acc/v1", SeriesPoint().with_color(c1).with_name("a[1]").with_marker_size(1.5));
-    rec.log_static("demonstration/acc/v2", SeriesPoint().with_color(c2).with_name("a[2]").with_marker_size(1.5));
-    rec.log_static("demonstration/acc/v3", SeriesPoint().with_color(c3).with_name("a[3]").with_marker_size(1.5));
-    rec.log_static("demonstration/acc/v4", SeriesPoint().with_color(c4).with_name("a[4]").with_marker_size(1.5));
-    rec.log_static("execution/acc/v1", SeriesLine().with_color(c1).with_name(""));
-    rec.log_static("execution/acc/v2", SeriesLine().with_color(c2).with_name(""));
-    rec.log_static("execution/acc/v3", SeriesLine().with_color(c3).with_name(""));
-    rec.log_static("execution/acc/v4", SeriesLine().with_color(c4).with_name(""));
+    rec.log_static("demonstration/acc/v1", SeriesPoints().with_colors(c1).with_names("a[1]").with_marker_sizes(1.5));
+    rec.log_static("demonstration/acc/v2", SeriesPoints().with_colors(c2).with_names("a[2]").with_marker_sizes(1.5));
+    rec.log_static("demonstration/acc/v3", SeriesPoints().with_colors(c3).with_names("a[3]").with_marker_sizes(1.5));
+    rec.log_static("demonstration/acc/v4", SeriesPoints().with_colors(c4).with_names("a[4]").with_marker_sizes(1.5));
+    rec.log_static("execution/acc/v1", SeriesLines().with_colors(c1).with_names(""));
+    rec.log_static("execution/acc/v2", SeriesLines().with_colors(c2).with_names(""));
+    rec.log_static("execution/acc/v3", SeriesLines().with_colors(c3).with_names(""));
+    rec.log_static("execution/acc/v4", SeriesLines().with_colors(c4).with_names(""));
     // Forcing terms styling
-    rec.log_static("forcing/desired/f1", SeriesPoint().with_color(c1).with_name("f[1]").with_marker_size(1.5));
-    rec.log_static("forcing/desired/f2", SeriesPoint().with_color(c2).with_name("f[2]").with_marker_size(1.5));
-    rec.log_static("forcing/desired/f3", SeriesPoint().with_color(c3).with_name("f[3]").with_marker_size(1.5));
-    rec.log_static("forcing/desired/f4", SeriesPoint().with_color(c4).with_name("f[4]").with_marker_size(1.5));
-    rec.log_static("forcing/learned/f1", SeriesLine().with_color(c1).with_name("f[1]"));
-    rec.log_static("forcing/learned/f2", SeriesLine().with_color(c2).with_name("f[2]"));
-    rec.log_static("forcing/learned/f3", SeriesLine().with_color(c3).with_name("f[3]"));
-    rec.log_static("forcing/learned/f4", SeriesLine().with_color(c4).with_name("f[4]"));
+    rec.log_static("forcing/desired/f1", SeriesPoints().with_colors(c1).with_names("f[1]").with_marker_sizes(1.5));
+    rec.log_static("forcing/desired/f2", SeriesPoints().with_colors(c2).with_names("f[2]").with_marker_sizes(1.5));
+    rec.log_static("forcing/desired/f3", SeriesPoints().with_colors(c3).with_names("f[3]").with_marker_sizes(1.5));
+    rec.log_static("forcing/desired/f4", SeriesPoints().with_colors(c4).with_names("f[4]").with_marker_sizes(1.5));
+    rec.log_static("forcing/learned/f1", SeriesLines().with_colors(c1).with_names("f[1]"));
+    rec.log_static("forcing/learned/f2", SeriesLines().with_colors(c2).with_names("f[2]"));
+    rec.log_static("forcing/learned/f3", SeriesLines().with_colors(c3).with_names("f[3]"));
+    rec.log_static("forcing/learned/f4", SeriesLines().with_colors(c4).with_names("f[4]"));
     // Other stylings
-    rec.log_static("coord_system", SeriesLine().with_color(c2).with_name("s"));
+    rec.log_static("coord_system", SeriesLines().with_colors(c2).with_names("s"));
 
     for(auto i = 0; i < dmp.n_basis(); ++i)
-        rec.log_static("basis/c" + std::to_string(i+1), SeriesLine().with_name(""));
+        rec.log_static("basis/c" + std::to_string(i+1), SeriesLines().with_names(""));
 
     for (long i{0}; i < size(dem); ++i) {
         const double s = dmp.time_to_s(dem[i].t());
         // Export time
         rec.set_time_sequence("tick", i);
-        rec.set_time_seconds("time", mdv::convert::seconds(dem[i].t()));
+        rec.set_time_duration_secs("time", mdv::convert::seconds(dem[i].t()));
         // Export posititon
-        rec.log("demonstration/pos/qw", Scalar(dem[i].y().w()));
-        rec.log("demonstration/pos/qx", Scalar(dem[i].y().x()));
-        rec.log("demonstration/pos/qy", Scalar(dem[i].y().y()));
-        rec.log("demonstration/pos/qz", Scalar(dem[i].y().z()));
-        rec.log("execution/pos/qw", Scalar(out[i].y().w()));
-        rec.log("execution/pos/qx", Scalar(out[i].y().x()));
-        rec.log("execution/pos/qy", Scalar(out[i].y().y()));
-        rec.log("execution/pos/qz", Scalar(out[i].y().z()));
+        rec.log("demonstration/pos/qw", Scalars(dem[i].y().w()));
+        rec.log("demonstration/pos/qx", Scalars(dem[i].y().x()));
+        rec.log("demonstration/pos/qy", Scalars(dem[i].y().y()));
+        rec.log("demonstration/pos/qz", Scalars(dem[i].y().z()));
+        rec.log("execution/pos/qw", Scalars(out[i].y().w()));
+        rec.log("execution/pos/qx", Scalars(out[i].y().x()));
+        rec.log("execution/pos/qy", Scalars(out[i].y().y()));
+        rec.log("execution/pos/qz", Scalars(out[i].y().z()));
         // Export velocity
-        rec.log("demonstration/vel/v1", Scalar(dem[i].yd()(0)));
-        rec.log("demonstration/vel/v2", Scalar(dem[i].yd()(1)));
-        rec.log("demonstration/vel/v3", Scalar(dem[i].yd()(2)));
-        rec.log("demonstration/vel/v4", Scalar(dem[i].yd()(3)));
-        rec.log("execution/vel/v1", Scalar(out[i].yd()(0)));
-        rec.log("execution/vel/v2", Scalar(out[i].yd()(1)));
-        rec.log("execution/vel/v3", Scalar(out[i].yd()(2)));
-        rec.log("execution/vel/v4", Scalar(out[i].yd()(3)));
+        rec.log("demonstration/vel/v1", Scalars(dem[i].yd()(0)));
+        rec.log("demonstration/vel/v2", Scalars(dem[i].yd()(1)));
+        rec.log("demonstration/vel/v3", Scalars(dem[i].yd()(2)));
+        rec.log("demonstration/vel/v4", Scalars(dem[i].yd()(3)));
+        rec.log("execution/vel/v1", Scalars(out[i].yd()(0)));
+        rec.log("execution/vel/v2", Scalars(out[i].yd()(1)));
+        rec.log("execution/vel/v3", Scalars(out[i].yd()(2)));
+        rec.log("execution/vel/v4", Scalars(out[i].yd()(3)));
         // Export acceleration
-        rec.log("demonstration/acc/v1", Scalar(dem[i].ydd()(0)));
-        rec.log("demonstration/acc/v2", Scalar(dem[i].ydd()(1)));
-        rec.log("demonstration/acc/v3", Scalar(dem[i].ydd()(2)));
-        rec.log("demonstration/acc/v4", Scalar(dem[i].ydd()(3)));
-        rec.log("execution/acc/v1", Scalar(out[i].ydd()(0)));
-        rec.log("execution/acc/v2", Scalar(out[i].ydd()(1)));
-        rec.log("execution/acc/v3", Scalar(out[i].ydd()(2)));
-        rec.log("execution/acc/v4", Scalar(out[i].ydd()(3)));
+        rec.log("demonstration/acc/v1", Scalars(dem[i].ydd()(0)));
+        rec.log("demonstration/acc/v2", Scalars(dem[i].ydd()(1)));
+        rec.log("demonstration/acc/v3", Scalars(dem[i].ydd()(2)));
+        rec.log("demonstration/acc/v4", Scalars(dem[i].ydd()(3)));
+        rec.log("execution/acc/v1", Scalars(out[i].ydd()(0)));
+        rec.log("execution/acc/v2", Scalars(out[i].ydd()(1)));
+        rec.log("execution/acc/v3", Scalars(out[i].ydd()(2)));
+        rec.log("execution/acc/v4", Scalars(out[i].ydd()(3)));
         // Export forcing term
-        rec.log("forcing/desired/f1", Scalar(f_des(i, 0)));
-        rec.log("forcing/desired/f2", Scalar(f_des(i, 1)));
-        rec.log("forcing/desired/f3", Scalar(f_des(i, 2)));
-        rec.log("forcing/desired/f4", Scalar(f_des(i, 3)));
-        rec.log("forcing/learned/f1", Scalar(f_lrnd(i, 0) * s));
-        rec.log("forcing/learned/f2", Scalar(f_lrnd(i, 1) * s));
-        rec.log("forcing/learned/f3", Scalar(f_lrnd(i, 2) * s));
-        rec.log("forcing/learned/f4", Scalar(f_lrnd(i, 3) * s));
+        rec.log("forcing/desired/f1", Scalars(f_des(i, 0)));
+        rec.log("forcing/desired/f2", Scalars(f_des(i, 1)));
+        rec.log("forcing/desired/f3", Scalars(f_des(i, 2)));
+        rec.log("forcing/desired/f4", Scalars(f_des(i, 3)));
+        rec.log("forcing/learned/f1", Scalars(f_lrnd(i, 0) * s));
+        rec.log("forcing/learned/f2", Scalars(f_lrnd(i, 1) * s));
+        rec.log("forcing/learned/f3", Scalars(f_lrnd(i, 2) * s));
+        rec.log("forcing/learned/f4", Scalars(f_lrnd(i, 3) * s));
         // Other exports
-        rec.log("coord_system", Scalar(s));
+        rec.log("coord_system", Scalars(s));
 
         // Export basis
         const Eigen::VectorXd b = dmp.fun().eval_basis(s);
         for(auto i = 0; i < b.size();++i)
-            rec.log("basis/c" + std::to_string(i+1), Scalar(b(i)));
+            rec.log("basis/c" + std::to_string(i+1), Scalars(b(i)));
 
     }
     // clang-format on

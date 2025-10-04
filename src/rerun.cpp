@@ -4,7 +4,7 @@
 
 #include <rerun/archetypes/mesh3d.hpp>
 #include <rerun/archetypes/points3d.hpp>
-#include <rerun/archetypes/series_point.hpp>
+#include <rerun/archetypes/series_points.hpp>
 #include <rerun/collection.hpp>
 #include <rerun/components/position3d.hpp>
 #include <rerun/components/triangle_indices.hpp>

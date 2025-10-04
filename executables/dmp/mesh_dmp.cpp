@@ -14,8 +14,8 @@
 
 #ifdef MDV_WITH_RERUN_SDK
 #include <rerun.hpp>
-#include <rerun/archetypes/series_line.hpp>
-#include <rerun/archetypes/series_point.hpp>
+#include <rerun/archetypes/series_lines.hpp>
+#include <rerun/archetypes/series_points.hpp>
 #endif  // MDV_WITH_RERUN_SDK
 
 #include "mdv/config.hpp"
@@ -75,12 +75,12 @@ main() {
     const float integration_line_width = 1.0;
 
     // clang-format off
-    rec.log_static("demonstration/trajectory/x", rerun::archetypes::SeriesPoint().with_color(c1).with_marker_size(demo_marker_size).with_name("demonstration x"));
-    rec.log_static("demonstration/trajectory/y", rerun::archetypes::SeriesPoint().with_color(c2).with_marker_size(demo_marker_size).with_name("demonstration y"));
-    rec.log_static("demonstration/trajectory/z", rerun::archetypes::SeriesPoint().with_color(c3).with_marker_size(demo_marker_size).with_name("demonstration z"));
-    rec.log_static("integration/trajectory/x", rerun::archetypes::SeriesLine().with_color(c1).with_width(integration_line_width).with_name("reproduction x"));
-    rec.log_static("integration/trajectory/y", rerun::archetypes::SeriesLine().with_color(c2).with_width(integration_line_width).with_name("reproduction y"));
-    rec.log_static("integration/trajectory/z", rerun::archetypes::SeriesLine().with_color(c3).with_width(integration_line_width).with_name("reproduction z"));
+    rec.log_static("demonstration/trajectory/x", rerun::archetypes::SeriesPoints().with_colors(c1).with_marker_sizes(demo_marker_size).with_names("demonstration x"));
+    rec.log_static("demonstration/trajectory/y", rerun::archetypes::SeriesPoints().with_colors(c2).with_marker_sizes(demo_marker_size).with_names("demonstration y"));
+    rec.log_static("demonstration/trajectory/z", rerun::archetypes::SeriesPoints().with_colors(c3).with_marker_sizes(demo_marker_size).with_names("demonstration z"));
+    rec.log_static("integration/trajectory/x", rerun::archetypes::SeriesLines().with_colors(c1).with_widths(integration_line_width).with_names("reproduction x"));
+    rec.log_static("integration/trajectory/y", rerun::archetypes::SeriesLines().with_colors(c2).with_widths(integration_line_width).with_names("reproduction y"));
+    rec.log_static("integration/trajectory/z", rerun::archetypes::SeriesLines().with_colors(c3).with_widths(integration_line_width).with_names("reproduction z"));
     rec.log_static("demonstration/path", rerun::archetypes::LineStrips3D().with_colors({c2}).with_radii(rerun::components::Radius::ui_points(2.5)));
     rec.log_static("integration/path",   rerun::archetypes::LineStrips3D().with_colors({c3}).with_radii(rerun::components::Radius::ui_points(2.5)));
     rec.log_static("demonstration/path", rerun::archetypes::LineStrips3D().with_colors({c2}).with_radii(rerun::components::Radius::ui_points(2.5)));
@@ -139,14 +139,14 @@ main() {
                                        .set_sampling_period(dts_demo)
                                        .create();
     for (long i = 0; i < demonstration.size(); ++i) {
-        rec.set_time_seconds("time", mdv::convert::seconds(demonstration[i].t()));
+        rec.set_time_duration_secs("time", mdv::convert::seconds(demonstration[i].t()));
         // rec.set_time_sequence("tick", i);
         const Eigen::Vector3d pos = demonstration[i].y().position();
         rec.log("demonstration/trajectory/position",
                 rr_converter(demonstration[i].y()));
-        rec.log("demonstration/trajectory/x", rerun::Scalar(pos(0)));
-        rec.log("demonstration/trajectory/y", rerun::Scalar(pos(1)));
-        rec.log("demonstration/trajectory/z", rerun::Scalar(pos(2)));
+        rec.log("demonstration/trajectory/x", rerun::Scalars(pos(0)));
+        rec.log("demonstration/trajectory/y", rerun::Scalars(pos(1)));
+        rec.log("demonstration/trajectory/z", rerun::Scalars(pos(2)));
     }
 
 
@@ -176,49 +176,15 @@ main() {
 
     std::vector<Eigen::Vector3d> res_traj(out.size());
     for (long i = 0; i < out.size(); ++i) {
-        rec.set_time_seconds("time", mdv::convert::seconds(out[i].t()));
+        rec.set_time_duration_secs("time", mdv::convert::seconds(out[i].t()));
         // rec.set_time_sequence("tick", i);
         const Eigen::Vector3d pos = out[i].y().position();
         res_traj[i]               = pos;
         rec.log("integration/trajectory/position", rr_converter(out[i].y()));
-        rec.log("integration/trajectory/x", rerun::Scalar(pos(0)));
-        rec.log("integration/trajectory/y", rerun::Scalar(pos(1)));
-        rec.log("integration/trajectory/z", rerun::Scalar(pos(2)));
+        rec.log("integration/trajectory/x", rerun::Scalars(pos(0)));
+        rec.log("integration/trajectory/y", rerun::Scalars(pos(1)));
+        rec.log("integration/trajectory/z", rerun::Scalars(pos(2)));
     }
     rec.log_static("integration/path", rr_converter(res_traj));
-
-    return 0;
-
-
-#ifdef MDV_WITH_RERUN_SDK
-    //  ____  _       _   _   _
-    // |  _ \| | ___ | |_| |_(_)_ __   __ _
-    // | |_) | |/ _ \| __| __| | '_ \ / _` |
-    // |  __/| | (_) | |_| |_| | | | | (_| |
-    // |_|   |_|\___/ \__|\__|_|_| |_|\__, |
-    //                                |___/
-    using rerun::Scalar;
-    using rerun::archetypes::SeriesLine;
-    using rerun::archetypes::SeriesPoint;
-    using rerun::components::Color;
-
-
-    mdv::mesh::Geodesic geod;
-    geod.reserve(out.size());
-    for (const auto& p : out) geod.emplace_back(p.y().position());
-
-    rec.log_static("trajectory", rr_converter(geod).with_colors(c2));
-    for (long i{0}; i < size(out); ++i) {
-        // Export time
-        // rec.set_time_sequence("tick", i);
-        rec.set_time_seconds("time", mdv::convert::seconds(out[i].t()));
-        // Export posititon
-        rec.log("position",
-                rr_converter(out[i].y())
-                        .with_colors(c1)
-                        .with_radii(rerun::components::Radius::ui_points(5)));
-    }
-#endif  // MDV_WITH_RERUN_SDK
-
     return 0;
 }
