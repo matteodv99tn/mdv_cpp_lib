@@ -86,7 +86,7 @@ struct MeshEmbedder {
 
         const Vec3 res = _m->parallel_transport(g.y(), x.y(), v_in_g);
         if (!mdv::condition::are_orthogonal(res, x.y().face().normal())) {
-            fmt::println("Scalar prod: {}", res.dot(_y0.face().normal()));
+            fmt::print("Scalar prod: {}\n", res.dot(_y0.face().normal()));
         }
 
         assert(are_orthogonal(res, x.y().face().normal()));

@@ -33,3 +33,12 @@ target_link_libraries(
     interpolation
     mdvcpplib
 )
+
+add_executable(
+    scalar_rhytmic_dmp
+    ${CMAKE_CURRENT_LIST_DIR}/scalar_rhytmic_dmp.cpp
+)
+target_link_libraries(
+    scalar_rhytmic_dmp
+    mdvcpplib
+)

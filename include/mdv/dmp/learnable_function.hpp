@@ -2,6 +2,7 @@
 #define MDV_DMP_LEARNABLE_FUNCTION_HPP
 
 #include <cassert>
+#include <cmath>
 #include <Eigen/Dense>
 #include <type_traits>
 #include <vector>
@@ -38,6 +39,37 @@ public:
     }
 
 private:
+    double _c = 0.0;
+    double _h = 1.0;
+};
+
+class PeriodicExponentialBasis {
+public:
+    using Input  = double;
+    using Vector = std::vector<PeriodicExponentialBasis>;
+
+    static Vector
+    create_equispaced(const long n_basis) {
+        // cs: set of desired base centers
+        const double h = 200.0 / double(n_basis);
+        Vector       basis(n_basis);
+        for (long i = 0; i < n_basis; ++i) {
+            basis[i]._c = 2.0 * M_PI * double(i) / double(n_basis);
+            basis[i]._h = h;
+        }
+
+        return basis;
+    }
+
+    PeriodicExponentialBasis(const double c = 0.0, const double h = 1.0) :
+            _c(c), _h(h) {}
+
+    double
+    operator()(const Input& in) const {
+        return std::exp(-_h * (1.0 - std::cos(in - _c)));
+    }
+
+    //  private:
     double _c = 0.0;
     double _h = 1.0;
 };
