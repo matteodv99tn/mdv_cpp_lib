@@ -10,6 +10,7 @@
 #include "mdv/dmp/learnable_function.hpp"
 #include "mdv/riemann_geometry/concepts.hpp"
 #include "mdv/riemann_geometry/fwd.hpp"
+#include "mdv/riemann_geometry/mesh.hpp"
 #include "mdv/riemann_geometry/utils.hpp"
 
 namespace mdv {
@@ -80,6 +81,12 @@ struct RhytmicDmp {
         return Point{std::accumulate(demo.begin(), demo.end(), 0.0, sum) / demo.size()};
     }
 
+    template <typename Demo>
+    Point
+    compute_average(const Demo& demo) const requires std::same_as<Manifold, riemann::MeshManifold> {
+        return demo.front().y();
+    }
+
     template <typename Demonstration>
     MDV_NODISCARD Eigen::MatrixXd
     evaluate_desired_forcing_term(const Demonstration& demo, const Point& goal) {
@@ -139,7 +146,7 @@ struct RhytmicDmp {
     template <typename Demonstration>
     void
     learn(const Demonstration&       demo,
-          const std::optional<Point> r_value = std::nullopt,
+          const std::optional<double> r_value = std::nullopt,
           const std::optional<Point> goal    = std::nullopt) {
         using mdv::convert::seconds;
         tau = seconds(demo.back().t() - demo.front().t());
@@ -148,6 +155,7 @@ struct RhytmicDmp {
 
         logger().trace("Evaluating desired forcing term");
         const Point           g     = goal.value_or(compute_average(demo));
+        assert(g != demo.front().y());
         const Eigen::MatrixXd f_des = evaluate_desired_forcing_term(demo, g);
 
         const double r = r_value.value_or(construct_default_r(demo));

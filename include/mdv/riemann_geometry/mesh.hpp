@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 
 #include "mdv/mesh/mesh.hpp"
+#include "mdv/utils/conditions.hpp"
 
 namespace mdv::riemann {
 
@@ -38,10 +39,37 @@ struct MeshEmbedder {
     MeshEmbedder(const M* manifold) : _m(manifold) {};
 
     void
+    setup_from_point_and_direction(const M::Point& g, const Eigen::Vector3d dir) {
+        using mdv::condition::are_orthogonal, mdv::condition::is_zero,
+                mdv::condition::is_unit_norm, mdv::condition::are_parallel;
+        _g = g;
+
+        const auto normal_projection = [](const Vec3& normal, const Vec3 v) {
+            assert(is_unit_norm(normal));
+            return (Mat3::Identity() - normal * normal.transpose()) * v;
+        };
+
+        const Vec3 vz = g.face().normal();
+        assert(!are_parallel(vz, dir));
+        const Vec3 vx = normal_projection(vz, dir).normalized();
+        const Vec3 vy = vz.cross(vx);
+
+        _base.col(0) = vx;
+        _base.col(1) = vy;
+        _base.col(2) = vz;
+
+        assert(are_orthogonal(vx, vy));
+        assert(are_orthogonal(vx, vz));
+        assert(are_orthogonal(vy, vz));
+        assert(is_zero(_base.determinant() - 1.0));
+
+        _initialised = true;
+    }
+
+    void
     setup(const M::Point& y0, const M::Point& g) {
         using mdv::condition::are_orthogonal, mdv::condition::is_zero;
-        _y0 = y0;
-        _g  = g;
+        _g = g;
 
         const Vec3 vx = -_m->logarithmic_map(g, y0).normalized();
         const Vec3 vz = g.face().normal();
@@ -85,18 +113,13 @@ struct MeshEmbedder {
         assert(are_orthogonal(v_in_g, _g.face().normal()));
 
         const Vec3 res = _m->parallel_transport(g.y(), x.y(), v_in_g);
-        if (!mdv::condition::are_orthogonal(res, x.y().face().normal())) {
-            fmt::print("Scalar prod: {}\n", res.dot(_y0.face().normal()));
-        }
 
         assert(are_orthogonal(res, x.y().face().normal()));
-        // assert(are_orthogonal(res, _y0.face().normal()));
         return res;
     }
 
 private:
     const M* _m;
-    M::Point _y0;
     M::Point _g;
     Mat3     _base;
     bool     _initialised = false;

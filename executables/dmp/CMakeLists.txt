@@ -42,3 +42,12 @@ target_link_libraries(
     scalar_rhytmic_dmp
     mdvcpplib
 )
+
+add_executable(
+    mesh_rhytmic_dmp
+    ${CMAKE_CURRENT_LIST_DIR}/mesh_rhytmic_dmp.cpp
+)
+target_link_libraries(
+    mesh_rhytmic_dmp
+    mdvcpplib
+)
