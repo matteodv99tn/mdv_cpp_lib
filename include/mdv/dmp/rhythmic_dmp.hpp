@@ -5,6 +5,8 @@
 #include <numeric>
 #include <optional>
 
+#include <mdv/riemann_geometry/se3.hpp>
+
 #include "mdv/dmp/concepts.hpp"
 #include "mdv/dmp/dmp.hpp"
 #include "mdv/dmp/learnable_function.hpp"
@@ -83,10 +85,26 @@ struct RhytmicDmp {
 
     template <typename Demo>
     Point
-    compute_average(const Demo& demo) const
-        requires std::same_as<Manifold, riemann::MeshManifold>
-    {
+    compute_average(const Demo& demo
+    ) const requires std::same_as<Manifold, riemann::MeshManifold> {
         return demo.front().y();
+    }
+
+    template <typename Demo>
+    Point
+    compute_average(const Demo& demo
+    ) const requires std::same_as<Manifold, riemann::SE3> {
+        using Quat      = Eigen::Quaterniond;
+        using Vec7      = Eigen::Vector<double, 7>;
+        Vec7       zero = Vec7::Zero();
+        const auto add  = [](Vec7 sum, const Demo::Sample& sample) -> Vec7 {
+            sum.head<3>() = sample.y().pos;
+            sum.tail<4>() = sample.y().ori.coeffs();
+            return sum;
+        };
+        const Vec7 res = std::accumulate(demo.begin(), demo.end(), zero, add)
+                         / double(demo.size());
+        return {res.head<3>(), Quat{res.tail<4>().normalized()}};
     }
 
     template <typename Demonstration>
@@ -112,10 +130,11 @@ struct RhytmicDmp {
 
     double
     tv_norm(const TangentVector& tv) const {
-        if constexpr (riemann::space_dimension_v<TangentVector> == 1) {
+        using Embedding = mdv::riemann::TrivialTypeEmbedding<TangentVector>;
+        if constexpr (riemann::space_dimension_v<typename Embedding::Output> == 1) {
             return std::abs(tv);
         } else {
-            return tv.norm();
+            return Embedding().embed(tv).norm();
         }
     }
 
@@ -130,9 +149,9 @@ struct RhytmicDmp {
     construct_default_r(
             const Demonstration& demo, const std::optional<Point> goal = std::nullopt
     ) const {
-        const Point g = goal.value_or(compute_average(demo));
-        const auto  compute_distance =
-                [this, g](const Demonstration::Sample& sample) -> double {
+        const Point g                = goal.value_or(compute_average(demo));
+        const auto  compute_distance = [this, g](const Demonstration::Sample& sample
+                                      ) -> double {
             return tv_norm(m().logarithmic_map(sample.y(), g));
         };
 
