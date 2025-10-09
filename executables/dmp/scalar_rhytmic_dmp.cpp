@@ -74,7 +74,7 @@ main() {
         rec.set_time_duration_secs("time", mdv::convert::seconds(sample.t()));
         rec.log("trajectory/demonstration", rerun::Scalars{sample.y()});
     }
-    
+
     // Integration plot
     for (const auto& sample : res) {
         rec.set_time_duration_secs("time", mdv::convert::seconds(sample.t()));

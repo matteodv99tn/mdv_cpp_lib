@@ -72,7 +72,7 @@ public:
     CgalImpl& operator=(CgalImpl&&) noexcept = delete;
     ~CgalImpl();
 
-    std::unique_ptr<ShortestPath>         _shortest_path;
+    std::unique_ptr<ShortestPath>                _shortest_path;
     mutable Logger::SharedPtr                    _logger;
     Mesh                                         _mesh;
     AabbTree                                     _aabb_tree;

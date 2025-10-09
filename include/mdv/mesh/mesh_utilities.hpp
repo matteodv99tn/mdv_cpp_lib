@@ -21,13 +21,13 @@ struct DrawableFunctionParameters {
 void create_closed_from_function(
         const std::filesystem::path&          destination,
         std::function<double(double, double)> f,
-        double plane_z_coord,
+        double                                plane_z_coord,
         const DrawableFunctionParameters&     parameters = DrawableFunctionParameters()
 );
 
 std::filesystem::path create_closed_from_function(
         std::function<double(double, double)> f,
-        double plane_z_coord,
+        double                                plane_z_coord,
         const DrawableFunctionParameters&     parameters = DrawableFunctionParameters()
 );
 

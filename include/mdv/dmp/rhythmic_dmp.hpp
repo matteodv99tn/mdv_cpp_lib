@@ -83,7 +83,9 @@ struct RhytmicDmp {
 
     template <typename Demo>
     Point
-    compute_average(const Demo& demo) const requires std::same_as<Manifold, riemann::MeshManifold> {
+    compute_average(const Demo& demo) const
+        requires std::same_as<Manifold, riemann::MeshManifold>
+    {
         return demo.front().y();
     }
 
@@ -145,16 +147,16 @@ struct RhytmicDmp {
 
     template <typename Demonstration>
     void
-    learn(const Demonstration&       demo,
+    learn(const Demonstration&        demo,
           const std::optional<double> r_value = std::nullopt,
-          const std::optional<Point> goal    = std::nullopt) {
+          const std::optional<Point>  goal    = std::nullopt) {
         using mdv::convert::seconds;
         tau = seconds(demo.back().t() - demo.front().t());
 
         logger().info("Training DMP on a demonstration with {} samples", demo.size());
 
         logger().trace("Evaluating desired forcing term");
-        const Point           g     = goal.value_or(compute_average(demo));
+        const Point g = goal.value_or(compute_average(demo));
         assert(g != demo.front().y());
         const Eigen::MatrixXd f_des = evaluate_desired_forcing_term(demo, g);
 

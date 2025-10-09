@@ -85,7 +85,7 @@ main() {
     rec.log_static("integration/path",   rerun::archetypes::LineStrips3D().with_colors({c3}).with_radii(rerun::components::Radius::ui_points(2.5)));
     rec.log_static("demonstration/path", rerun::archetypes::LineStrips3D().with_colors({c2}).with_radii(rerun::components::Radius::ui_points(2.5)));
     rec.log_static("integration/path",   rerun::archetypes::LineStrips3D().with_colors({c3}).with_radii(rerun::components::Radius::ui_points(2.5)));
-    
+
     // clang-format on
 
     auto fun = [](const double x, const double y) -> double {

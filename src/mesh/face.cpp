@@ -46,7 +46,7 @@ Face::adjacent_to(const Face& other) const {
 
     bool first_iter = true;
     while (first_iter || he != this->half_edge()) {
-        first_iter = false;
+        first_iter          = false;
         Face* opposite_face = he->_twin->_face;
         if (opposite_face != nullptr && opposite_face == &other) return he;
         he = he->next();

@@ -8,13 +8,13 @@
 #include <fstream>
 #include <gsl/narrow>
 #include <limits>
-#include <mdv/mesh/mesh.hpp>
-#include <vector>
 #include <optional>
+#include <vector>
 
 #include <range/v3/all.hpp>
 
 #include "mdv/config.hpp"
+#include "mdv/mesh/mesh.hpp"
 
 namespace rs = ::ranges;
 namespace rv = ::ranges::views;
@@ -52,7 +52,7 @@ std::pair<VertexData, FaceData>
 build_surface(
         std::function<double(double, double)>        f,
         const mdv::mesh::DrawableFunctionParameters& parameters,
-        const std::optional<double> plane_z_coord = std::nullopt
+        const std::optional<double>                  plane_z_coord = std::nullopt
 ) {
     const auto logger = mdv::mesh::Mesh::default_logger;
 
@@ -62,13 +62,21 @@ build_surface(
     const auto [y_min, y_max] = parameters.y_range;
     const Eigen::VectorXd xs  = Eigen::VectorXd::LinSpaced(nx, x_min, x_max);
     const Eigen::VectorXd ys  = Eigen::VectorXd::LinSpaced(ny, y_min, y_max);
-    logger->debug("Generating surface - low corner: {:.2f}, {:.2f} - top corner: {:.2f}, {:.2f} - dimension: {}x{} vertices", x_min, y_min, x_max, y_max, nx, ny);
+    logger->debug(
+            "Generating surface - low corner: {:.2f}, {:.2f} - top corner: {:.2f}, "
+            "{:.2f} - dimension: {}x{} vertices",
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+            nx,
+            ny
+    );
 
     VertexData vertices;
     vertices.reserve(nx * ny + 5);
     for (const double& y : ys)
-        for (const double& x : xs)
-            vertices.emplace_back(x, y, f(x, y));
+        for (const double& x : xs) vertices.emplace_back(x, y, f(x, y));
 
 
     FaceData   faces;
@@ -78,9 +86,12 @@ build_surface(
     for (long j = 0; j < ny - 1; ++j) {
         for (long i = 0; i < nx - 1; ++i) {
             const long id_base = j * nx + i;
-            faces.emplace_back(std::vector<long>{id_base, id_base + 1, id_base + 1 +nx}); 
-            faces.emplace_back(std::vector<long>{id_base, id_base + 1 + nx,
-            id_base + nx}); 
+            faces.emplace_back(
+                    std::vector<long>{id_base, id_base + 1, id_base + 1 + nx}
+            );
+            faces.emplace_back(
+                    std::vector<long>{id_base, id_base + 1 + nx, id_base + nx}
+            );
         }
     }
 
@@ -120,17 +131,17 @@ build_surface(
         std::vector<long> f2;
         f2.push_back(b3_id);
         f2.push_back(b2_id);
-        for (long i = 0; i < ny; ++i) f2.push_back(nx * (i+1) - 1);
+        for (long i = 0; i < ny; ++i) f2.push_back(nx * (i + 1) - 1);
 
         std::vector<long> f3;
         f3.push_back(b4_id);
         f3.push_back(b3_id);
-        for (long i = 0; i < nx; ++i) f3.push_back(nx*ny -1 -i);
+        for (long i = 0; i < nx; ++i) f3.push_back(nx * ny - 1 - i);
 
         std::vector<long> f4;
         f4.push_back(b1_id);
         f4.push_back(b4_id);
-        for (long i = ny -1; i >=0; --i) f4.push_back(nx * i);
+        for (long i = ny - 1; i >= 0; --i) f4.push_back(nx * i);
 
         std::vector<long> f5;
         f5.push_back(b1_id);
@@ -155,18 +166,18 @@ void
 mdv::mesh::create_closed_from_function(
         const std::filesystem::path&          destination,
         std::function<double(double, double)> f,
-        const double thickness,
+        const double                          thickness,
         const DrawableFunctionParameters&     parameters
 ) {
-    Expects(thickness>0.0);
+    Expects(thickness > 0.0);
     const auto [vertices, faces] = build_surface(f, parameters, thickness);
     write_off(destination, vertices, faces);
 }
 
-std::filesystem::path 
+std::filesystem::path
 mdv::mesh::create_closed_from_function(
         std::function<double(double, double)> f,
-        const double thickness,
+        const double                          thickness,
         const DrawableFunctionParameters&     parameters
 ) {
     static int mesh_id = 0;

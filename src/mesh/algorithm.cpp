@@ -83,8 +83,8 @@ mdv::mesh::parallel_transport(
         Mat3        res;
         const Vec3d n = pt.face().normal();
         res.col(0)    = dir;
-        res.col(2) = n;
-        res.col(1) = res.col(2).cross(res.col(0));
+        res.col(2)    = n;
+        res.col(1)    = res.col(2).cross(res.col(0));
 
         assert(are_orthogonal(res.col(0), res.col(1)));
         assert(are_orthogonal(res.col(0), res.col(2)));
