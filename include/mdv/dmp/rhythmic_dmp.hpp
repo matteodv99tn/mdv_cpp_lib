@@ -49,7 +49,7 @@ struct RhytmicDmp {
 
     using EmbeddingPtr            = std::shared_ptr<Embedding>;
     using TransformationSystemPtr = std::shared_ptr<TransformationSystem>;
-    using FunctionPtr             = std::unique_ptr<Function>;
+    using FunctionPtr             = std::shared_ptr<Function>;
 
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
     using MinimumGoalSample = TransformationSystem::MinimumGoalSample;
