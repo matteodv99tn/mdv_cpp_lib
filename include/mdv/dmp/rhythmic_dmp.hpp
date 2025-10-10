@@ -31,7 +31,7 @@ public:
      */
     double
     step(const double current_state, const double tau, const double dt) const {
-        return current_state * 2.0 * M_PI * dt / tau;
+        return std::fmod( current_state + 2.0 * M_PI * dt / tau, 2.0 * M_PI);
     }
 };
 
@@ -276,6 +276,65 @@ private:
     MDV_NODISCARD const Embedding&            emb() const  { assert(_emb); return *_emb; }
 
     // clang-format on
+};
+
+template <typename Dmp>
+class IntegrableRhytmicDmp {
+public:
+    static constexpr double min_tau = 0.1;
+
+    using MinimumSample     = typename Dmp::MinimumSample;
+    using MinimumGoalSample = typename Dmp::MinimumGoalSample;
+    using Point             = typename Dmp::Manifold::Point;
+    using TangentVector     = typename Dmp::Manifold::TangentVector;
+
+    IntegrableRhytmicDmp(Dmp&& dmp) : _dmp(std::move(dmp)) {}
+
+    template <typename... Args>
+    IntegrableRhytmicDmp(Args... args) : _dmp(std::forward<Args>(args)...) {}
+
+    MinimumSample     curr_state;
+    MinimumGoalSample goal_state;
+    double            s  = 0.0;
+    double            dt = 1e-3;  // NOLINT 1ms
+
+    void
+    update_dmp(Dmp&& dmp) {
+        _dmp = std::move(dmp);
+        if (_dmp.tau <= min_tau) {
+            _dmp.logger().debug(
+                    "Current dmp object has tau = {}, setting to default {}",
+                    _dmp.tau,
+                    min_tau
+            );
+            _dmp.tau = min_tau;
+        }
+    }
+
+    void
+    step() {
+        s                             = _dmp.coord_sys().step(s, _dmp.tau, dt);
+        const TangentVector         f = _dmp.fun()(s, 1.0);
+        typename Dmp::MinimumSample next_state;
+        _dmp.transf_sys().step(curr_state, goal_state, f, _dmp.tau, dt, next_state);
+        curr_state = next_state;
+    }
+
+    template <typename T>
+    void
+    set_sampling_period(const T& integration_dt) {
+        dt = mdv::convert::seconds(integration_dt);
+        _dmp.logger().debug("Dmp integration sampling period set to {}ms", dt * 1000);
+    }
+
+    // clang-format off
+    MDV_NODISCARD Dmp&       dmp()       { return _dmp; }
+    MDV_NODISCARD const Dmp& dmp() const { return _dmp; }
+
+    // clang-format on
+
+private:
+    Dmp _dmp;
 };
 
 }  // namespace mdv
