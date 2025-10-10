@@ -74,6 +74,17 @@ Mesh::Mesh(Mesh&& other) :
     other._impl = nullptr;
 }
 
+Mesh&
+Mesh::operator=(Mesh&& other) noexcept {
+    this->_logger     = std::move(other._logger);
+    this->_impl       = other._impl;
+    other._impl       = nullptr;
+    this->_name       = std::move(other._name);
+    this->_vertices   = std::move(other._vertices);
+    this->_faces      = std::move(other._faces);
+    this->_half_edges = std::move(other._half_edges);
+}
+
 //  __  __                _
 // |  \/  | ___ _ __ ___ | |__   ___ _ __ ___
 // | |\/| |/ _ \ '_ ` _ \| '_ \ / _ \ '__/ __|

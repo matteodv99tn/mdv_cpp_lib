@@ -47,7 +47,7 @@ public:
     Mesh(const Mesh& other) = delete;
     Mesh(Mesh&& other);
     Mesh& operator=(const Mesh& other) = delete;
-    Mesh& operator=(Mesh&& other)      = delete;
+    Mesh& operator=(Mesh&& other) noexcept;
 
     /**
      * @brief Destructor.
@@ -101,7 +101,7 @@ public:
      */
     MDV_NODISCARD std::string_view
                   name() const {
-        return _name;
+                      return _name;
     };
 
     // clang-format off
