@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <Eigen/src/Geometry/Transform.h>
 #include <utility>
 
 #include "mdv/riemann_geometry/fwd.hpp"
@@ -20,6 +21,8 @@ struct SE3Point {
             pos(pos_), ori(ori_) {
         // if (ori.w() < 0.0) ori.coeffs() *= -1;
     }
+
+    Eigen::Affine3d to_affine() const;
 
     static SE3Point from_affine(const Eigen::Affine3d& transform);
 };

@@ -9,6 +9,14 @@ using SE3 = mdv::riemann::SE3;
 using R3  = mdv::riemann::Rn<3>;
 using S3  = mdv::riemann::S3;
 
+Eigen::Affine3d
+mdv::riemann::SE3Point::to_affine() const {
+    Eigen::Affine3d res = Eigen::Affine3d::Identity();
+    res.translate(pos);
+    res.rotate(ori);
+    return res;
+}
+
 mdv::riemann::SE3Point
 mdv::riemann::SE3Point::from_affine(const Eigen::Affine3d& transform) {
     return {transform.translation(), Eigen::Quaterniond(transform.rotation())};
