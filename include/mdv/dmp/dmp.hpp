@@ -197,6 +197,7 @@ public:
     // clang-format off
     MDV_NODISCARD std::size_t                 n_basis() const    { return fun().n_basis(); }
     MDV_NODISCARD const Function::WeightsMatrix& weights() const { return fun().weights(); }
+    MDV_NODISCARD Function::WeightsMatrix&     weights() { return fun().weights(); }
     MDV_NODISCARD Logger&                     logger() const     { return *(_logger.get()); }
     MDV_NODISCARD Manifold&                   manifold()         { assert(_m); return *_m; }
     MDV_NODISCARD const Manifold&             manifold() const   { assert(_m); return *_m; }

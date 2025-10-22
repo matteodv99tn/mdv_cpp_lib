@@ -121,6 +121,7 @@ public:
     // clang-format off
     MDV_NODISCARD std::size_t            n_basis() const { return _bs.size(); }
     MDV_NODISCARD const WeightsMatrix& weights() const { return _ws; }
+    MDV_NODISCARD WeightsMatrix& weights() { return _ws; }
 
     // clang-format on
 
