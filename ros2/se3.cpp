@@ -33,7 +33,8 @@ describe(const SE3Framed& pose) {
 
 mdv::ros2::SE3
 operator*(const Eigen::Affine3d& transform, const mdv::ros2::SE3& pose) {
-    return {transform * pose.pos, Eigen::Quaterniond(transform.rotation() * pose.ori)};
+    Eigen::Quaterniond ori(transform.rotation() * pose.ori);
+    return {transform * pose.pos, ori};
 }
 
 mdv::ros2::SE3Framed

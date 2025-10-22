@@ -25,10 +25,11 @@ struct S {
     }
 
     static Vec
-    logarithmic_map(const Vec& p, const Vec& q) {
+    logarithmic_map(const Vec& p, Vec q) {
         assert(mdv::condition::is_unit_norm(p));
         assert(mdv::condition::is_unit_norm(q));
         if (mdv::condition::are_equal(p, q)) return Vec::Zero();
+        // if (p.dot(q) < 0.0) q *= -1.0;
         const Vec    dir      = (q - p.transpose() * q * p).normalized();
         const double distance = std::acos(q.transpose() * p);
         assert(mdv::condition::are_orthogonal(p, dir));
