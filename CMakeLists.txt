@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.18)
 
 project(mdvcpplib)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -6,6 +6,8 @@ set(FIND_LIBRARY_USE_LIB64_PATHS OFF)
 
 option(BUILD_TESTING "" OFF)
 option(BUILD_EXECUTABLES "" OFF)
+option(BUILD_BINDINGS "" OFF)
+option(USE_RERUN "" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -101,7 +103,7 @@ set_source_files_properties(
 )
 
 
-if(rerun_sdk_FOUND)
+if(rerun_sdk_FOUND AND USE_RERUN)
     target_link_libraries(
         mdvcpplib
         PUBLIC 
@@ -282,4 +284,15 @@ if(Doxygen_FOUND)
         COMMENT "Generating API documentation with Doxygen"
         VERBATIM 
     )
+endif()
+
+
+#  ____  _           _ _                 
+# | __ )(_)_ __   __| (_)_ __   __ _ ___ 
+# |  _ \| | '_ \ / _` | | '_ \ / _` / __|
+# | |_) | | | | | (_| | | | | | (_| \__ \
+# |____/|_|_| |_|\__,_|_|_| |_|\__, |___/
+#                              |___/     
+if(BUILD_BINDINGS)
+    add_subdirectory(bindings)
 endif()

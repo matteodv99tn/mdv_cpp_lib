@@ -1,0 +1,23 @@
+[build-system]
+requires = [
+    "scikit-build-core>=0.9.0", 
+    "cmake>=3.18",
+    "numpy", 
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "mdvpylib" 
+version = "0.0.0" 
+description = "Python wrapper of mdvcpplib"
+authors = [{name = "Matteo Dalle Vedove", email = "matteo.dallevedove@unitn.it"}]
+dependencies = [
+    "numpy", 
+]
+
+[tool.scikit-build.cmake.define]
+BUILD_BINDINGS = "ON"
+
+[tool.scikit-build.editable]
+mode = "redirect"
+rebuild = false
