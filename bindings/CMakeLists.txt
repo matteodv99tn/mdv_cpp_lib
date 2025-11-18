@@ -46,6 +46,12 @@ function(swig_lib_module_wrapper MODULE_NAME)
     )
 endfunction()
 
+swig_lib_module_wrapper(mesh SOURCES swig/mesh.i)
+
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/python/__init__.py
+    "from . import mesh\n"
+)
+
 install(
     TARGETS mdvcpplib
     LIBRARY DESTINATION mdv

@@ -1,0 +1,84 @@
+%module mesh
+
+%{
+#include "mdv/config.hpp"
+#include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/algorithm.hpp"
+%}
+
+%include "std_string.i"
+%include "std_vector.i"
+%include "eigen.i"
+
+%eigen_typemaps(Eigen::Vector3d)
+
+%feature("autodoc", "2");
+
+
+namespace mdv::mesh {
+
+    class Vertex {
+    public:
+        Vertex(const mdv::mesh::Mesh&, const Eigen::Vector3d&);
+
+        const Eigen::Vector3d& position() const;
+
+        Eigen::Vector3d normal();
+
+        std::size_t id() const;
+
+        std::string describe() const;
+    };
+
+    class Face {
+    public:
+        Face(const mdv::mesh::Mesh&);
+
+        std::size_t id() const;
+
+        Eigen::Vector3d normal();
+
+        std::string describe() const;
+    };
+
+    class Mesh {
+        Mesh(gsl::owner<CgalImpl*> data, const std::string& name);
+    public:
+        const mdv::mesh::Vertex& vertex(const long& id);
+
+        std::size_t num_faces() const;
+
+        std::size_t num_vertices() const;
+
+        const mdv::mesh::Face& face(const long& id) const;
+
+        std::vector<Eigen::Vector3d> build_geodesic(const mdv::mesh::Point& from, const mdv::mesh::Point& to) const;
+    };
+
+    class Point {
+    public:
+        static mdv::mesh::Point from_cartesian(const mdv::mesh::Mesh& m, const Eigen::Vector3d& pt);
+
+        Eigen::Vector3d position() const;
+
+        static Point random(const mdv::mesh::Mesh& m) noexcept;
+
+        const mdv::mesh::Face& face() const;
+
+        std::string describe() const;
+    };
+
+    double length(const std::vector<Eigen::Vector3d>& geod);
+}
+
+%inline %{
+    mdv::mesh::Mesh load_from_file(const char* file) {
+        return mdv::mesh::Mesh::from_file(std::filesystem::path(file));
+    }
+
+    std::string mesh_directory() {
+        return mdv::config::meshes_directory();
+    }
+%}
+
+%template(Geodesic) std::vector<Eigen::Vector3d>;
