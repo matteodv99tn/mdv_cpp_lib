@@ -279,6 +279,18 @@ public:
      */
     const Face& random_face() const;
 
+    /**
+     * @brief Constructs the Nx3 matrix with all vertices of the mesh
+     *
+     */
+    MDV_NODISCARD Eigen::MatrixXd get_vertex_matrix() const;
+
+    /**
+     * @brief Constructs the Nx3 matrix with all faces of the mesh
+     *
+     */
+    MDV_NODISCARD Eigen::MatrixXi get_face_matrix() const;
+
 private:
     Mesh(gsl::owner<CgalImpl*> data, const std::string& name);
 

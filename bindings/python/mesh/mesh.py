@@ -166,6 +166,28 @@ class Mesh:
         """
         return self._mesh_impl.num_faces()
 
+    def get_vertex_matrix(self) -> np.typing.ArrayLike:
+        """
+        Get the vertex matrix of the mesh.
+        
+        Returns
+        -------
+        np.typing.ArrayLike
+            An Nx3 matrix where each row represents a vertex position [x, y, z]
+        """
+        return self._mesh_impl.get_vertex_matrix()
+
+    def get_face_matrix(self) -> np.typing.ArrayLike:
+        """
+        Get the face matrix of the mesh.
+        
+        Returns
+        -------
+        np.typing.ArrayLike
+            An Nx3 matrix where each row represents face indices [v0, v1, v2]
+        """
+        return self._mesh_impl.get_face_matrix()
+
     def vertex(self, id: int) -> Vertex:
         """
         Get a vertex by its identifier.

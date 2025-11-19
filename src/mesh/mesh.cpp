@@ -354,3 +354,26 @@ Mesh::datastructure_correctly_initialised() const {
 
     return true;
 }
+
+Eigen::MatrixXd
+Mesh::get_vertex_matrix() const {
+    Eigen::MatrixXd res(num_vertices(), 3);
+    for (long i = 0; i < num_vertices(); ++i) res.row(i) = _vertices[i].position();
+    return res;
+}
+
+Eigen::MatrixXi
+Mesh::get_face_matrix() const {
+    Eigen::MatrixXi res(num_faces(), 3);
+    for (long i = 0; i < num_faces(); ++i) {
+        const Face&     f  = _faces[i];
+        const HalfEdge* he = f.half_edge();
+        const int       f0 = he->origin().id();
+        he                 = he->next();
+        const int f1       = he->origin().id();
+        he                 = he->next();
+        const int f2       = he->origin().id();
+        res.row(i)         = Eigen::Vector3i{f0, f1, f2};
+    }
+    return res;
+}

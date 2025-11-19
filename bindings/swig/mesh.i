@@ -11,8 +11,8 @@
 %include "eigen.i"
 
 %eigen_typemaps(Eigen::Vector3d)
-
-%feature("autodoc", "2");
+%eigen_typemaps(Eigen::MatrixXd)
+%eigen_typemaps(Eigen::MatrixXi)
 
 
 namespace mdv::mesh {
@@ -53,6 +53,10 @@ namespace mdv::mesh {
         const mdv::mesh::Face& face(const long& id) const;
 
         std::vector<Eigen::Vector3d> build_geodesic(const mdv::mesh::Point& from, const mdv::mesh::Point& to) const;
+
+        Eigen::MatrixXd get_vertex_matrix() const;
+
+        Eigen::MatrixXi get_face_matrix() const;
     };
 
     class Point {
