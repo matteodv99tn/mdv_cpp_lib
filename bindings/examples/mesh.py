@@ -13,5 +13,5 @@ print("Point p0:", p0.describe())
 print("Point p1:", p1.describe())
 
 geod = mesh.build_geodesic(p0, p1)
-len = geod.length()
+len = mdv.mesh.length(geod)
 print("Geodesic path length:", len)

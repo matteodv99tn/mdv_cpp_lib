@@ -41,12 +41,16 @@ function(swig_lib_module_wrapper MODULE_NAME)
     
     set_property(TARGET lib${MODULE_NAME} PROPERTY SWIG_USE_TARGET_INCLUDE_DIRECTORIES ON)
     set_target_properties(lib${MODULE_NAME} PROPERTIES
-            INSTALL_RPATH "$ORIGIN"
+            INSTALL_RPATH "$ORIGIN/.."
             INSTALL_RPATH_USE_ORIGIN TRUE
     )
     install(
         TARGETS lib${MODULE_NAME}
-        LIBRARY DESTINATION mdv
+        LIBRARY DESTINATION mdv/${MODULE_NAME}
+    )
+    install(
+        FILES ${CMAKE_CURRENT_BINARY_DIR}/python/_${MODULE_NAME}_impl.py
+        DESTINATION mdv/${MODULE_NAME}/
     )
 endfunction()
 
@@ -59,9 +63,5 @@ install(
 
 install(
     DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/python/
-    DESTINATION mdv
-)
-install(
-    DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/
     DESTINATION mdv
 )
