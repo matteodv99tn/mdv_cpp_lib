@@ -13,6 +13,7 @@ description = "Python wrapper of mdvcpplib"
 authors = [{name = "Matteo Dalle Vedove", email = "matteo.dallevedove@unitn.it"}]
 dependencies = [
     "numpy", 
+    "pymeshlab", 
 ]
 
 [tool.scikit-build.cmake.define]
