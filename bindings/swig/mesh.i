@@ -56,7 +56,8 @@ namespace mdv::mesh {
 
         Eigen::MatrixXd get_vertex_matrix() const;
 
-        Eigen::MatrixXi get_face_matrix() const;
+        // Eigen::MatrixXi get_face_matrix() const;
+        Eigen::MatrixXd get_face_matrix_double() const;
     };
 
     class Point {

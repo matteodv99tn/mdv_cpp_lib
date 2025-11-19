@@ -291,6 +291,14 @@ public:
      */
     MDV_NODISCARD Eigen::MatrixXi get_face_matrix() const;
 
+    /**
+     * @brief Constructs the Nx3 matrix with all faces of the mesh
+     *
+     * This function returns indices as doubles, which is ultimately not correct and
+     * error prone, but is necessary for having proper python bindings
+     */
+    MDV_NODISCARD Eigen::MatrixXd get_face_matrix_double() const;
+
 private:
     Mesh(gsl::owner<CgalImpl*> data, const std::string& name);
 
@@ -397,7 +405,8 @@ private:
     // clang-format on
 
 
-    // When moving a mesh object, mesh pointers in vertices/faces must be updated accordingly
+    // When moving a mesh object, mesh pointers in vertices/faces must be updated
+    // accordingly
     void update_mesh_element_references();
 };
 

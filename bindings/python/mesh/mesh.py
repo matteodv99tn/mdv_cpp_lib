@@ -66,7 +66,8 @@ class Mesh:
         if (faces is None) or (vertices is None):
             raise RuntimeError(
                 "To construct a mesh, a nv x 3 matrix of vertices and"
-                "nf x 3 matrix of faces is required")
+                "nf x 3 matrix of faces is required"
+            )
 
         pymesh = pymeshlab.Mesh(vertex_matrix=vertices, face_matrix=faces)
         meshset = pymeshlab.MeshSet()
@@ -185,8 +186,16 @@ class Mesh:
         -------
         np.typing.ArrayLike
             An Nx3 matrix where each row represents face indices [v0, v1, v2]
+            
+        Notes
+        -----
+        This method returns face indices as doubles for Python binding compatibility.
+        The underlying implementation uses get_face_matrix_double() which converts
+        the integer indices to double precision for proper Python binding handling.
         """
-        return self._mesh_impl.get_face_matrix()
+        res: np.ndarray = self._mesh_impl.get_face_matrix_double()
+        res = res.astype(np.int32)
+        return res
 
     def vertex(self, id: int) -> Vertex:
         """
@@ -219,6 +228,30 @@ class Mesh:
             Face with the specified identifier
         """
         return Face(self._mesh_impl.face(id))
+
+    @property
+    def faces(self) -> list[Face]:
+        """
+        Get all faces in the mesh.
+        
+        Returns
+        -------
+        list[Face]
+            List of all Face objects in the mesh
+        """
+        return [self.face(i) for i in range(self.num_faces)]
+
+    @property
+    def vertices(self) -> list[Vertex]:
+        """
+        Get all vertices in the mesh.
+        
+        Returns
+        -------
+        list[Vertex]
+            List of all Vertex objects in the mesh
+        """
+        return [self.vertex(i) for i in range(self.num_vertices)]
 
     def build_geodesic(self, from_point: Point, to_point: Point) -> Geodesic:
         """
