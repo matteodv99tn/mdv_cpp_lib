@@ -71,6 +71,7 @@ Mesh::Mesh(Mesh&& other) :
             static_cast<void*>(&other),
             static_cast<void*>(this)
     );
+    update_mesh_element_references();
     other._impl = nullptr;
 }
 
@@ -83,6 +84,15 @@ Mesh::operator=(Mesh&& other) noexcept {
     this->_vertices   = std::move(other._vertices);
     this->_faces      = std::move(other._faces);
     this->_half_edges = std::move(other._half_edges);
+    update_mesh_element_references();
+    return *this;
+}
+
+void
+Mesh::update_mesh_element_references() {
+    for (auto& f : _faces) f._mesh_ptr = this;
+    for (auto& v : _vertices) v._mesh_ptr = this;
+    for (auto& he : _half_edges) he._mesh_ptr = this;
 }
 
 //  __  __                _

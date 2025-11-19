@@ -383,6 +383,10 @@ private:
     HalfEdge& emplace_halfedge()                        { return _half_edges.emplace_back(*this); }
 
     // clang-format on
+
+
+    // When moving a mesh object, mesh pointers in vertices/faces must be updated accordingly
+    void update_mesh_element_references();
 };
 
 }  // namespace mdv::mesh

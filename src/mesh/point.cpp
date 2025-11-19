@@ -148,6 +148,7 @@ Point::constrain_inside_triangle() && {
 
 std::string
 Point::describe() const {
+    assert(_face);
     return fmt::format("point at {} (f #{})", eigen_to_str(position()), face().id());
 }
 
