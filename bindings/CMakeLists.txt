@@ -17,11 +17,15 @@ function(swig_lib_module_wrapper MODULE_NAME)
 
     foreach(SRC ${MOD_SOURCES})
         set_property(SOURCE ${SRC} PROPERTY CPLUSPLUS ON)
+        set_property(
+            SOURCE ${SRC}
+            PROPERTY SWIG_MODULE_NAME _${MODULE_NAME}_impl
+        )
     endforeach()
 
     message(STATUS "Adding SWIG module ${MODULE_NAME} -- Sources: ${MOD_SOURCES}")
     swig_add_library(
-        ${MODULE_NAME}
+        lib${MODULE_NAME}
         TYPE SHARED
         LANGUAGE python
         OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/python
@@ -29,34 +33,34 @@ function(swig_lib_module_wrapper MODULE_NAME)
     )
     
     target_link_libraries(
-        ${MODULE_NAME}
+        lib${MODULE_NAME}
         mdvcpplib
         Python3::Python
         Python3::NumPy
     )
     
-    set_property(TARGET ${MODULE_NAME} PROPERTY SWIG_USE_TARGET_INCLUDE_DIRECTORIES ON)
-    set_target_properties(${MODULE_NAME} PROPERTIES
+    set_property(TARGET lib${MODULE_NAME} PROPERTY SWIG_USE_TARGET_INCLUDE_DIRECTORIES ON)
+    set_target_properties(lib${MODULE_NAME} PROPERTIES
             INSTALL_RPATH "$ORIGIN"
             INSTALL_RPATH_USE_ORIGIN TRUE
     )
     install(
-        TARGETS ${MODULE_NAME}
+        TARGETS lib${MODULE_NAME}
         LIBRARY DESTINATION mdv
     )
 endfunction()
 
 swig_lib_module_wrapper(mesh SOURCES swig/mesh.i)
 
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/python/__init__.py
-    "from . import mesh\n"
-)
-
 install(
     TARGETS mdvcpplib
     LIBRARY DESTINATION mdv
 )
 
+install(
+    DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/python/
+    DESTINATION mdv
+)
 install(
     DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/python/
     DESTINATION mdv
