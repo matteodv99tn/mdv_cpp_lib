@@ -3,7 +3,9 @@ from .face import Face
 from .point import Point
 from .geodesic import Geodesic
 from ._mesh_impl import Mesh as _MeshImpl, load_from_file, mesh_directory
+
 import numpy as np
+import pymeshlab
 
 
 class Mesh:
@@ -56,7 +58,6 @@ class Mesh:
         When providing vertices and faces arrays, the mesh will be created using
         pymeshlab for processing and then loaded from a temporary OFF file.
         """
-        import pymeshlab
         import tempfile
 
         if mesh_impl is not None:
@@ -272,3 +273,66 @@ class Mesh:
         return Geodesic(
             self._mesh_impl.build_geodesic(from_point._point_impl,
                                            to_point._point_impl))
+
+    def midpoint_subdivide(self, iterations: int = 1) -> 'Mesh':
+        """
+        Subdivide the mesh using midpoint subdivision.
+        
+        This method applies midpoint subdivision to the mesh, increasing the number
+        of faces and vertices by splitting each face into smaller faces.
+        
+        Parameters
+        ----------
+        iterations : int, default=1
+            Number of subdivision iterations to perform
+            
+        Returns
+        -------
+        Mesh
+            A new mesh object with subdivided faces
+            
+        Notes
+        -----
+        Each subdivision iteration increases the number of faces approximately by a factor of 4.
+        The subdivision is performed using pymeshlab's midpoint subdivision algorithm.
+        """
+        import tempfile
+
+        meshset = self._create_meshset()
+        meshset.meshing_surface_subdivision_midpoint(iterations=iterations)
+
+        with tempfile.NamedTemporaryFile(suffix=".off", delete=False) as tmp:
+            meshset.save_current_mesh(
+                tmp.name,
+                save_vertex_color=False,
+                save_vertex_normal=False,
+                save_face_color=False,
+                save_polygonal=False,
+            )
+            newmesh = Mesh.load_from_file(tmp.name)
+            return newmesh
+
+    def _create_meshset(self) -> pymeshlab.MeshSet:
+        """
+        Create a pymeshlab MeshSet from this mesh.
+        
+        This private method converts the current mesh data into a pymeshlab MeshSet
+        which can be used for mesh processing operations.
+        
+        Returns
+        -------
+        pymeshlab.MeshSet
+            A MeshSet containing this mesh
+            
+        Notes
+        -----
+        This method is used internally by subdivision and other mesh processing
+        operations that require pymeshlab's mesh processing capabilities.
+        """
+        pymesh = pymeshlab.Mesh(
+            vertex_matrix=self.get_vertex_matrix(),
+            face_matrix=self.get_face_matrix(),
+        )
+        meshset = pymeshlab.MeshSet()
+        meshset.add_mesh(pymesh)
+        return meshset
