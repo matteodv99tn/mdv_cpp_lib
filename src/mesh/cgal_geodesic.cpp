@@ -51,6 +51,7 @@ CgalGeodesicConstructor::construct_geodesic(
     shpath.shortest_path_points_to_source_points(
             face_id, barycentric_coords, std::back_inserter(cgal_geod)
     );
+    if (cgal_geod.size() == 0) { return {}; }
 
     Geodesic geod(cgal_geod.size());
     auto     to_eigen = [](const auto& pt) -> Eigen::Vector3d { return convert(pt); };

@@ -126,7 +126,7 @@ Mesh::transform(const Eigen::Affine3d& transformation) {
 
 mdv::mesh::Geodesic
 Mesh::build_geodesic(const Point& from, const Point& to) const {
-    using mdv::condition::are_orthogonal;
+    using mdv::condition::are_orthogonal, mdv::condition::is_zero_norm;
     using Vec2  = Eigen::Vector2d;
     using Vec3  = Eigen::Vector3d;
     using Mat32 = Eigen::Matrix<double, 3, 2>;
@@ -138,9 +138,12 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
             eigen_to_str(to.position())
     );
 
+    if (is_zero_norm(from.position() - to.position())) { return {}; }
     if (from.face() == to.face()) return {from.position(), to.position()};
 
-    const HalfEdge* const he = from.face().adjacent_to(to.face());
+    // TODO: verify this function
+    // const HalfEdge* const he = from.face().adjacent_to(to.face());
+    const HalfEdge* const he = nullptr;
 
     if (he != nullptr) {
         Mat33         base;

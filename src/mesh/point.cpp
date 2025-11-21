@@ -114,6 +114,7 @@ Point::barycentric() const noexcept {
     A.col(2) = a2;
 
     assert(mdv::condition::are_equal(A * res, pt));
+    assert(mdv::condition::is_zero(res.sum() - 1.0));
     return res;
 };
 
