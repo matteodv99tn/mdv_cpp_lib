@@ -6,6 +6,7 @@ from ._mesh_impl import Mesh as _MeshImpl, load_from_file, mesh_directory
 
 import numpy as np
 import pymeshlab
+import pyvista
 
 
 class Mesh:
@@ -67,8 +68,7 @@ class Mesh:
         if (faces is None) or (vertices is None):
             raise RuntimeError(
                 "To construct a mesh, a nv x 3 matrix of vertices and"
-                "nf x 3 matrix of faces is required"
-            )
+                "nf x 3 matrix of faces is required")
 
         pymesh = pymeshlab.Mesh(vertex_matrix=vertices, face_matrix=faces)
         meshset = pymeshlab.MeshSet()
@@ -311,6 +311,11 @@ class Mesh:
             )
             newmesh = Mesh.load_from_file(tmp.name)
             return newmesh
+
+    def to_pyvista(self) -> pyvista.PolyData:
+        fs = self.get_face_matrix()
+        vs = self.get_vertex_matrix()
+        return pyvista.make_tri_mesh(vs, fs)
 
     def _create_meshset(self) -> pymeshlab.MeshSet:
         """
