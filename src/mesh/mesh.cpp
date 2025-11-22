@@ -122,49 +122,49 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
     if (is_zero_norm(from.position() - to.position())) { return {}; }
     if (from.face() == to.face()) return {from.position(), to.position()};
 
-    // TODO: verify this function
+    // TODO: reimplement this section of code to simplify computation of trivial geodesics
     // const HalfEdge* const he = from.face().adjacent_to(to.face());
-    const HalfEdge* const he = nullptr;
+    // const HalfEdge* const he = nullptr;
 
-    if (he != nullptr) {
-        Mat33         base;
-        long          n_checks = 0;
-        HalfEdge*     to_he    = he->twin()->face().half_edge();
-        const Vertex* v_modify = &he->twin()->prev()->origin();
-        const Vec3    v0       = he->origin_position();
-        const Vec3    n_from   = from.face().normal();
+    // if (he != nullptr) {
+    //     Mat33         base;
+    //     long          n_checks = 0;
+    //     HalfEdge*     to_he    = he->twin()->face().half_edge();
+    //     const Vertex* v_modify = &he->twin()->prev()->origin();
+    //     const Vec3    v0       = he->origin_position();
+    //     const Vec3    n_from   = from.face().normal();
 
-        for (long i = 0; i < 3; ++i) {
-            Vec3 vi = to_he->origin_position();
-            if (&to_he->origin() == v_modify) {
-                const Vec3 delta_to   = to_he->origin_position() - v0;
-                const Vec3 delta_from = he->aligning_rotation().inverse() * delta_to;
-                vi                    = v0 + delta_from;
-                ++n_checks;
-            }
+    //     for (long i = 0; i < 3; ++i) {
+    //         Vec3 vi = to_he->origin_position();
+    //         if (&to_he->origin() == v_modify) {
+    //             const Vec3 delta_to   = to_he->origin_position() - v0;
+    //             const Vec3 delta_from = he->aligning_rotation().inverse() * delta_to;
+    //             vi                    = v0 + delta_from;
+    //             ++n_checks;
+    //         }
 
-            assert(are_orthogonal(vi - v0, n_from));
-            base.col(i) = vi;
+    //         assert(are_orthogonal(vi - v0, n_from));
+    //         base.col(i) = vi;
 
-            // step halfedge
-            to_he = to_he->next();
-        }
-        assert(n_checks == 1);
+    //         // step halfedge
+    //         to_he = to_he->next();
+    //     }
+    //     assert(n_checks == 1);
 
-        const Vec3 dest = base * to.barycentric();
-        assert(are_orthogonal(dest - v0, n_from));
+    //     const Vec3 dest = base * to.barycentric();
+    //     assert(are_orthogonal(dest - v0, n_from));
 
-        const Edge             e1(*he);
-        const Edge             e2 = Edge::from_positions(from.position(), dest);
-        const EdgeIntersection intersection(e1, e2);
-        assert(mdv::condition::is_zero(distance(*he, intersection.intersection_point)));
-        assert(intersection.sols(0) < 1.0);
-        assert(intersection.sols(0) > 0.0);
+    //     const Edge             e1(*he);
+    //     const Edge             e2 = Edge::from_positions(from.position(), dest);
+    //     const EdgeIntersection intersection(e1, e2);
+    //     assert(mdv::condition::is_zero(distance(*he, intersection.intersection_point)));
+    //     assert(intersection.sols(0) < 1.0);
+    //     assert(intersection.sols(0) > 0.0);
 
-        return std::vector<Vec3>(
-                {from.position(), intersection.intersection_point, to.position()}
-        );
-    }
+    //     return std::vector<Vec3>(
+    //             {from.position(), intersection.intersection_point, to.position()}
+    //     );
+    // }
 
     return (*cgal()._geodesic_constructor)(from, to);
 }
@@ -186,34 +186,25 @@ Mesh::num_faces() const {
     return cgal()._mesh.num_faces();
 }
 
-const Face&
+Face
 Mesh::random_face() const {
     static std::random_device                  rand_dev;
     static std::mt19937                        generator(rand_dev());
     std::uniform_int_distribution<std::size_t> distribution(0, num_faces() - 1);
-    return _faces[distribution(generator)];
+    return face(distribution(generator));
 }
 
 Eigen::MatrixXd
 Mesh::get_vertex_matrix() const {
+    throw std::runtime_error("Mesh::get_vertex_matrix() needs to be re-implemented");
     Eigen::MatrixXd res(num_vertices(), 3);
-    for (long i = 0; i < num_vertices(); ++i) res.row(i) = _vertices[i].position();
     return res;
 }
 
 Eigen::MatrixXi
 Mesh::get_face_matrix() const {
+    throw std::runtime_error("Mesh::get_face_matrix() needs to be re-implemented");
     Eigen::MatrixXi res(num_faces(), 3);
-    for (long i = 0; i < num_faces(); ++i) {
-        const Face&     f  = _faces[i];
-        const HalfEdge* he = f.half_edge();
-        const int       f0 = he->origin().id();
-        he                 = he->next();
-        const int f1       = he->origin().id();
-        he                 = he->next();
-        const int f2       = he->origin().id();
-        res.row(i)         = Eigen::Vector3i{f0, f1, f2};
-    }
     return res;
 }
 

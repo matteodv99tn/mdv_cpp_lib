@@ -101,7 +101,7 @@ public:
      */
     MDV_NODISCARD std::string_view
                   name() const {
-                      return _name;
+        return _name;
     };
 
     // clang-format off
@@ -111,7 +111,7 @@ public:
      * @param id The index of the face to retrieve.
      * @return const Face& A reference to the retrieved face.
      */
-    MDV_NODISCARD const Face&   face(const Index& id) const   { return _faces[id]; }
+    MDV_NODISCARD Face face(const Index id) const   { return {*this, id}; }
 
     /**
      * @brief Retrieves a vertex by its index.
@@ -119,7 +119,7 @@ public:
      * @param id The index of the vertex to retrieve.
      * @return const Vertex& A reference to the retrieved vertex.
      */
-    MDV_NODISCARD const Vertex& vertex(const Index& id) const { return _vertices[id]; }
+    MDV_NODISCARD Vertex vertex(const Index& id) const { return Vertex(*this, id); }
 
     /**
      * @brief Retrieves the logger associated with the mesh.
@@ -137,6 +137,7 @@ public:
     // |___|\__\___|_|  \__,_|\__\___/|_|  |___/
     //
 
+#if 0
     // clang-format off
     /**
      * @brief Retrieves an iterator to the beginning of the face range.
@@ -254,6 +255,7 @@ public:
     MDV_NODISCARD boost::iterator_range<Vertex::ConstIterator> vertices() const noexcept { return {vertices_begin(), vertices_end()}; }
 
     // clang-format on
+#endif
 
     // clang-format off
     /**
@@ -277,7 +279,7 @@ public:
      *
      * @return const Face& A reference to a randomly selected face.
      */
-    const Face& random_face() const;
+    Face random_face() const;
 
 private:
     Mesh(gsl::owner<CgalImpl*> data, const std::string& name);

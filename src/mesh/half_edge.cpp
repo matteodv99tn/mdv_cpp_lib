@@ -13,9 +13,9 @@ Eigen::Vector3d
 HalfEdge::inbound_direction() const {
     using Vec3   = Eigen::Vector3d;
     using Mat3   = Eigen::Matrix3d;
-    const Vec3 e = normalised_direction();          // current edge
-    const Vec3 v = next()->normalised_direction();  // vector w.r.t. which will be
-                                                    // rendered orthoghonal to e
+    const Vec3 e = normalised_direction();         // current edge
+    const Vec3 v = next().normalised_direction();  // vector w.r.t. which will be
+                                                   // rendered orthoghonal to e
 
     const Mat3 proj = (Mat3::Identity() - e * e.transpose());
     const Vec3 res  = (proj * v).normalized();
@@ -33,7 +33,7 @@ HalfEdge::aligning_rotation() const {
 
     const Vec3 e       = normalised_direction();
     const Vec3 x_this  = inbound_direction();
-    const Vec3 x_other = twin()->inbound_direction();
+    const Vec3 x_other = twin().inbound_direction();
 
     assert(mdv::condition::are_orthogonal(x_this, e));
     assert(mdv::condition::are_orthogonal(x_other, e));
@@ -47,8 +47,6 @@ HalfEdge::aligning_rotation() const {
 std::string
 HalfEdge::describe() const {
     return fmt::format(
-            "HalfEdge on face #{} with origin vertex #{}",
-            (_face != nullptr) ? _face->id() : -1,
-            _origin->id()
+            "HalfEdge on face #{} with origin vertex #{}", face().id(), origin().id()
     );
 }

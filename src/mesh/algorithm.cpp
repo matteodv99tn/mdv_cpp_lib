@@ -24,10 +24,20 @@ namespace rv = ::ranges::views;
 
 double
 mdv::mesh::length(const Geodesic& geod) {
-    double res = 0;
-    for (auto it = geod.cbegin(); it != geod.cend() - 1; ++it)
-        res += (*it - *(it + 1)).norm();
-    return res;
+    if (geod.size() < 2) return 0.0;
+
+    auto segment_length = [](const auto& rng) -> double {
+        const Eigen::Vector3d p1    = rng[0];
+        const Eigen::Vector3d p2    = rng[1];
+        const Eigen::Vector3d delta = p2 - p1;
+        const double          res   = delta.norm();
+        return res;
+    };
+
+    const double sum = rs::accumulate(
+            geod | rv::sliding(2) | rv::transform(segment_length), double{0.0}
+    );
+    return sum;
 }
 
 mdv::mesh::CartesianPoint
@@ -214,7 +224,7 @@ mdv::mesh::exponential_map(TangentVector v, Geodesic* geod) {
 
 double
 mdv::mesh::distance(const Face& f, const CartesianPoint& pt) {
-    const Eigen::Vector3d delta = pt - f.half_edge()->origin_position();
+    const Eigen::Vector3d delta = pt - f.half_edge().origin_position();
     return std::abs(delta.dot(f.normal()));
 }
 

@@ -18,7 +18,7 @@ namespace mdv::mesh {
  * point in opposite directions. It is used to represent the connectivity between
  * vertices and faces in a mesh.
  */
-struct HalfEdge : internal::MeshElement {
+struct HalfEdge : internal::IndexedMeshElement {
     using Vector        = std::vector<HalfEdge>;
     using Iterator      = Vector::iterator;
     using ConstIterator = Vector::const_iterator;
@@ -28,7 +28,7 @@ struct HalfEdge : internal::MeshElement {
      *
      * @param mesh The mesh to which this half-edge belongs.
      */
-    HalfEdge(Mesh& mesh) : MeshElement(mesh) {}
+    HalfEdge(Mesh& mesh, const Index id) : IndexedMeshElement(mesh, id) {}
 
     /**
      * @brief Retrieves the face that contains this half-edge.
@@ -36,12 +36,7 @@ struct HalfEdge : internal::MeshElement {
      * @return Reference to the face object.
      * @throw std::runtime_error If this half-edge is not associated with any face.
      */
-    MDV_NODISCARD Face&
-    face() const {
-        if (_face == nullptr)
-            throw std::runtime_error("HalfEdge is not associated to any Face!");
-        return *_face;
-    }
+    MDV_NODISCARD Face face() const noexcept;
 
     /**
      * @brief Retrieves the position of the origin vertex of this half-edge.
@@ -60,7 +55,7 @@ struct HalfEdge : internal::MeshElement {
      */
     MDV_NODISCARD Eigen::Vector3d
                   direction() const {
-        return next()->origin_position() - origin_position();
+        return next().origin_position() - origin_position();
     }
 
     /**
@@ -95,22 +90,14 @@ struct HalfEdge : internal::MeshElement {
      *
      * @return Pointer to the next half-edge.
      */
-    MDV_NODISCARD HalfEdge*
-    next() const {
-        assert(_next);
-        return _next;
-    }
+    MDV_NODISCARD HalfEdge next() const noexcept;
 
     /**
      * @brief Retrieves the previous half-edge in the sequence around this edge.
      *
      * @return Pointer to the previous half-edge.
      */
-    MDV_NODISCARD HalfEdge*
-    prev() const {
-        assert(_prev);
-        return _prev;
-    }
+    MDV_NODISCARD HalfEdge prev() const noexcept;
 
     /**
      * @brief Retrieves the twin half-edge of this half-edge.
@@ -120,22 +107,14 @@ struct HalfEdge : internal::MeshElement {
      *
      * @return Pointer to the twin half-edge.
      */
-    MDV_NODISCARD HalfEdge*
-    twin() const {
-        assert(_twin);
-        return _twin;
-    }
+    MDV_NODISCARD HalfEdge twin() const noexcept;
 
     /**
      * @brief Retrieves the origin vertex of this half-edge.
      *
      * @return Reference to the origin vertex object.
      */
-    MDV_NODISCARD Vertex&
-    origin() const {
-        assert(_origin);
-        return *_origin;
-    }
+    MDV_NODISCARD Vertex origin() const noexcept;
 
     /**
      * @brief Retrieves the opposite face of this half-edge.
@@ -145,11 +124,7 @@ struct HalfEdge : internal::MeshElement {
      *
      * @return Reference to the opposite face object.
      */
-    MDV_NODISCARD Face&
-    opposite_face() const {
-        assert(_twin != nullptr);
-        return _twin->face();
-    }
+    MDV_NODISCARD Face opposite_face() const noexcept;
 
     /**
      * @brief Checks if this half-edge is equal to another half-edge.
@@ -193,25 +168,8 @@ struct HalfEdge : internal::MeshElement {
 private:
     friend class Mesh;
     friend class Face;
-    Vertex*   _origin = nullptr;
-    HalfEdge* _twin   = nullptr;
-    HalfEdge* _next   = nullptr;
-    HalfEdge* _prev   = nullptr;
-    Face*     _face   = nullptr;
 
-    /**
-     * @brief Retrieves a pointer to the tip vertex of this half-edge.
-     *
-     * The tip vertex is the destination vertex of the next half-edge in the
-     * sequence around this edge.
-     *
-     * @return Pointer to the tip vertex.
-     */
-    Vertex*
-    tip_ptr() const {
-        assert(_next != nullptr);
-        return _next->_origin;
-    }
+    HalfEdge() = default;
 
     /**
      * @brief Checks if this half-edge is opposite to another half-edge.
@@ -223,10 +181,7 @@ private:
      * @return true If both half-edges are opposite.
      * @return false Otherwise.
      */
-    bool
-    is_opposite_of(const HalfEdge& other) const {
-        return (this->_origin == other.tip_ptr()) && (this->tip_ptr() == other._origin);
-    }
+    bool is_opposite_of(const HalfEdge& other) const;
 };
 
 }  // namespace mdv::mesh
