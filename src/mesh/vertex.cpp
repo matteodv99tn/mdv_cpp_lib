@@ -16,6 +16,7 @@ using mdv::mesh::Vertex;
 
 // \endcond
 
+
 std::string
 Vertex::describe() const {
     if (!is_valid()) return "Invalid Vertex";
@@ -26,4 +27,23 @@ Vertex::describe() const {
             eigen_to_str(position()),
             mesh().name()
     );
+}
+
+mdv::mesh::CartesianPoint
+Vertex::position() const noexcept {
+    const auto cgal_pt = internal::to_vertex_impl(*this);
+    return {cgal_pt.x(), cgal_pt.y(), cgal_pt.z()};
+}
+
+Eigen::Vector3d
+Vertex::normal() const noexcept {
+    using VertexDescriptor = internal::CgalImpl::VertexDescriptor;
+    using Vec3             = internal::CgalImpl::Vec3;
+    auto m                 = internal::get_mesh_impl(*this);
+#if MDV_CGAL_VERSION == 5
+    const auto normals = m.property_map<VertexDescriptor, Vec3>("v:normal").first;
+#elif MDV_CGAL_VERSION == 6
+    const auto normals = m.property_map<VertexDescriptor, Vec3>("v:normal").value();
+#endif
+    return internal::convert(normals[VertexDescriptor(id())]);
 }

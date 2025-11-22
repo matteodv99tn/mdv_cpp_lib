@@ -9,6 +9,9 @@
 #include <filesystem>
 #include <gsl/pointers>
 
+#include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/vertex.hpp"
+
 
 #if MDV_CGAL_VERSION == 5
 #include <CGAL/AABB_traits.h>
@@ -108,6 +111,17 @@ CgalImpl::FaceLocation location_from_mesh_point(const ::mdv::mesh::Point& pt) no
 //              |_|
 Eigen::Vector3d convert(const CgalImpl::Vec3& x);
 Eigen::Vector3d convert(const CgalImpl::Point3& x);
+
+MDV_INLINE CgalImpl::Mesh
+           get_mesh_impl(const MeshElement& elem) {
+    return elem.mesh().cgal()._mesh;
+};
+
+MDV_INLINE CgalImpl::Point3
+           to_vertex_impl(const Vertex& v) {
+    CgalImpl::CgalVertexIndex id(v.id());
+    return v.mesh().cgal()._mesh.point(id);
+}
 
 }  // namespace mdv::mesh::internal
 
