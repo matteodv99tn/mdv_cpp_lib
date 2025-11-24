@@ -7,7 +7,6 @@
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh_element.hpp"
-#include "mdv/mesh/uv_map.hpp"
 
 namespace mdv::mesh {
 
@@ -25,11 +24,6 @@ public:
 
     MDV_NODISCARD Eigen::Vector3d normal() const noexcept;
 
-    MDV_NODISCARD const UvMap&
-    uv_map() const noexcept {
-        return _uv_map;
-    };
-
     MDV_NODISCARD bool
     operator==(const Face& other) const {
         return this == &other;
@@ -42,13 +36,14 @@ public:
 
     MDV_NODISCARD std::string describe() const override;
 
-    HalfEdge adjacent_to(const Face& other) const;
+    std::optional<HalfEdge> adjacent_to(const Face& other) const;
+
+    MDV_NODISCARD std::array<Index, 3> vertices_ids() const;
 
 private:
     friend class Mesh;
 
     Face() = default;
-    UvMap _uv_map;
 };
 
 }  // namespace mdv::mesh

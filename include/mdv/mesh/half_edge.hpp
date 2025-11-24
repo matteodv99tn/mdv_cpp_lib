@@ -28,7 +28,7 @@ struct HalfEdge : internal::IndexedMeshElement {
      *
      * @param mesh The mesh to which this half-edge belongs.
      */
-    HalfEdge(Mesh& mesh, const Index id) : IndexedMeshElement(mesh, id) {}
+    HalfEdge(const Mesh& mesh, const Index id) : IndexedMeshElement(mesh, id) {}
 
     /**
      * @brief Retrieves the face that contains this half-edge.

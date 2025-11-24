@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <gsl/pointers>
 
+#include "mdv/mesh/face.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/vertex.hpp"
 
@@ -121,6 +122,11 @@ MDV_INLINE CgalImpl::Point3
            to_vertex_impl(const Vertex& v) {
     CgalImpl::CgalVertexIndex id(v.id());
     return v.mesh().cgal()._mesh.point(id);
+}
+
+MDV_INLINE CgalImpl::CgalFaceIndex
+           to_face_impl(const Face& f) {
+    return static_cast<CgalImpl::CgalFaceIndex>(f.id());
 }
 
 }  // namespace mdv::mesh::internal
