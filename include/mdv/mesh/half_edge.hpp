@@ -181,7 +181,7 @@ private:
      * @return true If both half-edges are opposite.
      * @return false Otherwise.
      */
-    bool is_opposite_of(const HalfEdge& other) const;
+    bool is_opposite_of(const HalfEdge& other) const noexcept;
 };
 
 }  // namespace mdv::mesh

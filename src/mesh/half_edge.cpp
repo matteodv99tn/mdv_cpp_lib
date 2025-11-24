@@ -2,12 +2,32 @@
 
 #include <fmt/format.h>
 
+#include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/utils/conditions.hpp"
 
 // \cond DOXYGEN_IGNORE
+using mdv::mesh::Face;
 using mdv::mesh::HalfEdge;
+using mdv::mesh::Vertex;
 
 // \endcond
+
+
+Face
+HalfEdge::face() const noexcept {
+    const auto m  = internal::get_mesh_impl(*this);
+    const auto id = CGAL::face(internal::to_halfedge_impl(*this), m);
+    return {mesh(), id};
+}
+
+Face
+HalfEdge::opposite_face() const noexcept {
+    const auto m           = internal::get_mesh_impl(*this);
+    const auto he_id       = internal::to_halfedge_impl(*this);
+    const auto opposite_id = CGAL::opposite(he_id, m);
+    const auto id          = CGAL::face(opposite_id, m);
+    return {mesh(), id};
+}
 
 Eigen::Vector3d
 HalfEdge::inbound_direction() const {
@@ -44,9 +64,45 @@ HalfEdge::aligning_rotation() const {
     return res;
 }
 
+HalfEdge
+HalfEdge::next() const noexcept {
+    const auto m  = internal::get_mesh_impl(*this);
+    const auto id = internal::to_halfedge_impl(*this);
+    return {mesh(), CGAL::next(id, m)};
+}
+
+HalfEdge
+HalfEdge::prev() const noexcept {
+    const auto m  = internal::get_mesh_impl(*this);
+    const auto id = internal::to_halfedge_impl(*this);
+    return {mesh(), CGAL::prev(id, m)};
+}
+
+HalfEdge
+HalfEdge::twin() const noexcept {
+    const auto m  = internal::get_mesh_impl(*this);
+    const auto id = internal::to_halfedge_impl(*this);
+    return {mesh(), CGAL::opposite(id, m)};
+}
+
+Vertex
+HalfEdge::origin() const noexcept {
+    const auto m  = internal::get_mesh_impl(*this);
+    const auto id = internal::to_halfedge_impl(*this);
+    return {mesh(), CGAL::source(id, m)};
+}
+
 std::string
 HalfEdge::describe() const {
     return fmt::format(
             "HalfEdge on face #{} with origin vertex #{}", face().id(), origin().id()
     );
+}
+
+bool
+HalfEdge::is_opposite_of(const HalfEdge& other) const noexcept {
+    const auto m        = internal::get_mesh_impl(*this);
+    const auto this_id  = internal::to_halfedge_impl(*this);
+    const auto other_id = internal::to_halfedge_impl(other);
+    return this_id == CGAL::opposite(other_id, m);
 }
