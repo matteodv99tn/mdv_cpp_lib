@@ -1,7 +1,5 @@
 #include "mdv/mesh/tangent_vector.hpp"
 
-#include <Eigen/src/Core/Matrix.h>
-
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/fwd.hpp"
@@ -15,6 +13,15 @@ using mdv::mesh::CartesianPoint;
 using mdv::mesh::Mesh;
 using mdv::mesh::TangentVector;
 
+namespace {
+mdv::Vec3d
+normal_projection(const mdv::Vec3d& vec, const mdv::Vec3d& normal) {
+    assert(mdv::condition::is_unit_norm(normal));
+    return (mdv::Mat3d::Identity() - normal * normal.transpose()) * vec;
+}
+
+}  // namespace
+
 // \endcond
 
 //  _____                            _ __     __        _
@@ -24,29 +31,31 @@ using mdv::mesh::TangentVector;
 //   |_|\__,_|_| |_|\__, |\___|_| |_|\__| \_/ \___|\___|\__\___/|_|
 //                  |___/
 TangentVector::TangentVector(const Point& app_point, const Vec3d& v) :
-        Point(app_point) {
-    assert(mdv::condition::are_orthogonal(app_point.face().normal(), v));
-    _uv = jac().colPivHouseholderQr().solve(v);
+        _pt(app_point), _vec(v) {
+    using mdv::condition::are_orthogonal;
+
+    // In case if the point is on a edge, you may switch the halfedge to ensure that the
+    // vector is orthogonal to the face (which may be the opposite one)
+    const auto* desc = _pt.get_as<Point::PointOnEdgeDescriptor>();
+    const bool  shall_switch =
+            (desc != nullptr) && !are_orthogonal(_pt.face().normal(), _vec);
+    if (shall_switch) _pt = desc->display_in_opposite_halfedge();
+
+    assert(mdv::condition::are_orthogonal(_pt.face().normal(), _vec));
 }
 
 TangentVector
 TangentVector::from_tip_position(const Point& origin, const CartesianPoint& tip) {
-    const auto p0  = origin.position();
-    const auto vec = tip - p0;
-    const auto n   = origin.face().normal();
-    const auto J   = origin.uv_map().forward_map_jacobian();  // NOLINT
-
-    Expects(mdv::condition::are_orthogonal(vec, n));
-    return {origin, Eigen::Vector3d(tip - p0)};
+    const Vec3d p0  = origin.position();
+    const Vec3d vec = tip - p0;
+    const Vec3d n   = origin.face().normal();
+    return {origin, normal_projection(vec, n)};
 }
 
 TangentVector
 TangentVector::unit_random(const Point& application_point) {
-    UvCoord    uv = UvCoord::Random();
-    const auto J  = application_point.uv_map().forward_map_jacobian();  // NOLINT
-    uv /= (J * uv).norm();
-    Ensures(mdv::condition::is_unit_norm(J * uv));
-    return {application_point, uv};
+    const Vec3d n = application_point.face().normal();
+    return {application_point, normal_projection(Vec3d::Random(), n).normalized()};
 }
 
 Eigen::Vector3d
@@ -56,107 +65,28 @@ TangentVector::tip() const noexcept {
 
 mdv::Vec3d
 TangentVector::cartesian_vector() const noexcept {
-    return uv_map().forward_map_jacobian() * _uv;
-}
-
-std::optional<TangentVector>
-TangentVector::trim() {
-    using mdv::condition::are_orthogonal;
-    assert(Mesh::default_logger);
-    mdv::Logger& logger = *Mesh::default_logger.get();
-    logger.trace(
-            "Trimming tangent vector with origin '{}', vector: {}",
-            application_point().describe(),
-            eigen_to_str(cartesian_vector())
-    );
-
-    const auto&  v = cartesian_vector();
-    const auto&  p = application_point().position();
-    const auto&  f = application_point().face();
-    const auto&  n = f.normal();
-    const double d = mdv::mesh::distance(f, p);
-
-    assert(mdv::condition::are_orthogonal(v, n));
-    assert(mdv::condition::is_zero(d));
-
-
-    // Ensure uv is not numerically zero, as this could have lead to numerical
-    // instability in the computaion of tX and sX
-    if (_uv.cwiseAbs().maxCoeff() < 1e-5) return std::nullopt;
-
-
-    HalfEdge* he    = face().half_edge();
-    Edge      edge1 = Edge::from_position_and_direction(
-            application_point().position(), cartesian_vector()
-    );
-
-    bool             first_iter         = true;
-    bool             intersection_found = false;
-    double           s;
-    double           t;
-    EdgeIntersection intersection(edge1, *he);
-    std::size_t      iter = 0;
-    while (!intersection_found && (first_iter || he != face().half_edge())) {
-        ++iter;
-        intersection = EdgeIntersection(edge1, *he);
-        t            = intersection.sols(0);
-        s            = intersection.sols(1);
-
-        constexpr double zero          = 0.0;
-        const bool       intersects_he = (s > -zero) && (s < 1.0 + zero);
-
-        // In the following case the tangent vector is fully contained in the face
-        if (intersects_he && t >= 1.0) return std::nullopt;
-
-        intersection_found = (intersects_he && t > -zero);
-
-        if (!intersection_found) he = he->next();
-        first_iter = false;
-    }
-
-    if (!intersection_found) throw std::runtime_error("Unable to find intersection!");
-
-    // Retrieve new point on the boarder
-    const CartesianPoint boarder_pos = intersection.intersection_point;
-    const auto&          new_face    = he->twin()->face();
-    const auto&          curr_face   = application_point().face();
-    const auto new_app_point = Point::from_face_and_position(new_face, boarder_pos)
-                                       .constrain_inside_triangle();
-
-
-    // Compute vector that shall be projected onto the new face
-    const Eigen::Vector3d cartesian_delta = tip() - boarder_pos;
-
-    // Compute conformal mapping of cartesian_delta vector
-    const Eigen::Vector3d projected_vector = he->aligning_rotation() * cartesian_delta;
-    assert(are_orthogonal(projected_vector, new_face.normal()));
-
-    return TangentVector(new_app_point, projected_vector);
+    return _vec;
 }
 
 void
 TangentVector::scale(const double& factor) {
-    _uv *= factor;
+    _vec *= factor;
 }
 
 void
 TangentVector::normalise() {
-    const double len = (jac() * _uv).norm();
-    scale(1.0 / len);
+    _vec.normalize();
 }
 
 TangentVector
 TangentVector::normalised() & {
     TangentVector res(*this);
-    assert(uv() == res._uv);
-    const double len = (jac() * uv()).norm();
-    res.scale(1.0 / len);
-    return res;
+    return {_pt, _vec.normalized()};
 }
 
 TangentVector
 TangentVector::normalised() && {
-    const double len = (jac() * uv()).norm();
+    const double len = _vec.norm();
     scale(1.0 / len);
     return *this;
 }

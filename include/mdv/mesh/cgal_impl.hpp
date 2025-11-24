@@ -11,6 +11,7 @@
 
 #include "mdv/mesh/face.hpp"
 #include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/mesh/vertex.hpp"
 
 
