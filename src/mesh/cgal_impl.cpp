@@ -4,7 +4,9 @@
 #include <CGAL/Polygon_mesh_processing/compute_normal.h>
 #include <CGAL/Polygon_mesh_processing/IO/polygon_mesh_io.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
+#include <CGAL/Surface_mesh_shortest_path/barycentric.h>
 #include <filesystem>
+#include <stdexcept>
 
 #include <range/v3/algorithm/transform.hpp>
 
@@ -20,6 +22,18 @@ namespace rs = ranges;
 using ::mdv::mesh::internal::CgalImpl;
 
 // \endcond
+
+namespace mdv::mesh::internal {
+
+template <class... Ts>
+struct overload : Ts... {
+    using Ts::operator()...;
+};
+
+template <class... Ts>
+overload(Ts...) -> overload<Ts...>;
+
+}  // namespace mdv::mesh::internal
 
 CgalImpl::CgalImpl(const Mesh&& mesh, Logger::SharedPtr&& logger) :
         _mesh(mesh), _logger(std::move(logger)) {
@@ -70,16 +84,66 @@ CgalImpl::from_file(const path& file_path, Logger::SharedPtr&& logger) {
 }
 
 CgalImpl::FaceLocation
-mdv::mesh::internal::location_from_mesh_point(const ::mdv::mesh::Point& pt) noexcept {
-    // Note: barycentric coordinates are exported in the "wrong" order, since this
-    // appears coorect w.r.t. to Cgal internal data alignment
-    const Eigen::Vector3d b = pt.barycentric();
-    std::array<double, 3> bar_coords{b(2), b(0), b(1)};
-    const auto            f_id  = pt.face().id();
-    const auto            num_f = pt.face().mesh().num_faces();
-    assert(pt.face().is_valid());
-    assert(f_id < num_f);
-    return {static_cast<CGAL::SM_Face_index>(f_id), bar_coords};
+mdv::mesh::internal::location_from_mesh_point(
+        const ::mdv::mesh::Point& point
+) noexcept {
+    auto vertex_descriptor =
+            [](const Point::PointOnVertexDescriptor& pt) -> CgalImpl::FaceLocation {
+        const auto m    = get_mesh_impl(pt.vertex());
+        const auto v_id = static_cast<CgalImpl::VertexDescriptor>(pt.vertex().id());
+        return CgalImpl::ShortestPath::face_location(v_id, m);
+    };
+
+    auto face_descriptor =
+            [](const Point::PointInFaceDescriptor& pt) -> CgalImpl::FaceLocation {
+        const auto f_id = to_face_impl(pt.face());
+        const auto b    = pt.coords();
+        return {
+                f_id, {b(0), b(1), b(2)}
+        };
+    };
+
+    CgalImpl::FaceLocation res = std::visit(
+            overload{
+                    std::move(vertex_descriptor),
+                    std::move(face_descriptor),
+                    [](const auto& pt) -> CgalImpl::FaceLocation {
+                        throw std::runtime_error(
+                                "Can't convert PointOnEdge to barycentric!"
+                        );
+                        return {
+                                CGAL::SM_Face_index{0},
+                                {0, 0, 0}
+                        };
+                    }
+            },
+            point.descriptor()
+    );
+
+#ifndef NDEBUG
+    CgalImpl::ShortestPathTraits::Classify_barycentric_coordinate classifier;
+    using CGAL::Surface_mesh_shortest_paths_3::BARYCENTRIC_COORDINATES_ON_BOUNDARY;
+    using CGAL::Surface_mesh_shortest_paths_3::BARYCENTRIC_COORDINATES_ON_BOUNDED_SIDE;
+    using CGAL::Surface_mesh_shortest_paths_3::BARYCENTRIC_COORDINATES_ON_VERTEX;
+
+    auto get_point_class = overload{
+            [](const Point::PointOnVertexDescriptor& pt) {
+                return BARYCENTRIC_COORDINATES_ON_VERTEX;
+            },
+            [](const Point::PointOnEdgeDescriptor& pt) {
+                return BARYCENTRIC_COORDINATES_ON_BOUNDARY;
+            },
+            [](const Point::PointInFaceDescriptor& pt) {
+                return BARYCENTRIC_COORDINATES_ON_BOUNDED_SIDE;
+            }
+
+    };
+    const auto internal_state        = std::visit(get_point_class, point.descriptor());
+    const auto [classified_state, _] = classifier(res.second);
+    assert(classified_state == internal_state);
+#endif
+
+    return res;
 }
 
 void

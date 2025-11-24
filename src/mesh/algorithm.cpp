@@ -246,3 +246,19 @@ mdv::mesh::distance(const HalfEdge& he, const Eigen::Vector3d& p) {
     const double dot   = he.normalised_direction().dot(delta);
     return (delta - dot * he.normalised_direction()).norm();
 }
+
+mdv::mesh::LocationType
+mdv::mesh::location_type(const Point& pt) {
+    if (std::holds_alternative<Point::PointInFaceDescriptor>(pt.descriptor())) {
+        return INSIDE_FACE;
+    }
+    if (std::holds_alternative<Point::PointOnEdgeDescriptor>(pt.descriptor())) {
+        return ON_EDGE;
+    }
+    return ON_VERTEX;
+}
+
+mdv::mesh::LocationType
+mdv::mesh::location_type(const TangentVector& tv) {
+    return location_type(tv.application_point());
+}

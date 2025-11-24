@@ -15,8 +15,6 @@ class TangentVector : Point {
 public:
     using UvCoord = UvMap::UvCoord;
 
-    TangentVector(const Point& app_point, const UvCoord& uv) :
-            Point(app_point), _uv(uv) {};
     TangentVector(const Point& app_point, const Eigen::Vector3d& v);
 
     /**
@@ -68,22 +66,11 @@ public:
     TangentVector normalised() &&;
 
     // clang-format off
-    MDV_NODISCARD const UvCoord&  uv() const                { return _uv; }
-
-    using Point::uv_map;
-
     MDV_NODISCARD const Point&    application_point() const { return *this; }
 
     // clang-format on
 
 private:
-    UvCoord _uv;
-
-    MDV_NODISCARD
-    const UvMap::Transform&
-    jac() const {
-        return uv_map().forward_map_jacobian();
-    }
 };
 
 

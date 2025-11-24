@@ -114,9 +114,29 @@ CgalImpl::FaceLocation location_from_mesh_point(const ::mdv::mesh::Point& pt) no
 Eigen::Vector3d convert(const CgalImpl::Vec3& x);
 Eigen::Vector3d convert(const CgalImpl::Point3& x);
 
+MDV_INLINE CgalImpl::Kernel::Point_3
+           point3_from_eigen(const Vec3d& vec) {
+    return {vec(0), vec(1), vec(2)};
+};
+
+MDV_INLINE CgalImpl::Kernel::Direction_3
+           direction3_from_eigen(const Vec3d& vec) {
+    return {vec(0), vec(1), vec(2)};
+};
+
+MDV_INLINE CgalImpl::Kernel::Vector_3
+           vector3_from_eigen(const Vec3d& vec) {
+    return {vec(0), vec(1), vec(2)};
+};
+
 MDV_INLINE CgalImpl::Mesh
            get_mesh_impl(const MeshElement& elem) {
     return elem.mesh().cgal()._mesh;
+};
+
+MDV_INLINE CgalImpl::Mesh
+           get_mesh_impl(const Mesh& mesh) {
+    return mesh.cgal()._mesh;
 };
 
 MDV_INLINE CgalImpl::Point3
@@ -133,6 +153,29 @@ MDV_INLINE CgalImpl::CgalFaceIndex
 MDV_INLINE CgalImpl::CgalHalfEdgeIndex
            to_halfedge_impl(const HalfEdge& he) {
     return static_cast<CgalImpl::CgalHalfEdgeIndex>(he.id());
+}
+
+MDV_INLINE CgalImpl::Kernel::Point_3
+           point3_from_point(const Point& pt) {
+    return point3_from_eigen(pt.position());
+}
+
+MDV_INLINE CgalImpl::Kernel::Ray_3
+           ray3_from_tangent_vector(const TangentVector& tv) {
+    return {point3_from_point(tv.application_point()),
+                       direction3_from_eigen(tv.cartesian_vector())};
+}
+
+MDV_INLINE CgalImpl::Kernel::Triangle_3
+           triangle3_from_face(const Face& f) {
+    const auto  m   = get_mesh_impl(f);
+    const auto  he0 = m.halfedge(to_face_impl(f));
+    const auto  he1 = next(he0, m);
+    const auto  he2 = next(he1, m);
+    const auto& p0  = m.point(source(he0, m));
+    const auto& p1  = m.point(source(he1, m));
+    const auto& p2  = m.point(source(he2, m));
+    return {p0, p1, p2};
 }
 
 }  // namespace mdv::mesh::internal
