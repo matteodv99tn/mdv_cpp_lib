@@ -188,42 +188,6 @@ mdv::mesh::logarithmic_map(const Point& p, const Point& y) {
     return {p, Vec3d(log_map_len * log_map_dir)};
 }
 
-mdv::mesh::Point
-mdv::mesh::exponential_map(TangentVector v, Geodesic* geod) {
-    assert(Mesh::default_logger);
-    throw std::runtime_error("mesh::exponential_map not implemented!");
-    return Point::undefined(v.application_point().mesh());
-    //     mdv::Logger& logger = *Mesh::default_logger.get();
-    //     logger.debug(
-    //             "Computing the exponential map from point {} with tangent vector {}",
-    //             eigen_to_str(v.application_point().position()),
-    //             eigen_to_str(v.cartesian_vector())
-    //     );
-    //
-    //     if (geod) geod->emplace_back(v.application_point().position());
-    //
-    //     if (condition::is_zero_norm(v.uv())) return v.application_point();
-    //
-    //     std::size_t count = 0;
-    //     while (!condition::is_zero_norm(v.uv()) && (count < 1000)) {
-    //         if (geod) geod->emplace_back(v.application_point().position());
-    //         const auto trimmed_vec = v.trim();
-    //
-    //         // Check if trimming did not went to another face
-    //         if (trimmed_vec == std::nullopt) {
-    //             if (geod) geod->emplace_back(v.tip());
-    //             const TangentVector::UvCoord target_uv =
-    //                     v.application_point().uv() + v.uv();
-    //             return Point(v.application_point().face(), target_uv);
-    //         }
-    //
-    //         v = trimmed_vec.value();
-    //         ++count;
-    //     }
-    //
-    //     throw std::runtime_error("Exceeded iteration limit");
-}
-
 double
 mdv::mesh::distance(const Face& f, const CartesianPoint& pt) {
     const Eigen::Vector3d delta = pt - f.half_edge().origin_position();
