@@ -1,0 +1,74 @@
+#include "mdv/mesh/kernel.hpp"
+
+#include <gtest/gtest.h>
+
+#include "mdv/config.hpp"
+#include "mdv/eigen_defines.hpp"
+#include "mdv/mesh/algorithm.hpp"
+#include "mdv/mesh/mesh.hpp"
+
+using namespace mdv::mesh;
+using namespace mdv::condition;
+using mdv::Vec3d;
+using std::filesystem::path;
+
+TEST(MeshKernel, Square_SinglePointSet) {
+    const path mesh_path = mdv::config::meshes_directory() / "square.off";
+    const auto mesh      = Mesh::from_file(mesh_path);
+
+    const long         n_pts = 20;
+    std::vector<Point> points;
+    points.reserve(n_pts);
+    for (long i = 0; i < n_pts; ++i)
+        points.emplace_back(Point::PointOnEdgeDescriptor::random(mesh));
+
+    Eigen::MatrixXd mesh_d(n_pts, n_pts);
+    for (long i = 0; i < n_pts; ++i) {
+        for (long j = 0; j < n_pts; ++j) {
+            mesh_d(i, j) = length(mesh.build_geodesic(points[i], points[j]));
+        }
+    }
+
+    MeshKernel            kernel(mesh);
+    const Eigen::MatrixXd kernel_d = kernel.evaluate_distance_matrix(points);
+
+    for (long i = 0; i < n_pts; ++i) {
+        for (long j = 0; j < n_pts; ++j) {
+            EXPECT_NEAR(kernel_d(i, j), mesh_d(i, j), 1e-9)
+                    << "When i=" << i << ", j=" << j;
+        }
+    }
+}
+
+TEST(MeshKernel, Square_DoublePointSet) {
+    const path mesh_path = mdv::config::meshes_directory() / "square.off";
+    const auto mesh      = Mesh::from_file(mesh_path);
+
+    const long         n_pts_a = 20;
+    const long         n_pts_b = 10;
+    std::vector<Point> points_a, points_b;
+    points_a.reserve(n_pts_a);
+    points_b.reserve(n_pts_b);
+    for (long i = 0; i < n_pts_a; ++i)
+        points_a.emplace_back(Point::PointOnEdgeDescriptor::random(mesh));
+    for (long i = 0; i < n_pts_b; ++i)
+        points_b.emplace_back(Point::PointOnEdgeDescriptor::random(mesh));
+
+    Eigen::MatrixXd mesh_d(n_pts_a, n_pts_b);
+    for (long i = 0; i < n_pts_a; ++i) {
+        for (long j = 0; j < n_pts_b; ++j) {
+            mesh_d(i, j) = length(mesh.build_geodesic(points_a[i], points_b[j]));
+        }
+    }
+
+    MeshKernel            kernel(mesh);
+    const Eigen::MatrixXd kernel_d =
+            kernel.evaluate_distance_matrix(points_a, points_b);
+
+    for (long i = 0; i < n_pts_a; ++i) {
+        for (long j = 0; j < n_pts_b; ++j) {
+            EXPECT_NEAR(kernel_d(i, j), mesh_d(i, j), 1e-9)
+                    << "When i=" << i << ", j=" << j;
+        }
+    }
+}

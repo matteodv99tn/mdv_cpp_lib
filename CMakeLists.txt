@@ -85,6 +85,7 @@ add_library(
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/conditions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/algorithm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/exponential_map.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/kernel.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh_manager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh_utilities.cpp

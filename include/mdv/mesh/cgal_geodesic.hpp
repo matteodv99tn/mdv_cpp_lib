@@ -13,13 +13,26 @@ namespace mdv::mesh::internal {
 
 class CgalGeodesicConstructor {
 public:
-    struct ShortestPath : CgalImpl::ShortestPath {};
+    using ShortestPath = CgalImpl::ShortestPath;
 
     using ShortestPathPtr = std::unique_ptr<ShortestPath>;
 
     CgalGeodesicConstructor(const CgalImpl::Mesh* mesh) : _reference_mesh(mesh) {};
 
     Geodesic operator()(const Point& from, const Point& to);
+
+    static void set_source(ShortestPath& shpath, const Point& source);
+
+    static Geodesic construct_geodesic(
+            ShortestPath& shpath, const ::mdv::mesh::Point& from
+    );
+
+    static Geodesic construct_geodesic(
+            ShortestPath&             shpath,
+            const ::mdv::mesh::Point& from,
+            bool                      construct_reversed
+    );  // if construct_reversed = false always, use the overload without the construct
+        // reversed flag
 
 private:
     using PointShortPathPair = std::tuple<Point, ShortestPathPtr>;
@@ -29,13 +42,6 @@ private:
 #ifdef MDV_CACHE_GEODESICS
     std::vector<Geodesic> _geodesic_cache;
 #endif  // MDV_CACHE_GEODESICS
-
-
-    Geodesic construct_geodesic(
-            ShortestPath&             shpath,
-            const ::mdv::mesh::Point& from,
-            bool                      construct_reversed = false
-    );
 };
 
 }  // namespace mdv::mesh::internal
