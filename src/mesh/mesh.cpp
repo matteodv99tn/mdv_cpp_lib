@@ -166,7 +166,12 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
     //     );
     // }
 
-    return (*cgal()._geodesic_constructor)(from, to);
+
+    Geodesic res = (*cgal()._geodesic_constructor)(from, to);
+
+    assert(mdv::condition::are_equal(res.front(), from.position())
+           && mdv::condition::are_equal(res.back(), to.position()));
+    return res;
 }
 
 //   ____      _   _

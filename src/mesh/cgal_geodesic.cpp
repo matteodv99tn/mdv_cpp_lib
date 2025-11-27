@@ -2,6 +2,7 @@
 
 #include <range/v3/algorithm/transform.hpp>
 
+#include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/fwd.hpp"
 
@@ -17,6 +18,7 @@ namespace {
     ) {
         if (const auto* pt = source_point.get_as<Point::PointOnVertexDescriptor>()) {
             const Vertex& v = pt->vertex();
+            assert(v.id() < source_point.mesh().num_vertices());
             shpath.add_source_point(static_cast<CgalImpl::CgalVertexIndex>(v.id()));
         } else {
             shpath.add_source_point(location_from_mesh_point(source_point));
@@ -30,6 +32,22 @@ CgalGeodesicConstructor::operator()(const Point& from, const Point& to) {
     // sp_obj = shortest path object
     using mdv::condition::are_equal;
 
+
+    // Handle the special case of edge descriptor that leads to strange behaviors
+    using EdgeDescriptor = Point::PointOnEdgeDescriptor;
+    if (from.get_as<EdgeDescriptor>() != nullptr
+        || to.get_as<EdgeDescriptor>() != nullptr) {
+        ShortestPathPtr shpath_from = std::make_unique<ShortestPath>(*_reference_mesh);
+        set_shpath_obj_source(*shpath_from, from);
+        Geodesic g1 = construct_geodesic(*shpath_from, to, true);
+
+        ShortestPathPtr shpath_to = std::make_unique<ShortestPath>(*_reference_mesh);
+        set_shpath_obj_source(*shpath_to, to);
+        Geodesic g2 = construct_geodesic(*shpath_to, from, false);
+
+        if (length(g1) < length(g2)) return g1;
+        return g2;
+    }
 #ifdef MDV_CACHE_GEODESICS
     for (const Geodesic& g : _geodesic_cache) {
         if (are_equal(g.front(), from.position()) && are_equal(g.back(), to.position()))
@@ -68,6 +86,7 @@ CgalGeodesicConstructor::construct_geodesic(
     std::vector<CgalImpl::Point3> cgal_geod;
 
     if (const auto* v_desc = from.get_as<VertexDescriptor>()) {
+        assert(v_desc->vertex().id() < from.mesh().num_vertices());
         shpath.shortest_path_points_to_source_points(
                 static_cast<CgalImpl::VertexDescriptor>(v_desc->vertex().id()),
                 std::back_inserter(cgal_geod)

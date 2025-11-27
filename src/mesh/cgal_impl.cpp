@@ -98,52 +98,31 @@ mdv::mesh::internal::location_from_mesh_point(
             [](const Point::PointInFaceDescriptor& pt) -> CgalImpl::FaceLocation {
         const auto f_id = to_face_impl(pt.face());
         const auto b    = pt.coords();
+
         return {
                 f_id, {b(0), b(1), b(2)}
         };
     };
 
-    CgalImpl::FaceLocation res = std::visit(
+    auto edge_descriptor =
+            [](const Point::PointOnEdgeDescriptor& pt) -> CgalImpl::FaceLocation {
+        const auto& aabb_tree = pt.mesh().cgal()._aabb_tree;
+        const auto  m_impl    = internal::get_mesh_impl(pt.mesh());
+        return CgalImpl::ShortestPath::locate(
+                internal::point3_from_point(pt),
+                aabb_tree,
+                m_impl,
+                get(CGAL::vertex_point, m_impl)
+        );
+    };
+    return std::visit(
             overload{
                     std::move(vertex_descriptor),
                     std::move(face_descriptor),
-                    [](const auto& pt) -> CgalImpl::FaceLocation {
-                        throw std::runtime_error(
-                                "Can't convert PointOnEdge to barycentric!"
-                        );
-                        return {
-                                CGAL::SM_Face_index{0},
-                                {0, 0, 0}
-                        };
-                    }
+                    std::move(edge_descriptor)
             },
             point.descriptor()
     );
-
-#ifndef NDEBUG
-    CgalImpl::ShortestPathTraits::Classify_barycentric_coordinate classifier;
-    using CGAL::Surface_mesh_shortest_paths_3::BARYCENTRIC_COORDINATES_ON_BOUNDARY;
-    using CGAL::Surface_mesh_shortest_paths_3::BARYCENTRIC_COORDINATES_ON_BOUNDED_SIDE;
-    using CGAL::Surface_mesh_shortest_paths_3::BARYCENTRIC_COORDINATES_ON_VERTEX;
-
-    auto get_point_class = overload{
-            [](const Point::PointOnVertexDescriptor& pt) {
-                return BARYCENTRIC_COORDINATES_ON_VERTEX;
-            },
-            [](const Point::PointOnEdgeDescriptor& pt) {
-                return BARYCENTRIC_COORDINATES_ON_BOUNDARY;
-            },
-            [](const Point::PointInFaceDescriptor& pt) {
-                return BARYCENTRIC_COORDINATES_ON_BOUNDED_SIDE;
-            }
-
-    };
-    const auto internal_state        = std::visit(get_point_class, point.descriptor());
-    const auto [classified_state, _] = classifier(res.second);
-    assert(classified_state == internal_state);
-#endif
-
-    return res;
 }
 
 void

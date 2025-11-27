@@ -51,6 +51,8 @@ public:
 
         PointOnEdgeDescriptor(HalfEdge he, const CartesianPoint& position);
 
+        static PointOnEdgeDescriptor random(const Mesh& mesh);
+
         MDV_NODISCARD CartesianPoint position() const noexcept;
 
         MDV_NODISCARD std::string describe() const;
@@ -64,6 +66,11 @@ public:
 
         MDV_NODISCARD PointOnEdgeDescriptor display_in_opposite_halfedge() const;
 
+        MDV_NODISCARD double
+        coordinate() const {
+            return _c;
+        }
+
     private:
         friend class internal::CgalImpl;
 
@@ -73,14 +80,7 @@ public:
 
     class PointInFaceDescriptor {
     public:
-        PointInFaceDescriptor(Face face, Vec3d barycentric_coords) :
-                _f(std::move(face)), _b(std::move(barycentric_coords)) {
-            using mdv::condition::is_zero;
-            const double sum = _b.sum();
-            const bool   describes_interior_point =
-                    is_zero(sum - 1.0) && _b(0) > 0.0 && _b(1) > 0.0 && _b(2) > 0.0;
-            assert(is_undefined() || describes_interior_point);
-        }
+        PointInFaceDescriptor(Face face, Vec3d barycentric_coords);
 
         static PointInFaceDescriptor from_cartesian(
                 const Face& f, const Vec3d& position

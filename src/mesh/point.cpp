@@ -36,10 +36,14 @@ Point::PointOnVertexDescriptor::describe() const {
 
 Face
 Point::PointOnVertexDescriptor::face() const {
-    const auto m    = internal::get_mesh_impl(_v);
-    const auto v_id = static_cast<CgalImpl::CgalVertexIndex>(_v.id());
-    const auto he   = CGAL::halfedge(v_id, m);
-    std::cerr << "Warning: Point::face() called from point described on vertex\n";
+    const auto  m            = internal::get_mesh_impl(_v);
+    const auto  v_id         = static_cast<CgalImpl::CgalVertexIndex>(_v.id());
+    const auto  he           = CGAL::halfedge(v_id, m);
+    static bool warn_printed = false;
+    if (!warn_printed) {
+        std::cerr << "Warning: Point::face() called from point described on vertex\n";
+        warn_printed = true;
+    }
     return {_v.mesh(), CGAL::face(he, m)};
 };
 
@@ -109,12 +113,53 @@ Point::PointOnEdgeDescriptor::display_in_opposite_halfedge() const {
     };
 }
 
+Point::PointOnEdgeDescriptor
+Point::PointOnEdgeDescriptor::random(const Mesh& mesh) {
+    static std::random_device rand_dev;
+    static std::mt19937       generator(rand_dev());
+
+    const auto m = internal::get_mesh_impl(mesh);
+    m.num_halfedges();
+    std::uniform_int_distribution<unsigned> id_distr(0, m.num_halfedges() - 1);
+    std::uniform_real_distribution<double>  c_distr(0.0, 1.0);
+
+    return {HalfEdge(mesh, id_distr(generator)), c_distr(generator)};
+}
+
 //  ____  _     _         _____
 // |  _ \| |_  (_)_ __   |  ___|_ _  ___ ___
 // | |_) | __| | | '_ \  | |_ / _` |/ __/ _ \
 // |  __/| |_  | | | | | |  _| (_| | (_|  __/
 // |_|    \__| |_|_| |_| |_|  \__,_|\___\___|
 //
+
+Point::PointInFaceDescriptor::PointInFaceDescriptor(
+        Face face, Vec3d barycentric_coords
+) :
+        _f(std::move(face)), _b(std::move(barycentric_coords)) {
+    using mdv::condition::is_zero;
+    const double sum = _b.sum();
+    const bool   describes_interior_point =
+            is_zero(sum - 1.0) && _b(0) > 0.0 && _b(1) > 0.0 && _b(2) > 0.0;
+
+    std::size_t zero_bs = 0;
+    if (is_zero(_b(0))) ++zero_bs;
+    if (is_zero(_b(1))) ++zero_bs;
+    if (is_zero(_b(2))) ++zero_bs;
+
+    if (zero_bs == 1) throw std::runtime_error("Should have been edge descriptor");
+    if (zero_bs == 2) throw std::runtime_error("Should have been vertex descriptor");
+
+    if (is_undefined()) std::cerr << "Undefined face!\n";
+    if (!describes_interior_point) {
+        std::cerr << "b1 = " << _b(0) << "\n";
+        std::cerr << "b2 = " << _b(1) << "\n";
+        std::cerr << "b3 = " << _b(2) << "\n";
+        std::cerr << "sum = " << _b.sum() << "\n";
+    }
+
+    assert(is_undefined() || describes_interior_point);
+}
 
 std::string
 Point::PointInFaceDescriptor::describe() const {
