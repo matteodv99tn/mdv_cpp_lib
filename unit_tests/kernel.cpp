@@ -1,5 +1,6 @@
 #include "mdv/mesh/kernel.hpp"
 
+#include <chrono>
 #include <gtest/gtest.h>
 
 #include "mdv/config.hpp"
@@ -13,8 +14,12 @@ using mdv::Vec3d;
 using std::filesystem::path;
 
 TEST(MeshKernel, Square_SinglePointSet) {
-    const path mesh_path = mdv::config::meshes_directory() / "square.off";
+    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto mesh      = Mesh::from_file(mesh_path);
+
+    auto to_ms = [](const auto& delta) {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
+    };
 
     const long         n_pts = 20;
     std::vector<Point> points;
@@ -23,14 +28,21 @@ TEST(MeshKernel, Square_SinglePointSet) {
         points.emplace_back(Point::PointOnEdgeDescriptor::random(mesh));
 
     Eigen::MatrixXd mesh_d(n_pts, n_pts);
+    auto            start = std::chrono::high_resolution_clock::now();
     for (long i = 0; i < n_pts; ++i) {
         for (long j = 0; j < n_pts; ++j) {
             mesh_d(i, j) = length(mesh.build_geodesic(points[i], points[j]));
         }
     }
+    auto stop = std::chrono::high_resolution_clock::now();
+    std::cout << "Naive matrix computation time: " << to_ms(stop - start) << "ms\n";
 
-    MeshKernel            kernel(mesh);
+    MeshKernel kernel(mesh);
+    start                          = std::chrono::high_resolution_clock::now();
     const Eigen::MatrixXd kernel_d = kernel.evaluate_distance_matrix(points);
+    stop                           = std::chrono::high_resolution_clock::now();
+    std::cout << "MeshKernel matrix computation time: " << to_ms(stop - start)
+              << "ms\n";
 
     for (long i = 0; i < n_pts; ++i) {
         for (long j = 0; j < n_pts; ++j) {
@@ -41,7 +53,7 @@ TEST(MeshKernel, Square_SinglePointSet) {
 }
 
 TEST(MeshKernel, Square_DoublePointSet) {
-    const path mesh_path = mdv::config::meshes_directory() / "square.off";
+    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto mesh      = Mesh::from_file(mesh_path);
 
     const long         n_pts_a = 20;

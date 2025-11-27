@@ -1,6 +1,7 @@
 #include "mdv/mesh/kernel.hpp"
 
 #include <Eigen/Dense>
+#include <thread>
 
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_geodesic.hpp"
@@ -11,6 +12,24 @@
 namespace mdv::mesh {
 namespace {
 
+    using ShortestPath = internal::CgalImpl::ShortestPath;
+    using internal::CgalGeodesicConstructor;
+
+    void
+    process_row(
+            ShortestPath&                  shpath,
+            const long                     i,  // row index
+            const MeshKernel::PointVector& pts,
+            Eigen::MatrixXd&               out
+    ) {
+        for (long j = 0; j < out.cols(); ++j) {
+            const auto path =
+                    CgalGeodesicConstructor::construct_geodesic(shpath, pts[j]);
+            out(i, j) = length(path);
+            assert(out(i, j) >= 0.0);
+        }
+    }
+
     Eigen::MatrixXd
     eval_distance_matrix(
             const Mesh&                    mesh,
@@ -19,22 +38,21 @@ namespace {
     ) {
         using internal::CgalImpl, internal::CgalGeodesicConstructor,
                 internal::location_from_mesh_point;
-        using ShortestPath = internal::CgalImpl::ShortestPath;
 
         const auto      m = internal::get_mesh_impl(mesh);
         Eigen::MatrixXd res(pts1.size(), pts2.size());
 
-        for (long i = 0; i < res.rows(); ++i) {
+        auto row_processor = [&pts1, &pts2, &res, &m](long i) {
             ShortestPath obj(m);
-            CgalGeodesicConstructor::set_source(obj, pts1[i]);
+            const Point& target = pts1[i];
+            CgalGeodesicConstructor::set_source(obj, target);
+            process_row(obj, i, pts2, res);
+        };
 
-            for (long j = 0; j < res.cols(); ++j) {
-                const auto path =
-                        CgalGeodesicConstructor::construct_geodesic(obj, pts2[j]);
-                res(i, j) = length(path);
-                assert(res(i, j) >= 0.0);
-            }
-        }
+        std::vector<std::thread> threads;
+        threads.reserve(res.rows());
+        for (long i = 0; i < res.rows(); ++i) threads.emplace_back(row_processor, i);
+        for (auto& th : threads) th.join();
         return res;
     }
 }  // namespace
