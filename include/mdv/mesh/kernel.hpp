@@ -14,11 +14,18 @@ public:
 
     MeshKernel(const Mesh& mesh);
 
-    MDV_NODISCARD Eigen::MatrixXd evaluate_distance_matrix(const PointVector& pts) const;
+    MDV_NODISCARD Eigen::MatrixXd evaluate_distance_matrix(
+            const PointVector& pts
+    ) const;
 
     MDV_NODISCARD
     Eigen::MatrixXd evaluate_distance_matrix(
             const PointVector& pts1, const PointVector& pts2
+    ) const;
+
+    MDV_NODISCARD
+    Eigen::MatrixXd squared_exponential(
+            const PointVector& pts1, const PointVector& pts2, const double lengthscale
     ) const;
 
 private:

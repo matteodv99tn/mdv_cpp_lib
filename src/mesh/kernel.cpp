@@ -82,5 +82,16 @@ MeshKernel::evaluate_distance_matrix(
     return res;
 }
 
+Eigen::MatrixXd
+MeshKernel::squared_exponential(
+        const PointVector& pts1, const PointVector& pts2, const double lengthscale
+) const {
+    const Eigen::MatrixXd kernel = evaluate_distance_matrix(pts1, pts2);
+    const double          lambda = 0.5 / (lengthscale * lengthscale);
+    return kernel.unaryExpr([lambda](const double x) {
+        return std::exp(lambda * x * x);
+    });
+}
+
 
 }  // namespace mdv::mesh
