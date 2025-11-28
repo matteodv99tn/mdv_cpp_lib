@@ -4,6 +4,7 @@
 #include "mdv/config.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/algorithm.hpp"
+#include "mdv/mesh/kernel.hpp"
 %}
 
 %include "std_string.i"
@@ -81,6 +82,25 @@ namespace mdv::mesh {
     };
 
     double length(const std::vector<Eigen::Vector3d>& geod);
+
+    class MeshKernel {
+    public:
+        MeshKernel(const mdv::mesh::Mesh&);
+
+        Eigen::MatrixXd evaluate_distance_matrix(
+                const std::vector<mdv::mesh::Point>& pts
+        ) const;
+
+        
+        Eigen::MatrixXd evaluate_distance_matrix(
+                const std::vector<mdv::mesh::Point>& pts1, const std::vector<mdv::mesh::Point>& pts2
+        ) const;
+
+        
+        Eigen::MatrixXd squared_exponential(
+                const std::vector<mdv::mesh::Point>& pts1, const std::vector<mdv::mesh::Point>& pts2, const double lengthscale
+        ) const;
+    };
 }
 
 %inline %{
@@ -94,3 +114,4 @@ namespace mdv::mesh {
 %}
 
 %template(Geodesic) std::vector<Eigen::Vector3d>;
+%template(PointVector) std::vector<mdv::mesh::Point>;

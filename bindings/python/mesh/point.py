@@ -1,6 +1,9 @@
-from ._mesh_impl import Point as _PointImpl
-from typing import List
 import numpy as np
+
+from typing import List
+from ._mesh_impl import Point as _PointImpl
+from .vertex import Vertex
+
 
 class Point:
     """
@@ -17,7 +20,7 @@ class Point:
         Face on which the point is located
     """
 
-    def __init__(self, point_impl: _PointImpl):
+    def __init__(self, point_impl: _PointImpl | Vertex):
         """
         Initialize a Point wrapper.
         
@@ -26,7 +29,11 @@ class Point:
         point_impl : _PointImpl
             The underlying SWIG point object
         """
-        self._point_impl = point_impl
+        if isinstance(point_impl, Vertex):
+            self._point_impl = _PointImpl(point_impl._vertex_impl)
+            return
+        elif isinstance(point_impl, _PointImpl):
+            self._point_impl = point_impl
 
     @property
     def position(self) -> np.ndarray:
