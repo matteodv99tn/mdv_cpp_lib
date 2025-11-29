@@ -61,6 +61,8 @@ namespace mdv::mesh {
 
         // Eigen::MatrixXi get_face_matrix() const;
         Eigen::MatrixXd get_face_matrix_double() const;
+
+        mdv::mesh::Vertex closest_vertex(const Eigen::Vector3d&);
     };
 
     class Point {

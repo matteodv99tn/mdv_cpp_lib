@@ -341,3 +341,31 @@ class Mesh:
         meshset = pymeshlab.MeshSet()
         meshset.add_mesh(pymesh)
         return meshset
+
+    def closest_vertex(self, point) -> Vertex:
+        """
+        Find the closest vertex to a given 3D point on the mesh.
+        
+        Parameters
+        ----------
+        point : np.ndarray or list
+            3D point coordinates [x, y, z] to find the closest vertex to
+            
+        Returns
+        -------
+        Vertex
+            The vertex on the mesh that is closest to the given point
+            
+        Notes
+        -----
+        This method finds the vertex on the mesh that is closest to the given
+        3D point using Euclidean distance. The point is projected onto the mesh
+        surface to find the closest vertex.
+        """
+        # Convert point to numpy array if it's a list
+        if isinstance(point, (list, tuple)):
+            point = np.array(point, dtype=np.float64)
+        
+        # Call the underlying SWIG method
+        vertex_impl = self._mesh_impl.closest_vertex(point)
+        return Vertex(vertex_impl)

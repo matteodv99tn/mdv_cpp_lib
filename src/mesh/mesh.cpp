@@ -6,11 +6,14 @@
 #include <gsl/assert>
 #include <random>
 
+#include <range/v3/all.hpp>
+
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_geodesic.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/helpers.hpp"
+#include "mdv/mesh/vertex.hpp"
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging.hpp"
 #include "mdv/utils/logging_extras.hpp"
@@ -22,6 +25,9 @@ using mdv::mesh::Mesh;
 using mdv::mesh::Vertex;
 using mdv::mesh::internal::CgalImpl;
 using std::filesystem::path;
+
+namespace rs = ::ranges;
+namespace rv = ::ranges::views;
 // \endcond
 
 mdv::Logger::SharedPtr Mesh::default_logger = get_default_logger();
@@ -226,35 +232,17 @@ Mesh::get_face_matrix_double() const {
     return res;
 }
 
-Eigen::MatrixXd
-Mesh::get_vertex_matrix() const {
-    Eigen::MatrixXd res(num_vertices(), 3);
-    for (long i = 0; i < num_vertices(); ++i) res.row(i) = _vertices[i].position();
-    return res;
-}
+Vertex
+Mesh::closest_vertex(const CartesianPoint& pt) {
+    const auto [_, f_id] = cgal()._aabb_tree.closest_point_and_primitive(
+            internal::point3_from_eigen(pt)
+    );
+    const auto m    = internal::get_mesh_impl(*this);
+    auto       func = [&pt, &m](const auto id) -> double {
+        return (internal::convert(m.point(id)) - pt).norm();
+    };
 
-Eigen::MatrixXi
-Mesh::get_face_matrix() const {
-    Eigen::MatrixXi res(num_faces(), 3);
-    for (long i = 0; i < num_faces(); ++i) {
-        const Face&     f  = _faces[i];
-        const HalfEdge* he = f.half_edge();
-        const int       f0 = he->origin().id();
-        he                 = he->next();
-        const int f1       = he->origin().id();
-        he                 = he->next();
-        const int f2       = he->origin().id();
-        res.row(i)         = Eigen::Vector3i{f0, f1, f2};
-    }
-    return res;
-}
-
-Eigen::MatrixXd
-Mesh::get_face_matrix_double() const {
-    const Eigen::MatrixXi mat = get_face_matrix();
-    Eigen::MatrixXd       res(mat.rows(), mat.cols());
-    for (long i = 0; i < mat.rows(); ++i)
-        for (long j = 0; j < mat.cols(); ++j)
-            res(i, j) = static_cast<double>(mat(i, j));
-    return res;
+    const auto vids = CGAL::vertices_around_face(halfedge(f_id, m), m) | rs::to_vector;
+    const auto min_id = rs::min_element(vids, std::less{}, func);
+    return Vertex{*this, *min_id};
 }
