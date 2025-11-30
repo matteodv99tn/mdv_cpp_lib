@@ -107,6 +107,35 @@ class MeshKernel:
         return self._kernel_impl.squared_exponential(pts1_impl, pts2_impl,
                                                      lengthscale)
 
+    def squared_exponential_from_distance_matrix(self, distance_matrix: np.ndarray, lengthscale: float = 1.0) -> np.ndarray:
+        """
+        Evaluate the squared exponential (RBF) kernel from a pre-computed distance matrix.
+        
+        Parameters
+        ----------
+        distance_matrix : np.ndarray
+            Pre-computed geodesic distance matrix
+        lengthscale : float, default=1.0
+            Length scale parameter for the RBF kernel
+            
+        Returns
+        -------
+        np.ndarray
+            Kernel matrix of shape (len(distance_matrix), len(distance_matrix))
+            
+        Notes
+        -----
+        This method applies the squared exponential (RBF) kernel directly to a 
+        pre-computed distance matrix. This is useful when you already have 
+        a distance matrix and want to apply the RBF kernel without recomputing
+        the geodesic distances.
+        
+        The squared exponential kernel is defined as:
+        K(x1, x2) = exp(-0.5 * d(x1, x2)^2 / l^2)
+        where d(x1, x2) is the geodesic distance and l is the length scale.
+        """
+        return self._kernel_impl.squared_exponential_from_matrix(distance_matrix, float(lengthscale))
+
     def _to_point_impl_list(self, input: list[Point | Vertex]) -> PointVector:
         """
         Convert a list of Point or Vertex objects to a PointVector for SWIG calls.

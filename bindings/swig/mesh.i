@@ -100,6 +100,10 @@ namespace mdv::mesh {
         Eigen::MatrixXd squared_exponential(
                 const std::vector<mdv::mesh::Point>& pts1, const std::vector<mdv::mesh::Point>& pts2, const double lengthscale
         ) const;
+
+        Eigen::MatrixXd squared_exponential_from_matrix(
+                const Eigen::MatrixXd& distance_matrix, const double lengthscale
+        ) const;
     };
 }
 
