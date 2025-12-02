@@ -7,3 +7,12 @@ target_link_libraries(
     mesh_visualiser
     mdvcpplib
 )
+
+add_executable(
+    pd
+    ${CMAKE_CURRENT_LIST_DIR}/pd.cpp
+)
+target_link_libraries(
+    pd
+    mdvcpplib
+)
