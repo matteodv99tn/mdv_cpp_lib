@@ -82,6 +82,17 @@ double distance(const HalfEdge& he, const Eigen::Vector3d& p);
  */
 bool uv_in_unitary_triangle(const Eigen::Vector2d& uv);
 
+enum LocationType : std::uint8_t {
+    INSIDE_FACE = 0,
+    ON_EDGE,
+    ON_VERTEX
+};
+
+LocationType location_type(const Point& pt);
+
+LocationType location_type(const TangentVector& tv);
+
+
 }  // namespace mdv::mesh
 
 

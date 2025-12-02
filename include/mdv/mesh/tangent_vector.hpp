@@ -5,18 +5,12 @@
 
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
-#include "mdv/mesh/mesh_element.hpp"
 #include "mdv/mesh/point.hpp"
-#include "mdv/mesh/uv_map.hpp"
 
 namespace mdv::mesh {
 
-class TangentVector : Point {
+class TangentVector {
 public:
-    using UvCoord = UvMap::UvCoord;
-
-    TangentVector(const Point& app_point, const UvCoord& uv) :
-            Point(app_point), _uv(uv) {};
     TangentVector(const Point& app_point, const Eigen::Vector3d& v);
 
     /**
@@ -32,19 +26,6 @@ public:
     MDV_NODISCARD CartesianPoint tip() const noexcept;
 
     MDV_NODISCARD Eigen::Vector3d cartesian_vector() const noexcept;
-
-    /**
-     * @brief Trims a vector and return the "remainder" projected.
-     *
-     * Generally, a tangent vector could extend outside the boarder of the face.
-     * This function virtually "cuts" the vector at the edge, and return the remainder
-     * of the vector projected on the contiguous face based on conformal mappings.
-     *
-     * Note that if the vector was able to fit within the triangular face, it is left
-     * unchanged.
-     *
-     */
-    std::optional<TangentVector> trim();
 
     /**
      * @brief Scales the tangent vector length by the provided factor, i.e.
@@ -68,22 +49,15 @@ public:
     TangentVector normalised() &&;
 
     // clang-format off
-    MDV_NODISCARD const UvCoord&  uv() const                { return _uv; }
-
-    using Point::uv_map;
-
-    MDV_NODISCARD const Point&    application_point() const { return *this; }
+    MDV_NODISCARD const Point&    application_point() const { return _pt; }
 
     // clang-format on
 
 private:
-    UvCoord _uv;
+    friend Point exponential_map(TangentVector, Geodesic*);
 
-    MDV_NODISCARD
-    const UvMap::Transform&
-    jac() const {
-        return uv_map().forward_map_jacobian();
-    }
+    Point _pt;
+    Vec3d _vec;
 };
 
 

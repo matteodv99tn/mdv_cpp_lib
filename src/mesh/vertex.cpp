@@ -16,16 +16,10 @@ using mdv::mesh::Vertex;
 
 // \endcond
 
-std::size_t
-Vertex::id() const {
-    assert(is_valid());
-    auto it = Vertex::ConstIterator(this);
-    return std::distance(mesh().vertices_begin(), it);
-}
 
 std::string
 Vertex::describe() const {
-    if (undefined_mesh()) return "Vertex object of unspecified mesh";
+    if (!is_valid()) return "Invalid Vertex";
 
     return fmt::format(
             "Vertex ID #{} (position: {}) on mesh '{}'",
@@ -35,18 +29,21 @@ Vertex::describe() const {
     );
 }
 
-void
-Vertex::bake_properties() {
+mdv::mesh::CartesianPoint
+Vertex::position() const noexcept {
+    const auto cgal_pt = internal::to_vertex_impl(*this);
+    return {cgal_pt.x(), cgal_pt.y(), cgal_pt.z()};
+}
+
+Eigen::Vector3d
+Vertex::normal() const noexcept {
     using VertexDescriptor = internal::CgalImpl::VertexDescriptor;
     using Vec3             = internal::CgalImpl::Vec3;
-
+    auto m                 = internal::get_mesh_impl(*this);
 #if MDV_CGAL_VERSION == 5
-    const auto normals =
-            mesh().cgal()._mesh.property_map<VertexDescriptor, Vec3>("v:normal").first;
+    const auto normals = m.property_map<VertexDescriptor, Vec3>("v:normal").first;
 #elif MDV_CGAL_VERSION == 6
-    const auto normals = mesh().cgal()
-                                 ._mesh.property_map<VertexDescriptor, Vec3>("v:normal")
-                                 .value();
+    const auto normals = m.property_map<VertexDescriptor, Vec3>("v:normal").value();
 #endif
-    _n = internal::convert(normals[VertexDescriptor(id())]);
+    return internal::convert(normals[VertexDescriptor(id())]);
 }

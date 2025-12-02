@@ -101,7 +101,7 @@ public:
      */
     MDV_NODISCARD std::string_view
                   name() const {
-                      return _name;
+        return _name;
     };
 
     // clang-format off
@@ -111,7 +111,7 @@ public:
      * @param id The index of the face to retrieve.
      * @return const Face& A reference to the retrieved face.
      */
-    MDV_NODISCARD const Face&   face(const Index& id) const   { return _faces[id]; }
+    MDV_NODISCARD Face face(const Index id) const   { return {*this, id}; }
 
     /**
      * @brief Retrieves a vertex by its index.
@@ -119,7 +119,7 @@ public:
      * @param id The index of the vertex to retrieve.
      * @return const Vertex& A reference to the retrieved vertex.
      */
-    MDV_NODISCARD const Vertex& vertex(const Index& id) const { return _vertices[id]; }
+    MDV_NODISCARD Vertex vertex(const Index& id) const { return Vertex(*this, id); }
 
     /**
      * @brief Retrieves the logger associated with the mesh.
@@ -137,6 +137,7 @@ public:
     // |___|\__\___|_|  \__,_|\__\___/|_|  |___/
     //
 
+#if 0
     // clang-format off
     /**
      * @brief Retrieves an iterator to the beginning of the face range.
@@ -254,6 +255,7 @@ public:
     MDV_NODISCARD boost::iterator_range<Vertex::ConstIterator> vertices() const noexcept { return {vertices_begin(), vertices_end()}; }
 
     // clang-format on
+#endif
 
     // clang-format off
     /**
@@ -277,7 +279,7 @@ public:
      *
      * @return const Face& A reference to a randomly selected face.
      */
-    const Face& random_face() const;
+    Face random_face() const;
 
     /**
      * @brief Constructs the Nx3 matrix with all vertices of the mesh
@@ -321,93 +323,6 @@ private:
      * @var std::string _name
      */
     std::string _name;
-    /**
-     * @brief A vector of vertices in the mesh.
-     *
-     * @var Vertex::Vector _vertices
-     */
-    Vertex::Vector _vertices;
-    /**
-     * @brief A vector of faces in the mesh.
-     *
-     * @var Face::Vector _faces
-     */
-    Face::Vector _faces;
-    /**
-     * @brief A vector of half-edges in the mesh.
-     *
-     * @var HalfEdge::Vector _half_edges
-     */
-    HalfEdge::Vector _half_edges;
-
-    /**
-     * @brief Builds the half-edges data structure.
-     *
-     * Initializes the half-edges based on the vertices and faces of the mesh.
-     */
-    void build_halfedges();
-
-    /**
-     * @brief Adds a face to the mesh.
-     *
-     * @param v_ids A triplet of vertex indices defining the face.
-     */
-    void add_face(const IndexTriplet& v_ids);
-
-    /**
-     * @brief Constructs opposite half-edges for each edge in the mesh.
-     *
-     * Ensures that each edge has a corresponding opposite edge.
-     */
-    void construct_opposite_halfedges();
-
-    /**
-     * @brief Fills in additional information for each half-edge.
-     *
-     * Completes the half-edges data structure with necessary connections and
-     * properties.
-     */
-    void fill_halfedges();
-
-    /**
-     * @brief Checks if the mesh's data structure is correctly initialized.
-     *
-     * Validates that all half-edges, faces, and vertices are properly connected.
-     *
-     * @return bool True if the data structure is correctly initialized; false
-     * otherwise.
-     */
-    bool datastructure_correctly_initialised() const;
-
-    // clang-format off
-    /**
-     * @brief Emplaces a new vertex into the mesh.
-     *
-     * @param pos The position of the vertex.
-     * @return Vertex& A reference to the newly emplaced vertex.
-     */
-    Vertex&   emplace_vertex(const CartesianPoint& pos) { return _vertices.emplace_back(*this, pos); } 
-
-    /**
-     * @brief Emplaces a new face into the mesh.
-     *
-     * @return Face& A reference to the newly emplaced face.
-     */
-    Face&     emplace_face()                            { return _faces.emplace_back(*this); }
-
-    /**
-     * @brief Emplaces a new half-edge into the mesh.
-     *
-     * @return HalfEdge& A reference to the newly emplaced half-edge.
-     */
-    HalfEdge& emplace_halfedge()                        { return _half_edges.emplace_back(*this); }
-
-    // clang-format on
-
-
-    // When moving a mesh object, mesh pointers in vertices/faces must be updated
-    // accordingly
-    void update_mesh_element_references();
 };
 
 }  // namespace mdv::mesh

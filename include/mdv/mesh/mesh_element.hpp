@@ -14,13 +14,12 @@ public:
 
     MeshElement() = default;
 
-    MeshElement(const Mesh& mesh) noexcept : _mesh_ptr(&mesh) {}
+    MeshElement(const Mesh& mesh) noexcept : _mesh_ptr(const_cast<Mesh*>(&mesh)) {}
 
-    // Mesh elements (faces, vertices, half-edges) cannot be copied!
-    MeshElement(const MeshElement& other)            = delete;
+    MeshElement(const MeshElement& other)            = default;
     MeshElement(MeshElement&& other)                 = default;
-    MeshElement& operator=(const MeshElement& other) = delete;
-    MeshElement& operator=(MeshElement&& other)      = delete;
+    MeshElement& operator=(const MeshElement& other) = default;
+    MeshElement& operator=(MeshElement&& other)      = default;
 
     MDV_NODISCARD virtual bool
     is_valid() const noexcept {
@@ -41,7 +40,33 @@ public:
     MDV_NODISCARD virtual std::string describe() const = 0;
 
 protected:
-    const Mesh* _mesh_ptr = nullptr;
+    Mesh* _mesh_ptr = nullptr;
+};
+
+class IndexedMeshElement : public MeshElement {
+public:
+    IndexedMeshElement() = default;
+
+    IndexedMeshElement(const Mesh& mesh, const Index id) noexcept :
+            MeshElement(mesh), _id(id) {}
+
+    IndexedMeshElement(const IndexedMeshElement& other)            = default;
+    IndexedMeshElement(IndexedMeshElement&& other)                 = default;
+    IndexedMeshElement& operator=(const IndexedMeshElement& other) = default;
+    IndexedMeshElement& operator=(IndexedMeshElement&& other)      = default;
+
+    MDV_NODISCARD Index
+    id() const noexcept {
+        return _id;
+    }
+
+    MDV_NODISCARD bool
+    is_valid() const noexcept override {
+        return MeshElement::is_valid() && _id != invalid_index;
+    }
+
+private:
+    Index _id = invalid_index;
 };
 
 }  // namespace mdv::mesh::internal

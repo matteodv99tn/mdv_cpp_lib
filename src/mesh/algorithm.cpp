@@ -24,10 +24,20 @@ namespace rv = ::ranges::views;
 
 double
 mdv::mesh::length(const Geodesic& geod) {
-    double res = 0;
-    for (auto it = geod.cbegin(); it != geod.cend() - 1; ++it)
-        res += (*it - *(it + 1)).norm();
-    return res;
+    if (geod.size() < 2) return 0.0;
+
+    auto segment_length = [](const auto& rng) -> double {
+        const Eigen::Vector3d p1    = rng[0];
+        const Eigen::Vector3d p2    = rng[1];
+        const Eigen::Vector3d delta = p2 - p1;
+        const double          res   = delta.norm();
+        return res;
+    };
+
+    const double sum = rs::accumulate(
+            geod | rv::sliding(2) | rv::transform(segment_length), double{0.0}
+    );
+    return sum;
 }
 
 mdv::mesh::CartesianPoint
@@ -107,7 +117,7 @@ mdv::mesh::parallel_transport(
     );
 
     if (tangent_vector.application_point().face() == dest_point.face())
-        return {dest_point, tangent_vector.uv()};
+        return {dest_point, tangent_vector.cartesian_vector()};
 
     const Point& start_point = tangent_vector.application_point();
 
@@ -170,7 +180,7 @@ mdv::mesh::logarithmic_map(const Point& p, const Point& y) {
             eigen_to_str(p.position())
     );
 
-    if (p.face() == y.face()) return {p, Point::UvCoord(y.uv() - p.uv())};
+    if (p.face() == y.face()) return {p, y.position() - p.position()};
 
     const auto geod        = p.face().mesh().build_geodesic(p, y);
     auto       log_map_dir = (geod[1] - geod[0]).normalized();
@@ -178,43 +188,9 @@ mdv::mesh::logarithmic_map(const Point& p, const Point& y) {
     return {p, Vec3d(log_map_len * log_map_dir)};
 }
 
-mdv::mesh::Point
-mdv::mesh::exponential_map(TangentVector v, Geodesic* geod) {
-    assert(Mesh::default_logger);
-    mdv::Logger& logger = *Mesh::default_logger.get();
-    logger.debug(
-            "Computing the exponential map from point {} with tangent vector {}",
-            eigen_to_str(v.application_point().position()),
-            eigen_to_str(v.cartesian_vector())
-    );
-
-    if (geod) geod->emplace_back(v.application_point().position());
-
-    if (condition::is_zero_norm(v.uv())) return v.application_point();
-
-    std::size_t count = 0;
-    while (!condition::is_zero_norm(v.uv()) && (count < 1000)) {
-        if (geod) geod->emplace_back(v.application_point().position());
-        const auto trimmed_vec = v.trim();
-
-        // Check if trimming did not went to another face
-        if (trimmed_vec == std::nullopt) {
-            if (geod) geod->emplace_back(v.tip());
-            const TangentVector::UvCoord target_uv =
-                    v.application_point().uv() + v.uv();
-            return Point(v.application_point().face(), target_uv);
-        }
-
-        v = trimmed_vec.value();
-        ++count;
-    }
-
-    throw std::runtime_error("Exceeded iteration limit");
-}
-
 double
 mdv::mesh::distance(const Face& f, const CartesianPoint& pt) {
-    const Eigen::Vector3d delta = pt - f.half_edge()->origin_position();
+    const Eigen::Vector3d delta = pt - f.half_edge().origin_position();
     return std::abs(delta.dot(f.normal()));
 }
 
@@ -235,4 +211,20 @@ mdv::mesh::distance(const HalfEdge& he, const Eigen::Vector3d& p) {
     const Vec3   delta = p - o;
     const double dot   = he.normalised_direction().dot(delta);
     return (delta - dot * he.normalised_direction()).norm();
+}
+
+mdv::mesh::LocationType
+mdv::mesh::location_type(const Point& pt) {
+    if (std::holds_alternative<Point::PointInFaceDescriptor>(pt.descriptor())) {
+        return INSIDE_FACE;
+    }
+    if (std::holds_alternative<Point::PointOnEdgeDescriptor>(pt.descriptor())) {
+        return ON_EDGE;
+    }
+    return ON_VERTEX;
+}
+
+mdv::mesh::LocationType
+mdv::mesh::location_type(const TangentVector& tv) {
+    return location_type(tv.application_point());
 }

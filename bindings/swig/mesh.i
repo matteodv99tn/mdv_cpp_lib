@@ -14,14 +14,17 @@
 %eigen_typemaps(Eigen::MatrixXd)
 %eigen_typemaps(Eigen::MatrixXi)
 
+%init %{
+import_array();
+%}
 
 namespace mdv::mesh {
 
     class Vertex {
     public:
-        Vertex(const mdv::mesh::Mesh&, const Eigen::Vector3d&);
+        Vertex(const mdv::mesh::Mesh&, const long int);
 
-        const Eigen::Vector3d& position() const;
+        Eigen::Vector3d position() const;
 
         Eigen::Vector3d normal();
 
@@ -32,7 +35,7 @@ namespace mdv::mesh {
 
     class Face {
     public:
-        Face(const mdv::mesh::Mesh&);
+        Face(const mdv::mesh::Mesh&, const long int);
 
         std::size_t id() const;
 
@@ -44,13 +47,13 @@ namespace mdv::mesh {
     class Mesh {
         Mesh(gsl::owner<CgalImpl*> data, const std::string& name);
     public:
-        const mdv::mesh::Vertex& vertex(const long& id);
+        mdv::mesh::Vertex vertex(const long& id);
 
         std::size_t num_faces() const;
 
         std::size_t num_vertices() const;
 
-        const mdv::mesh::Face& face(const long& id) const;
+        mdv::mesh::Face face(const long& id) const;
 
         std::vector<Eigen::Vector3d> build_geodesic(const mdv::mesh::Point& from, const mdv::mesh::Point& to) const;
 
@@ -62,13 +65,15 @@ namespace mdv::mesh {
 
     class Point {
     public:
+        Point(const mdv::mesh::Vertex& v);
+
         static mdv::mesh::Point from_cartesian(const mdv::mesh::Mesh& m, const Eigen::Vector3d& pt);
 
         Eigen::Vector3d position() const;
 
         static Point random(const mdv::mesh::Mesh& m) noexcept;
 
-        const mdv::mesh::Face& face() const;
+        mdv::mesh::Face face() const;
 
         std::string describe() const;
     };
