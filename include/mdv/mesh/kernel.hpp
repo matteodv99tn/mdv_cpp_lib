@@ -33,6 +33,14 @@ public:
             const PointVector& pts1, const PointVector& pts2, const double lengthscale
     ) const;
 
+    double find_max_lengthscale(
+            double      ls0,
+            double      lsmax      = 1.0,
+            std::size_t num_points = 10,
+            std::size_t num_tests  = 100,
+            bool        verbose    = false
+    );
+
 private:
     const Mesh* _mesh;
 };

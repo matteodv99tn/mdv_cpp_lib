@@ -1,5 +1,6 @@
 #include "mdv/mesh/kernel.hpp"
 
+#include <Eigen/Core>
 #include <Eigen/Dense>
 #include <thread>
 
@@ -14,6 +15,13 @@ namespace {
 
     using ShortestPath = internal::CgalImpl::ShortestPath;
     using internal::CgalGeodesicConstructor;
+
+    bool
+    is_positive_definite(const Eigen::MatrixXd& mat) {
+        // Check if it is possible to perform a valid Cholesky decomposition
+        Eigen::LLT<Eigen::MatrixXd> llt(mat);
+        return llt.info() == Eigen::Success;
+    }
 
     void
     process_row(
@@ -101,6 +109,57 @@ MeshKernel::squared_exponential(
             evaluate_distance_matrix(pts1, pts2), lengthscale
     );
 }
+
+double
+MeshKernel::find_max_lengthscale(
+        const double      ls0,
+        const double      lsmax,
+        const std::size_t num_points,
+        const std::size_t num_tests,
+        const bool        verbose
+) {
+    assert(_mesh);
+    if (verbose) {
+        std::cout << "Finding maximum lengthscale for mesh " << _mesh->name() << "\n";
+        std::cout << "Number of random testing conditions: " << num_tests << "\n";
+        std::cout << "Number of points per testing condition: " << num_points << "\n";
+    }
+
+    std::vector<Eigen::MatrixXd> dist_matrices;
+    dist_matrices.reserve(num_tests);
+    for (std::size_t i = 0; i < num_tests; ++i) {
+        std::vector<mdv::mesh::Point> points;
+        points.reserve(num_points);
+        for (std::size_t j = 0; j < num_points; ++j)
+            points.emplace_back(mdv::mesh::Point::random(*_mesh));
+
+        dist_matrices.emplace_back(evaluate_distance_matrix(points));
+    }
+
+    double ls_min = 0.0;
+    double ls_max = lsmax;
+    double ls     = ls0;
+
+    if (verbose) std::cout << "Starting search\n";
+    for (std::size_t k = 0; k < 50; ++k) {
+        ls = 0.5 * (ls_min + ls_max);
+
+        bool is_pd = true;
+        for (std::size_t i = 0; i < dist_matrices.size(); ++i) {
+            const Eigen::MatrixXd ker =
+                    squared_exponential_from_matrix(dist_matrices[i], ls);
+            if (!is_positive_definite(ker)) {
+                // std::cout << "Test #" << i << " yields negative covariance\n";
+                is_pd = false;
+                break;
+            }
+        }
+
+        if (is_pd) ls_min = ls;
+        else ls_max = ls;
+    }
+
+    return ls_min;
 }
 
 
