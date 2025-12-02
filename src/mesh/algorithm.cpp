@@ -83,8 +83,7 @@ TangentVector
 mdv::mesh::parallel_transport(
         const TangentVector& tangent_vector, const Point& dest_point
 ) {
-    using mdv::condition::are_orthogonal, mdv::condition::are_parallel;
-    using mdv::condition::is_zero, mdv::condition::is_unit_norm;
+    using namespace mdv::condition;
     using Mat3 = Eigen::Matrix3d;
 
     auto build_trihedron = [](const Point& pt, const Vec3d& dir) -> Mat3 {
@@ -116,7 +115,12 @@ mdv::mesh::parallel_transport(
             eigen_to_str(dest_point.position())
     );
 
-    if (tangent_vector.application_point().face() == dest_point.face())
+    const bool on_same_face =
+            tangent_vector.application_point().face() == dest_point.face();
+    const bool on_same_position = are_equal(
+            tangent_vector.application_point().position(), dest_point.position()
+    );
+    if (on_same_face || on_same_position)
         return {dest_point, tangent_vector.cartesian_vector()};
 
     const Point& start_point = tangent_vector.application_point();
@@ -172,6 +176,8 @@ mdv::mesh::parallel_transport(
 
 TangentVector
 mdv::mesh::logarithmic_map(const Point& p, const Point& y) {
+    using mdv::condition::are_equal;
+
     assert(Mesh::default_logger);
     mdv::Logger& logger = *Mesh::default_logger.get();
     logger.debug(
@@ -180,6 +186,7 @@ mdv::mesh::logarithmic_map(const Point& p, const Point& y) {
             eigen_to_str(p.position())
     );
 
+    if (are_equal(p.position(), y.position())) return {p, Eigen::Vector3d::Zero()};
     if (p.face() == y.face()) return {p, y.position() - p.position()};
 
     const auto geod        = p.face().mesh().build_geodesic(p, y);
