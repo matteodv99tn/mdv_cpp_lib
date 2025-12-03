@@ -8,11 +8,8 @@
 
 #include "mdv/dmp/coordinate_system/coordinate_system.hpp"
 #include "mdv/eigen_defines.hpp"
-#include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/riemann_geometry/se3.hpp"
 #include "mdv/utils/logging.hpp"
-#include "mdv/utils/logging_extras.hpp"
-#include "mdv/utils/spdlog.hpp"
 
 #ifdef MDV_WITH_RERUN_SDK
 #include <rerun.hpp>
@@ -20,16 +17,14 @@
 #include <rerun/archetypes/series_points.hpp>
 #endif  // MDV_WITH_RERUN_SDK
 
+#include <range/v3/all.hpp>
+
 #include "mdv/config.hpp"
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/dmp.hpp"
-#include "mdv/dmp/dmp_utilities.hpp"
 #include "mdv/mesh/mesh.hpp"
-#include "mdv/mesh/mesh_utilities.hpp"
 #include "mdv/rerun.hpp"
 #include "mdv/riemann_geometry/mesh.hpp"
-#include "mdv/utils/conversions.hpp"
-#include "mdv/utils/spdlog.hpp"
 
 using Quat = Eigen::Quaterniond;
 
@@ -42,6 +37,9 @@ to_string(const Quat& q) {
 
 using namespace mdv::mesh;
 using std::filesystem::path;
+
+namespace rs = ::ranges;
+namespace rv = ::ranges::views;
 
 int
 main() {
@@ -142,6 +140,28 @@ main() {
         pos_demo.emplace_back(sample.y().position(), encode_rotation(sample.y()));
     }
 
+    // sliding window filter
+    const std::size_t               window_radius = 20;
+    std::vector<Eigen::Quaterniond> new_qs(pos_demo.size());
+    for (std::size_t i = 0; i < pos_demo.size(); ++i) {
+        const std::size_t left  = (i >= window_radius) ? i - window_radius : 0;
+        const std::size_t right = std::min(i + window_radius, pos_demo.size() - 1);
+        auto              win = pos_demo | rv::drop(left) | rv::take(right - left + 1);
+
+        auto fun = [](const mdv::Vec4d&               store,
+                      const mdv::riemann::SE3::Point& pt) -> mdv::Vec4d {
+            mdv::Vec4d pt_v = pt.ori.coeffs();
+            if (pt_v(0) < 0.0) pt_v *= -1.0;
+            return store + pt_v;
+        };
+        mdv::Vec4d zero = mdv::Vec4d::Zero();
+        mdv::Vec4d quat = rs::fold_left(win, zero, fun);
+        new_qs[i]       = Eigen::Quaterniond(quat.normalized());
+    }
+
+    for (std::size_t i = 0; i < pos_demo.size(); ++i) pos_demo[i].ori = new_qs[i];
+
+
     for (std::size_t i = 0; i < pos_demo.size(); ++i) {
         rec.set_time_sequence("tick", i);
         rec.log("/meshdmp/pose", rr_converter(pos_demo[i].pos, pos_demo[i].ori, 20.0));
@@ -154,7 +174,7 @@ main() {
                                   .create();
     Se3Dmp se3_dmp(100);
     se3_dmp.learn(se3_demo);
-    se3_dmp.tau = 1.0;
+    se3_dmp.tau = 0.5;
 
     const auto se3_res =
             se3_dmp.integrate(pos_demo.front(), pos_demo.back(), se3_demo.size(), 1ms);
