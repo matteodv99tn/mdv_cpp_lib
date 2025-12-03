@@ -7,6 +7,7 @@
 #include <string>
 
 #include "mdv/dmp/coordinate_system/coordinate_system.hpp"
+#include "mdv/dmp/dmp_utilities.hpp"
 #include "mdv/eigen_defines.hpp"
 #include "mdv/riemann_geometry/se3.hpp"
 #include "mdv/utils/logging.hpp"
@@ -113,8 +114,8 @@ main() {
 
 
     using Pose = mdv::riemann::SE3::Point;
-    std::vector<Pose> pos_demo;
-    pos_demo.reserve(out.size());
+    std::vector<Pose> meshdmp_demo;
+    meshdmp_demo.reserve(out.size());
 
     const auto project = [](const mdv::Vec3d& vec,
                             const mdv::Vec3d& normal) -> mdv::Vec3d {
@@ -137,34 +138,53 @@ main() {
     };
 
     for (const auto& sample : out) {
-        pos_demo.emplace_back(sample.y().position(), encode_rotation(sample.y()));
+        meshdmp_demo.emplace_back(sample.y().position(), encode_rotation(sample.y()));
     }
 
     // sliding window filter
-    const std::size_t               window_radius = 20;
-    std::vector<Eigen::Quaterniond> new_qs(pos_demo.size());
-    for (std::size_t i = 0; i < pos_demo.size(); ++i) {
-        const std::size_t left  = (i >= window_radius) ? i - window_radius : 0;
-        const std::size_t right = std::min(i + window_radius, pos_demo.size() - 1);
-        auto              win = pos_demo | rv::drop(left) | rv::take(right - left + 1);
+    // const std::size_t               window_radius = 20;
+    // std::vector<Eigen::Quaterniond> new_qs(meshdmp_demo.size());
+    // for (std::size_t i = 0; i < meshdmp_demo.size(); ++i) {
+    //     const std::size_t left  = (i >= window_radius) ? i - window_radius : 0;
+    //     const std::size_t right = std::min(i + window_radius, meshdmp_demo.size() -
+    //     1); auto win = meshdmp_demo | rv::drop(left) | rv::take(right - left + 1);
 
-        auto fun = [](const mdv::Vec4d&               store,
-                      const mdv::riemann::SE3::Point& pt) -> mdv::Vec4d {
-            mdv::Vec4d pt_v = pt.ori.coeffs();
-            if (pt_v(0) < 0.0) pt_v *= -1.0;
-            return store + pt_v;
-        };
-        mdv::Vec4d zero = mdv::Vec4d::Zero();
-        mdv::Vec4d quat = rs::fold_left(win, zero, fun);
-        new_qs[i]       = Eigen::Quaterniond(quat.normalized());
+    //     auto fun = [](const mdv::Vec4d&               store,
+    //                   const mdv::riemann::SE3::Point& pt) -> mdv::Vec4d {
+    //         mdv::Vec4d pt_v = pt.ori.coeffs();
+    //         if (pt_v(0) < 0.0) pt_v *= -1.0;
+    //         return store + pt_v;
+    //     };
+    //     mdv::Vec4d zero = mdv::Vec4d::Zero();
+    //     mdv::Vec4d quat = rs::fold_left(win, zero, fun);
+    //     new_qs[i]       = Eigen::Quaterniond(quat.normalized());
+    // }
+    // for (std::size_t i = 0; i < meshdmp_demo.size(); ++i)
+    //     meshdmp_demo[i].ori = new_qs[i];
+
+    std::vector<Pose> pos_demo;
+    pos_demo.reserve(meshdmp_demo.size());
+    for (std::size_t i = 0; i < meshdmp_demo.size() - 1; ++i) {
+        pos_demo.emplace_back(meshdmp_demo[i]);
+
+        // check quaternion
+        const Eigen::Quaterniond qcurr = meshdmp_demo[i].ori;
+        const Eigen::Quaterniond qnext = meshdmp_demo[i + 1].ori;
+        const Eigen::AngleAxisd  angleaxis((qcurr * qnext.inverse()));
+        if (angleaxis.angle() > M_PI_2 * 0.2) {
+            const Eigen::VectorXd ts  = Eigen::VectorXd::LinSpaced(100, 0.0, 1.0);
+            const auto            ss  = mdv::poly_5th(ts);
+            const mdv::Vec3d      pos = meshdmp_demo[i].pos;
+            for (const double s : ss) {
+                pos_demo.emplace_back(pos, qcurr.slerp(s, qnext));
+            }
+        }
     }
-
-    for (std::size_t i = 0; i < pos_demo.size(); ++i) pos_demo[i].ori = new_qs[i];
-
+    pos_demo.emplace_back(meshdmp_demo.back());
 
     for (std::size_t i = 0; i < pos_demo.size(); ++i) {
         rec.set_time_sequence("tick", i);
-        rec.log("/meshdmp/pose", rr_converter(pos_demo[i].pos, pos_demo[i].ori, 20.0));
+        rec.log("/pos/pose", rr_converter(pos_demo[i].pos, pos_demo[i].ori, 20.0));
     }
     const auto se3_demo = Demo::builder()
                                   .assign_position(pos_demo)
@@ -172,20 +192,26 @@ main() {
                                   .acceleration_automatic_differentiation()
                                   .set_sampling_period(1ms)
                                   .create();
-    Se3Dmp se3_dmp(100);
+    Se3Dmp se3_dmp(50);
     se3_dmp.learn(se3_demo);
     se3_dmp.tau = 0.5;
 
-    const auto se3_res =
-            se3_dmp.integrate(pos_demo.front(), pos_demo.back(), se3_demo.size(), 1ms);
+    const auto se3_res = se3_dmp.integrate(
+            meshdmp_demo.front(), meshdmp_demo.back(), se3_demo.size(), 1ms
+    );
+
+    for (long i = 0; i < meshdmp_demo.size(); ++i) {
+        // rec.set_time_duration_secs("time", mdv::convert::seconds(out[i].t()));
+        rec.set_time_sequence("tick", i);
+        rec.log("/se3dmp/demonstration/x", rerun::Scalars(pos_demo[i].pos(0)));
+        rec.log("/se3dmp/demonstration/y", rerun::Scalars(pos_demo[i].pos(1)));
+        rec.log("/se3dmp/demonstration/z", rerun::Scalars(pos_demo[i].pos(2)));
+    }
 
     for (long i = 0; i < se3_res.size(); ++i) {
         // rec.set_time_duration_secs("time", mdv::convert::seconds(out[i].t()));
         rec.set_time_sequence("tick", i);
         const auto& sample = se3_res[i].y();
-        rec.log("/se3dmp/demonstration/x", rerun::Scalars(pos_demo[i].pos(0)));
-        rec.log("/se3dmp/demonstration/y", rerun::Scalars(pos_demo[i].pos(1)));
-        rec.log("/se3dmp/demonstration/z", rerun::Scalars(pos_demo[i].pos(2)));
         rec.log("/se3dmp/trajectory/x", rerun::Scalars(sample.pos(0)));
         rec.log("/se3dmp/trajectory/y", rerun::Scalars(sample.pos(1)));
         rec.log("/se3dmp/trajectory/z", rerun::Scalars(sample.pos(2)));

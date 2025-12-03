@@ -59,4 +59,5 @@ add_executable(
 target_link_libraries(
     sharp_dmp
     mdvcpplib
+    range-v3
 )
