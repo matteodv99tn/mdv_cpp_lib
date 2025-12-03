@@ -13,6 +13,7 @@
 #include "mdv/mesh/cgal_geodesic.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/point.hpp"
+#include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging.hpp"
 
 using std::filesystem::path;
@@ -20,6 +21,7 @@ using std::filesystem::path;
 namespace rs = ranges;
 // \cond DOXYGEN_IGNORE
 using ::mdv::mesh::internal::CgalImpl;
+using Kernel = CgalImpl::Kernel;
 
 // \endcond
 
@@ -188,4 +190,68 @@ mdv::mesh::internal::convert(const CgalImpl::Vec3& x) {
 Eigen::Vector3d
 mdv::mesh::internal::convert(const CgalImpl::Point3& x) {
     return {x.x(), x.y(), x.z()};
+}
+
+Eigen::Quaterniond
+mdv::mesh::internal::relative_face_rotation(
+        const CgalImpl::CgalHalfEdgeIndex& he, const CgalImpl::Mesh& mesh
+) {
+    using namespace mdv::condition;
+    using CGAL::Polygon_mesh_processing::compute_face_normal;
+
+    const auto this_face     = face(he, mesh);
+    const auto opposite_face = face(opposite(he, mesh), mesh);
+
+    const Vec3d n1 = internal::convert(compute_face_normal(this_face, mesh));
+    const Vec3d n2 = internal::convert(compute_face_normal(opposite_face, mesh));
+
+    if (are_parallel(n1, n2)) return Eigen::Quaterniond::Identity();
+
+    const auto& v0 = mesh.point(source(he, mesh));
+    const auto& v1 = mesh.point(target(he, mesh));
+    const Vec3d ax = internal::convert(v1 - v0).normalized();
+
+    // Binormal axis computation
+    const Vec3d b1 = -ax.cross(n1);
+    const Vec3d b2 = ax.cross(n2);
+
+    Eigen::Quaterniond res = Eigen::Quaterniond::FromTwoVectors(-b2, b1);
+    assert(are_orthogonal(n1, b1));
+    assert(are_orthogonal(n2, b2));
+    assert(are_orthogonal(n1, res * b2));
+    return res;
+}
+
+std::optional<Kernel::Point_3>
+mdv::mesh::internal::edge_ray_intersection(
+        const Kernel::Segment_3& edge, const Kernel::Ray_3& ray
+) {
+    /* or(.) = origin of .
+     * dir(.) = direction of .
+     *
+     * or(e) + t*dir(e) = or(ray) + s*dir(ray)   <-- solve for t, s
+     * or(e) - or(ray) = -t*dir(e) + s*dir(ray)
+     */
+    using Mat32 = Eigen::Matrix<double, 3, 2>;
+    using Vec2  = Eigen::Vector2d;
+    using Vec3  = Eigen::Vector3d;
+
+    const Vec3 or_e  = internal::convert(edge.source());
+    const Vec3 or_r  = internal::convert(ray.source());
+    const Vec3 dir_e = internal::convert(edge.target() - edge.source());
+    const Vec3 dir_r = internal::convert(ray.to_vector());
+
+    Mat32 A;
+    A.col(0)       = -dir_e;
+    A.col(1)       = dir_r;
+    const Vec3   b = or_e - or_r;
+    const Vec2   x = A.colPivHouseholderQr().solve(b);
+    const double t = x(0);
+    const double s = x(1);
+
+    assert(mdv::condition::are_equal(or_e + t * dir_e, or_r + s * dir_r));
+    if ((t >= 0.0) && (t <= 1.0) && (s > 1e-9))
+        return internal::point3_from_eigen(or_e + t * dir_e);
+
+    return std::nullopt;
 }

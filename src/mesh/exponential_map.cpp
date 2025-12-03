@@ -149,38 +149,6 @@ namespace {
         TRIANGLE_EDGE_INTERSECTION
     };
 
-    std::optional<Kernel::Point_3>
-    edge_ray_intersection(const Kernel::Segment_3& edge, const Kernel::Ray_3& ray) {
-        /* or(.) = origin of .
-         * dir(.) = direction of .
-         *
-         * or(e) + t*dir(e) = or(ray) + s*dir(ray)   <-- solve for t, s
-         * or(e) - or(ray) = -t*dir(e) + s*dir(ray)
-         */
-        using Mat32 = Eigen::Matrix<double, 3, 2>;
-        using Vec2  = Eigen::Vector2d;
-        using Vec3  = Eigen::Vector3d;
-
-        const Vec3 or_e  = internal::convert(edge.source());
-        const Vec3 or_r  = internal::convert(ray.source());
-        const Vec3 dir_e = internal::convert(edge.target() - edge.source());
-        const Vec3 dir_r = internal::convert(ray.to_vector());
-
-        Mat32 A;
-        A.col(0)       = -dir_e;
-        A.col(1)       = dir_r;
-        const Vec3   b = or_e - or_r;
-        const Vec2   x = A.colPivHouseholderQr().solve(b);
-        const double t = x(0);
-        const double s = x(1);
-
-        assert(mdv::condition::are_equal(or_e + t * dir_e, or_r + s * dir_r));
-        if ((t >= 0.0) && (t <= 1.0) && (s > 1e-9))
-            return internal::point3_from_eigen(or_e + t * dir_e);
-
-        return std::nullopt;
-    }
-
     std::pair<Kernel::Point_3, IntersectionType>
     compute_intersection(const Kernel::Ray_3 ray, const Kernel::Triangle_3 tri) {
         const auto& v0 = tri.vertex(0);
@@ -190,9 +158,9 @@ namespace {
         const Kernel::Segment_3 edge0(v0, v1);
         const Kernel::Segment_3 edge1(v0, v2);
         const Kernel::Segment_3 edge2(v1, v2);
-        const auto              i0 = edge_ray_intersection(edge0, ray);
-        const auto              i1 = edge_ray_intersection(edge1, ray);
-        const auto              i2 = edge_ray_intersection(edge2, ray);
+        const auto              i0 = internal::edge_ray_intersection(edge0, ray);
+        const auto              i1 = internal::edge_ray_intersection(edge1, ray);
+        const auto              i2 = internal::edge_ray_intersection(edge2, ray);
 
         std::size_t sols_found = 0;
         if (i0.has_value()) ++sols_found;

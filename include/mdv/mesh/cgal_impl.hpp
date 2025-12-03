@@ -8,6 +8,7 @@
 #include <CGAL/Surface_mesh_shortest_path/Surface_mesh_shortest_path_traits.h>
 #include <filesystem>
 #include <gsl/pointers>
+#include <optional>
 
 #include "mdv/mesh/face.hpp"
 #include "mdv/mesh/mesh.hpp"
@@ -178,6 +179,32 @@ MDV_INLINE CgalImpl::Kernel::Triangle_3
     const auto& p2  = m.point(source(he2, m));
     return {p0, p1, p2};
 }
+
+/**
+ * If existing, returns the halfedge of the source face which is shared with the target
+ * face.
+ */
+MDV_INLINE std::optional<CgalImpl::CgalHalfEdgeIndex>
+           shared_halfedge(
+                   const CgalImpl::CgalFaceIndex& source_face,
+                   const CgalImpl::CgalFaceIndex& target_face,
+                   const CgalImpl::Mesh&          mesh
+           ) {
+    const auto source_he = halfedge(source_face, mesh);
+    for (const auto he : CGAL::halfedges_around_face(source_he, mesh))
+        if (face(opposite(he, mesh), mesh) == target_face) return he;
+
+    return std::nullopt;
+}
+
+Eigen::Quaterniond relative_face_rotation(
+        const CgalImpl::CgalHalfEdgeIndex& he, const CgalImpl::Mesh& mesh
+);
+
+std::optional<CgalImpl::Kernel::Point_3> edge_ray_intersection(
+        const CgalImpl::Kernel::Segment_3& edge, const CgalImpl::Kernel::Ray_3& ray
+);
+
 
 }  // namespace mdv::mesh::internal
 

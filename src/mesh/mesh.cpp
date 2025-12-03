@@ -114,6 +114,8 @@ Mesh::transform(const Eigen::Affine3d& transformation) {
 mdv::mesh::Geodesic
 Mesh::build_geodesic(const Point& from, const Point& to) const {
     using mdv::condition::are_orthogonal, mdv::condition::is_zero_norm;
+    using Kernel = internal::CgalImpl::Kernel;
+
     using Vec2  = Eigen::Vector2d;
     using Vec3  = Eigen::Vector3d;
     using Mat32 = Eigen::Matrix<double, 3, 2>;
@@ -128,50 +130,42 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
     if (is_zero_norm(from.position() - to.position())) { return {}; }
     if (from.face() == to.face()) return {from.position(), to.position()};
 
-    // TODO: reimplement this section of code to simplify computation of trivial geodesics
-    // const HalfEdge* const he = from.face().adjacent_to(to.face());
-    // const HalfEdge* const he = nullptr;
 
-    // if (he != nullptr) {
-    //     Mat33         base;
-    //     long          n_checks = 0;
-    //     HalfEdge*     to_he    = he->twin()->face().half_edge();
-    //     const Vertex* v_modify = &he->twin()->prev()->origin();
-    //     const Vec3    v0       = he->origin_position();
-    //     const Vec3    n_from   = from.face().normal();
+    if (from.get_as<Point::PointInFaceDescriptor>() != nullptr
+        && to.get_as<Point::PointInFaceDescriptor>() != nullptr) {
+        const auto& m         = internal::get_mesh_impl(from.mesh());
+        const auto  from_id   = internal::to_face_impl(from.face());
+        const auto  to_id     = internal::to_face_impl(to.face());
+        const auto  shared_he = internal::shared_halfedge(from_id, to_id, m);
 
-    //     for (long i = 0; i < 3; ++i) {
-    //         Vec3 vi = to_he->origin_position();
-    //         if (&to_he->origin() == v_modify) {
-    //             const Vec3 delta_to   = to_he->origin_position() - v0;
-    //             const Vec3 delta_from = he->aligning_rotation().inverse() * delta_to;
-    //             vi                    = v0 + delta_from;
-    //             ++n_checks;
-    //         }
+        if (shared_he.has_value()) {
+            const auto               he       = shared_he.value();
+            const Eigen::Quaterniond rotation = internal::relative_face_rotation(he, m);
 
-    //         assert(are_orthogonal(vi - v0, n_from));
-    //         base.col(i) = vi;
+            const auto  p0_c      = m.point(source(he, m));
+            const auto  p1_c      = m.point(target(he, m));
+            const Vec3d p0        = internal::convert(p0_c);
+            const Vec3d p1        = internal::convert(p1_c);
+            const Vec3d delta     = to.position() - p0;
+            const Vec3d delta_rot = rotation * delta;
 
-    //         // step halfedge
-    //         to_he = to_he->next();
-    //     }
-    //     assert(n_checks == 1);
+            const Vec3d             p_star = p0 + delta_rot;
+            const Kernel::Segment_3 segment(p0_c, p1_c);
+            const Kernel::Ray_3     ray(
+                    internal::point3_from_eigen(from.position()),
+                    internal::vector3_from_eigen(p_star - from.position())
+            );
+            auto midpt = internal::edge_ray_intersection(segment, ray);
 
-    //     const Vec3 dest = base * to.barycentric();
-    //     assert(are_orthogonal(dest - v0, n_from));
+            if (!midpt.has_value()) {
+                throw std::runtime_error(
+                        "Expected ray intersection, but intersection not found!"
+                );
+            }
 
-    //     const Edge             e1(*he);
-    //     const Edge             e2 = Edge::from_positions(from.position(), dest);
-    //     const EdgeIntersection intersection(e1, e2);
-    //     assert(mdv::condition::is_zero(distance(*he, intersection.intersection_point)));
-    //     assert(intersection.sols(0) < 1.0);
-    //     assert(intersection.sols(0) > 0.0);
-
-    //     return std::vector<Vec3>(
-    //             {from.position(), intersection.intersection_point, to.position()}
-    //     );
-    // }
-
+            return {from.position(), internal::convert(midpt.value()), to.position()};
+        }
+    }
 
     Geodesic res = (*cgal()._geodesic_constructor)(from, to);
 
