@@ -51,3 +51,12 @@ target_link_libraries(
     mesh_rhytmic_dmp
     mdvcpplib
 )
+
+add_executable(
+    sharp_dmp
+    ${CMAKE_CURRENT_LIST_DIR}/sharp_dmp.cpp
+)
+target_link_libraries(
+    sharp_dmp
+    mdvcpplib
+)
