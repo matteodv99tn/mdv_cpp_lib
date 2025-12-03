@@ -148,12 +148,12 @@ MDV_INLINE CgalImpl::Point3
 
 MDV_INLINE CgalImpl::CgalFaceIndex
            to_face_impl(const Face& f) {
-    return static_cast<CgalImpl::CgalFaceIndex>(f.id());
+    return CgalImpl::CgalFaceIndex{f.id()};
 }
 
 MDV_INLINE CgalImpl::CgalHalfEdgeIndex
            to_halfedge_impl(const HalfEdge& he) {
-    return static_cast<CgalImpl::CgalHalfEdgeIndex>(he.id());
+    return CgalImpl::CgalHalfEdgeIndex{he.id()};
 }
 
 MDV_INLINE CgalImpl::Kernel::Point_3
