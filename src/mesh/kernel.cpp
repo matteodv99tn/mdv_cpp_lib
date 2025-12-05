@@ -162,5 +162,58 @@ MeshKernel::find_max_lengthscale(
     return ls_min;
 }
 
+double
+MeshKernel::find_pointset_max_lengthscale(
+        const PointVector& pts, const std::size_t num_steps
+) {
+    assert(_mesh);
+
+    const Eigen::MatrixXd dist_matrix = evaluate_distance_matrix(pts);
+    Eigen::MatrixXd       kernel;
+
+    auto is_pd_kernel = [&dist_matrix, &kernel, this](const double ls) -> bool {
+        kernel = squared_exponential_from_matrix(dist_matrix, ls);
+        return is_positive_definite(kernel);
+    };
+
+    double ls0 = 0.1;
+
+    double ls_min = -1.0;
+    double ls_max = ls0;
+
+    while (is_pd_kernel(ls_max)) {
+        ls_min = ls_max;
+        ls_max *= 2.0;
+    }
+
+    std::size_t iter_count = 0;
+    while (ls_min < 0.0) {
+        if (is_pd_kernel(0.5 * ls_max)) {
+            ls_min = 0.5 * ls_max;
+            ls_max *= 2.0;  // to compensate the subsequent halving of ls_max
+        }
+        ls_max *= 0.5;
+        ++iter_count;
+
+        if (iter_count >= num_steps) {
+            const auto msg = fmt::format(
+                    "Unable to find good initial condition for the algorithm in {} "
+                    "iterations",
+                    num_steps
+            );
+            throw std::runtime_error(msg.c_str());
+        }
+    }
+
+
+    for (std::size_t k = 0; k < num_steps; ++k) {
+        const double ls = 0.5 * (ls_min + ls_max);
+        if (is_pd_kernel(ls)) ls_min = ls;
+        else ls_max = ls;
+    }
+
+    return ls_min;
+}
+
 
 }  // namespace mdv::mesh

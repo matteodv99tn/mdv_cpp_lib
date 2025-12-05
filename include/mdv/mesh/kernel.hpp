@@ -41,6 +41,10 @@ public:
             bool        verbose    = false
     );
 
+    double find_pointset_max_lengthscale(
+            const PointVector& pts, std::size_t num_steps = 30
+    );
+
 private:
     const Mesh* _mesh;
 };
