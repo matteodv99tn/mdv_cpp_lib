@@ -89,8 +89,8 @@ mdv::mesh::internal::location_from_mesh_point(
 ) noexcept {
     auto vertex_descriptor =
             [](const Point::PointOnVertexDescriptor& pt) -> CgalImpl::FaceLocation {
-        const auto m    = get_mesh_impl(pt.vertex());
-        const auto v_id = static_cast<CgalImpl::VertexDescriptor>(pt.vertex().id());
+        const auto& m    = get_mesh_impl(pt.vertex());
+        const auto  v_id = static_cast<CgalImpl::VertexDescriptor>(pt.vertex().id());
         return CgalImpl::ShortestPath::face_location(v_id, m);
     };
 
@@ -107,7 +107,7 @@ mdv::mesh::internal::location_from_mesh_point(
     auto edge_descriptor =
             [](const Point::PointOnEdgeDescriptor& pt) -> CgalImpl::FaceLocation {
         const auto& aabb_tree = pt.mesh().cgal()._aabb_tree;
-        const auto  m_impl    = internal::get_mesh_impl(pt.mesh());
+        const auto& m_impl    = internal::get_mesh_impl(pt.mesh());
         return CgalImpl::ShortestPath::locate(
                 internal::point3_from_point(pt),
                 aabb_tree,

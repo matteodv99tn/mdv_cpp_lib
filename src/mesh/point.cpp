@@ -36,7 +36,7 @@ Point::PointOnVertexDescriptor::describe() const {
 
 Face
 Point::PointOnVertexDescriptor::face() const {
-    const auto  m            = internal::get_mesh_impl(_v);
+    const auto& m            = internal::get_mesh_impl(_v);
     const auto  v_id         = static_cast<CgalImpl::CgalVertexIndex>(_v.id());
     const auto  he           = CGAL::halfedge(v_id, m);
     static bool warn_printed = false;
@@ -65,9 +65,9 @@ Point::PointOnEdgeDescriptor::PointOnEdgeDescriptor(
         HalfEdge he, const CartesianPoint& position
 ) :
         _he(std::move(he)) {
-    using Kernel     = CgalImpl::Kernel;
-    const auto m     = internal::get_mesh_impl(he);
-    const auto he_id = internal::to_halfedge_impl(_he);
+    using Kernel      = CgalImpl::Kernel;
+    const auto& m     = internal::get_mesh_impl(he);
+    const auto  he_id = internal::to_halfedge_impl(_he);
 
     const Kernel::Point_3 he_origin = m.point(source(he_id, m));
     const Kernel::Point_3 he_end    = m.point(target(he_id, m));
@@ -87,8 +87,8 @@ CartesianPoint
 Point::PointOnEdgeDescriptor::position() const noexcept {
     using Kernel = internal::CgalImpl::Kernel;
 
-    const auto m     = internal::get_mesh_impl(_he);
-    const auto he_id = internal::to_halfedge_impl(_he);
+    const auto& m     = internal::get_mesh_impl(_he);
+    const auto  he_id = internal::to_halfedge_impl(_he);
 
     const Kernel::Point_3 he_origin = m.point(source(he_id, m));
     const Kernel::Point_3 he_dest   = m.point(target(he_id, m));
@@ -98,15 +98,15 @@ Point::PointOnEdgeDescriptor::position() const noexcept {
 
 Face
 Point::PointOnEdgeDescriptor::face() const {
-    const auto m     = internal::get_mesh_impl(_he);
-    const auto he_id = internal::to_halfedge_impl(_he);
+    const auto& m     = internal::get_mesh_impl(_he);
+    const auto  he_id = internal::to_halfedge_impl(_he);
     return {_he.mesh(), CGAL::face(he_id, m)};
 }
 
 Point::PointOnEdgeDescriptor
 Point::PointOnEdgeDescriptor::display_in_opposite_halfedge() const {
-    const auto m     = internal::get_mesh_impl(_he);
-    const auto he_id = internal::to_halfedge_impl(_he);
+    const auto& m     = internal::get_mesh_impl(_he);
+    const auto  he_id = internal::to_halfedge_impl(_he);
     return {
             HalfEdge{_he.mesh(), CGAL::opposite(he_id, m)},
             1.0 - _c
@@ -118,7 +118,7 @@ Point::PointOnEdgeDescriptor::random(const Mesh& mesh) {
     static std::random_device rand_dev;
     static std::mt19937       generator(rand_dev());
 
-    const auto m = internal::get_mesh_impl(mesh);
+    const auto& m = internal::get_mesh_impl(mesh);
     m.num_halfedges();
     std::uniform_int_distribution<unsigned> id_distr(0, m.num_halfedges() - 1);
     std::uniform_real_distribution<double>  c_distr(0.0, 1.0);

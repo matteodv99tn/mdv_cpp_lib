@@ -130,13 +130,13 @@ MDV_INLINE CgalImpl::Kernel::Vector_3
     return {vec(0), vec(1), vec(2)};
 };
 
-MDV_INLINE CgalImpl::Mesh
-           get_mesh_impl(const MeshElement& elem) {
+MDV_INLINE const CgalImpl::Mesh&
+                 get_mesh_impl(const MeshElement& elem) {
     return elem.mesh().cgal()._mesh;
 };
 
-MDV_INLINE CgalImpl::Mesh
-           get_mesh_impl(const Mesh& mesh) {
+MDV_INLINE const CgalImpl::Mesh&
+                 get_mesh_impl(const Mesh& mesh) {
     return mesh.cgal()._mesh;
 };
 
@@ -169,7 +169,7 @@ MDV_INLINE CgalImpl::Kernel::Ray_3
 
 MDV_INLINE CgalImpl::Kernel::Triangle_3
            triangle3_from_face(const Face& f) {
-    const auto  m   = get_mesh_impl(f);
+    const auto& m   = get_mesh_impl(f);
     const auto  he0 = m.halfedge(to_face_impl(f));
     const auto  he1 = next(he0, m);
     const auto  he2 = next(he1, m);

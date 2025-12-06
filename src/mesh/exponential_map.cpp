@@ -314,10 +314,13 @@ exponential_map(TangentVector v, Geodesic* geod) {
     ++iter_count;
 #endif
 
-    const auto p0          = internal::point3_from_point(v.application_point());
-    const auto f_id        = internal::to_face_impl(v.application_point().face());
-    const auto mesh        = internal::get_mesh_impl(v.application_point().face());
-    const auto vec         = internal::vector3_from_eigen(v.cartesian_vector());
+    if (mdv::condition::is_zero_norm(v.cartesian_vector()))
+        return v.application_point();
+
+    const auto  p0         = internal::point3_from_point(v.application_point());
+    const auto  f_id       = internal::to_face_impl(v.application_point().face());
+    const auto& mesh       = internal::get_mesh_impl(v.application_point().face());
+    const auto  vec        = internal::vector3_from_eigen(v.cartesian_vector());
     const auto [pfinal, f] = exponential_map_impl(p0, f_id, vec, mesh, geod);
     const auto res         = Point::from_cartesian(
             v.application_point().mesh(), internal::convert(pfinal)

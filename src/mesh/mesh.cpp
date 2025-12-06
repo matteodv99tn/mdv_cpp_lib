@@ -237,8 +237,8 @@ Mesh::closest_vertex(const CartesianPoint& pt) {
     const auto [_, f_id] = cgal()._aabb_tree.closest_point_and_primitive(
             internal::point3_from_eigen(pt)
     );
-    const auto m    = internal::get_mesh_impl(*this);
-    auto       func = [&pt, &m](const auto id) -> double {
+    const auto& m    = internal::get_mesh_impl(*this);
+    auto        func = [&pt, &m](const auto id) -> double {
         return (internal::convert(m.point(id)) - pt).norm();
     };
 

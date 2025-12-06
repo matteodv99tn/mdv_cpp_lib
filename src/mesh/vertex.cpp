@@ -39,7 +39,7 @@ Eigen::Vector3d
 Vertex::normal() const noexcept {
     using VertexDescriptor = internal::CgalImpl::VertexDescriptor;
     using Vec3             = internal::CgalImpl::Vec3;
-    auto m                 = internal::get_mesh_impl(*this);
+    const auto& m          = internal::get_mesh_impl(*this);
 #if MDV_CGAL_VERSION == 5
     const auto normals = m.property_map<VertexDescriptor, Vec3>("v:normal").first;
 #elif MDV_CGAL_VERSION == 6

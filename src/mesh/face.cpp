@@ -52,8 +52,8 @@ Face::normal() const noexcept {
 
 std::optional<mdv::mesh::HalfEdge>
 Face::adjacent_to(const Face& other) const {
-    const auto this_f = internal::to_face_impl(*this);
-    const auto m      = internal::get_mesh_impl(*this);
+    const auto  this_f = internal::to_face_impl(*this);
+    const auto& m      = internal::get_mesh_impl(*this);
 
     for (auto h : CGAL::halfedges_around_face(halfedge(this_f, m), m)) {
         const auto h_opposite = CGAL::opposite(h, m);
@@ -66,7 +66,7 @@ Face::adjacent_to(const Face& other) const {
 std::array<mdv::mesh::Index, 3>
 Face::vertices_ids() const {
     const auto           f_id = internal::to_face_impl(*this);
-    const auto           m    = internal::get_mesh_impl(*this);
+    const auto&          m    = internal::get_mesh_impl(*this);
     std::array<Index, 3> res;
     std::size_t          j = 0;
     for (const auto v_id : CGAL::vertices_around_face(CGAL::halfedge(f_id, m), m)) {
