@@ -250,7 +250,7 @@ namespace {
         // Compute rotation
         const Eigen::Quaterniond q = Eigen::Quaterniond::FromTwoVectors(-b1, b2);
         const Vec3d              v_next_eigen = q * internal::convert(v_left);
-        const auto               v_next       = internal::vector3_from_eigen(v_next_eigen);
+        const auto               v_next = internal::vector3_from_eigen(v_next_eigen);
 
 #if RERUN_DEBUG_ENABLED
         const Kernel::Triangle_3 tri_next = get(tri_gen, next_face_id);

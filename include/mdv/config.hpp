@@ -7,6 +7,8 @@ namespace mdv::config {
 
 std::filesystem::path meshes_directory();
 
+std::filesystem::path dataset_directory();
+
 
 }  // namespace mdv::config
 
