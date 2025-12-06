@@ -93,7 +93,7 @@ MeshKernel::evaluate_distance_matrix(
 Eigen::MatrixXd
 MeshKernel::squared_exponential_from_matrix(
         const Eigen::MatrixXd& distance_matrix, const double lengthscale
-) const {
+) {
     const double    lambda = 0.5 / (lengthscale * lengthscale);
     Eigen::MatrixXd res    = distance_matrix.unaryExpr([lambda](const double x) {
         return std::exp(-lambda * x * x);

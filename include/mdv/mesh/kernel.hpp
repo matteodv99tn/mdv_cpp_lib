@@ -23,10 +23,9 @@ public:
             const PointVector& pts1, const PointVector& pts2
     ) const;
 
-    MDV_NODISCARD
-    Eigen::MatrixXd squared_exponential_from_matrix(
+    MDV_NODISCARD static Eigen::MatrixXd squared_exponential_from_matrix(
             const Eigen::MatrixXd& distance_matrix, const double lengthscale
-    ) const;
+    );
 
     MDV_NODISCARD
     Eigen::MatrixXd squared_exponential(

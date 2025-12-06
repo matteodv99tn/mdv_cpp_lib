@@ -1,3 +1,4 @@
+#include <chrono>
 #include <Eigen/Core>
 #include <fmt/base.h>
 
@@ -5,6 +6,7 @@
 #include <rerun/components/vector3d.hpp>
 
 #include "mdv/eigen_defines.hpp"
+#include "mdv/mesh/gaussian_process.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 #define MATIOCPP_HAS_EIGEN
 
@@ -97,6 +99,9 @@ main(int argc, char* argv[]) {
     // std::string mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     // const auto  mesh      = Mesh::from_file(mesh_path);
 
+    const double ls    = 0.05;
+    const double noise = 1.0;
+
     const std::string matfile = mdv::config::dataset_directory() / "C.mat";
 
     matioCpp::File      letter_dataset(matfile);
@@ -106,6 +111,9 @@ main(int argc, char* argv[]) {
     const auto meshfile = mdv::mesh::create_from_function(func);
     auto       mesh     = Mesh::from_file(meshfile);
     MeshKernel kernel(mesh);
+
+    fmt::println("Number of faces: {}", mesh.num_faces());
+    fmt::println("Number of vertices: {}", mesh.num_vertices());
 
     // Dataset generation
     std::vector<PointVector>             point_data;
@@ -132,85 +140,55 @@ main(int argc, char* argv[]) {
     Eigen::VectorXd vy(vels.size());
     Eigen::VectorXd vz(vels.size());
 
+
     for (long i = 0; i < vels.size(); ++i) {
         vx(i) = vels[i](0);
         vy(i) = vels[i](1);
         vz(i) = vels[i](2);
     }
 
-    // std::cout << vx << std::endl << std::endl;
-    // std::cout << vy << std::endl << std::endl;
-    // std::cout << vz << std::endl << std::endl;
+    Eigen::MatrixXd V_mat(vels.size(), 3);
+    V_mat.col(0) = vx;
+    V_mat.col(1) = vy;
+    V_mat.col(2) = vz;
 
     Expects(vx.rows() == pts.size());
 
-    const double ls = 0.05;
-    fmt::println("Evaluating kernel with lengthscale {}", ls);
-    if (ls > max_ls) throw std::runtime_error("Exceeding condition");
-    const Eigen::MatrixXd Kxx = kernel.squared_exponential(pts, pts, ls);
 
-    fmt::println("Inverting matrix");
-    const Eigen::MatrixXd Kxx_inv =
-            (1.0 * Eigen::MatrixXd::Identity(Kxx.rows(), Kxx.cols()) + Kxx).inverse();
-
+    fmt::println("Creating custom Gaussian Process - Lengthscale = {}", ls);
+    InexactGaussianProcess gp(&mesh, ls, noise);
+    gp.train(pts, V_mat);
+    fmt::println("Gaussian Process initialised");
 
     mdv::RerunConverter    to_rerun;
     rerun::RecordingStream rec("gaussianprocess");
     rec.spawn().exit_on_failure();
     rec.log_static("mesh", to_rerun(mesh));
 
-#if 1
-    // PointVector test_points;
-    // test_points.reserve(mesh.num_vertices());
-    // for (std::size_t i = 0; i < mesh.num_vertices(); ++i)
-    //     test_points.emplace_back(mesh.vertex(i));
-    PointVector test_points = pts;
+    // PointVector test_points = pts;
+    PointVector test_points;
+    test_points.reserve(mesh.num_vertices());
+    for (long i = 0; i < mesh.num_vertices(); ++i)
+        test_points.emplace_back(mesh.vertex(i));
 
-    fmt::println(
-            "Computing cross-correlation matrix with {} test points", test_points.size()
-    );
-    const Eigen::MatrixXd Kxp = kernel.squared_exponential(test_points, pts, ls);
+    fmt::println("Predicting vector field...");
+    const Eigen::MatrixXd V_gp = gp.predict(test_points);
+    fmt::println("Prediction computed");
 
-    Expects(Kxp.cols() == Kxx_inv.rows());
+    std::vector<::rerun::components::Vector3D>   gp_vecs;
+    std::vector<::rerun::components::Position3D> gp_origs;
 
-    const Eigen::MatrixXd vx_gp = Kxp * Kxx_inv * vx;
-    const Eigen::MatrixXd vy_gp = Kxp * Kxx_inv * vy;
-    const Eigen::MatrixXd vz_gp = Kxp * Kxx_inv * vz;
-
-    std::vector<::rerun::components::Vector3D>   vecs;
-    std::vector<::rerun::components::Position3D> origs;
-    std::vector<::rerun::components::Vector3D>   train_vecs;
-    std::vector<::rerun::components::Position3D> train_origs;
     for (long i = 0; i < test_points.size(); ++i) {
-        // fmt::println("{} {} {}", vx_gp(i), vy_gp(i), vz_gp(i));
-        mdv::Vec3d v{vx_gp(i), vy_gp(i), vz_gp(i)};
-        v *= 5.0;
-
-        if (v.norm() > 0.5) {
-            v.normalize();
-            v *= 0.5;
-        }
-
-
-        vecs.emplace_back(v(0), v(1), v(2));
         const auto pos = test_points[i].position();
-        origs.emplace_back(pos(0), pos(1), pos(2));
-
-        train_origs.emplace_back(pos(0), pos(1), pos(2));
-        train_vecs.emplace_back(vx(i), vy(i), vz(i));
+        gp_origs.emplace_back(pos(0), pos(1), pos(2));
+        gp_vecs.emplace_back(V_gp(i, 0), V_gp(i, 1), V_gp(i, 2));
     }
 
     rec.log_static(
-            "regressed_field",
-            ::rerun::archetypes::Arrows3D::from_vectors(std::move(vecs))
-                    .with_origins(std::move(origs))
+            "vector_field",
+            ::rerun::archetypes::Arrows3D::from_vectors(std::move(gp_vecs))
+                    .with_origins(std::move(gp_origs))
     );
-    rec.log_static(
-            "training_field",
-            ::rerun::archetypes::Arrows3D::from_vectors(std::move(train_vecs))
-                    .with_origins(std::move(train_origs))
-    );
-#endif
 
     Geodesic train_pts;
     for (const auto& pt : pts) train_pts.emplace_back(pt.position());
@@ -220,39 +198,20 @@ main(int argc, char* argv[]) {
     Point pos = Point::from_cartesian(
             mesh, pts[0].position() + 0.01 * mdv::Vec3d::Random()
     );
-    const double dt = 0.7;
+    const double dt = 0.2;
 
+    fmt::println("Starting dynamics integration");
     Geodesic path;
     path.reserve(100);
-
-    for (long i = 0; i < 200; ++i) {
-        std::cout << "Iter " << i << " | ";
+    auto start = std::chrono::high_resolution_clock::now();
+    for (long i = 0; i < 500; ++i) {
         rec.set_time_sequence("tick", i);
-
-        const Eigen::MatrixXd Kxp = kernel.squared_exponential({pos}, pts, ls);
-        // std::cout << "Kxx norm: " << Kxx.norm() << std::endl;
-        // std::cout << "Kxx_inv norm: " << Kxx_inv.norm() << std::endl;
-        // std::cout << "Kxp norm: " << Kxp.norm() << std::endl;
-        const Eigen::MatrixXd vx_curr = Kxp * Kxx_inv * vx;
-        const Eigen::MatrixXd vy_curr = Kxp * Kxx_inv * vy;
-        const Eigen::MatrixXd vz_curr = Kxp * Kxx_inv * vz;
-        assert(vx_curr.cols() == 1 && vx_curr.rows() == 1);
-        assert(vy_curr.cols() == 1 && vy_curr.rows() == 1);
-        assert(vz_curr.cols() == 1 && vz_curr.rows() == 1);
-        mdv::Vec3d u{vx_curr(0, 0), vy_curr(0, 0), vz_curr(0, 0)};
-        if (u.norm() > 1e5) {
-            std::cout << "U Big! " << u.transpose() << " - norm: " << u.norm() << " | ";
-            u.setZero();
-        }
-
-
-        std::cout << u.transpose();
-
+        const auto v_vec = gp.predict({pos});
+        mdv::Vec3d u     = v_vec.transpose();
 
         const auto       n = pos.face().normal();
         const mdv::Vec3d v = (mdv::Mat3d::Identity() - n * n.transpose()) * u;
-        std::cout << " --> " << v.transpose() << "\n";
-        TangentVector tv(pos, dt * v);
+        TangentVector    tv(pos, dt * v);
         pos = exponential_map(tv);
         path.emplace_back(pos.position());
 
@@ -266,6 +225,10 @@ main(int argc, char* argv[]) {
         rec.log("pos/z", rerun::Scalars({cart_pos(2)}));
         rec.log("path", to_rerun(path));
     }
+    auto       stop = std::chrono::high_resolution_clock::now();
+    const auto time_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
+    fmt::println("{} steps in {}ms", path.size(), time_ms);
 
 
     return 0;
