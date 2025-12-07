@@ -39,7 +39,7 @@ TEST(MeshKernel, Square_SinglePointSet) {
 
     MeshKernel kernel(mesh);
     start                          = std::chrono::high_resolution_clock::now();
-    const Eigen::MatrixXd kernel_d = kernel.evaluate_distance_matrix(points);
+    const Eigen::MatrixXd kernel_d = kernel.distance_matrix(points, points);
     stop                           = std::chrono::high_resolution_clock::now();
     std::cout << "MeshKernel matrix computation time: " << to_ms(stop - start)
               << "ms\n";
@@ -74,8 +74,7 @@ TEST(MeshKernel, Square_DoublePointSet) {
     }
 
     MeshKernel            kernel(mesh);
-    const Eigen::MatrixXd kernel_d =
-            kernel.evaluate_distance_matrix(points_a, points_b);
+    const Eigen::MatrixXd kernel_d = kernel.distance_matrix(points_a, points_b);
 
     for (long i = 0; i < n_pts_a; ++i) {
         for (long j = 0; j < n_pts_b; ++j) {

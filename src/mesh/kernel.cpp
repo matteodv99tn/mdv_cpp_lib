@@ -2,7 +2,9 @@
 
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <stdexcept>
 #include <thread>
+#include <utility>
 
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_geodesic.hpp"
@@ -11,10 +13,15 @@
 #include "mdv/mesh/point.hpp"
 
 namespace mdv::mesh {
-namespace {
-
-    using ShortestPath = internal::CgalImpl::ShortestPath;
-    using internal::CgalGeodesicConstructor;
+namespace internal {
+    Eigen::MatrixXd
+    eval_sek(const Eigen::MatrixXd& distance_matrix, const double ls) {
+        const double    lambda = 0.5 / (ls * ls);
+        Eigen::MatrixXd res    = distance_matrix.unaryExpr([lambda](const double x) {
+            return std::exp(-lambda * x * x);
+        });
+        return res;
+    }
 
     bool
     is_positive_definite(const Eigen::MatrixXd& mat) {
@@ -22,12 +29,18 @@ namespace {
         Eigen::LLT<Eigen::MatrixXd> llt(mat);
         return llt.info() == Eigen::Success;
     }
+}  // namespace internal
+
+namespace {
+
+    using ShortestPath = internal::CgalImpl::ShortestPath;
+    using internal::CgalGeodesicConstructor;
 
     void
     process_row(
             ShortestPath&                  shpath,
             const long                     i,  // row index
-            const MeshKernel::PointVector& pts,
+            const MeshKernel::InputVector& pts,
             Eigen::MatrixXd&               out
     ) {
         for (long j = 0; j < out.cols(); ++j) {
@@ -41,8 +54,8 @@ namespace {
     Eigen::MatrixXd
     eval_distance_matrix(
             const Mesh&                    mesh,
-            const MeshKernel::PointVector& pts1,
-            const MeshKernel::PointVector& pts2
+            const MeshKernel::InputVector& pts1,
+            const MeshKernel::InputVector& pts2
     ) {
         using internal::CgalImpl, internal::CgalGeodesicConstructor,
                 internal::location_from_mesh_point;
@@ -69,14 +82,7 @@ MeshKernel::MeshKernel(const Mesh& mesh) : _mesh(&mesh) {
 }
 
 Eigen::MatrixXd
-MeshKernel::evaluate_distance_matrix(const PointVector& pts) const {
-    return evaluate_distance_matrix(pts, pts);
-}
-
-Eigen::MatrixXd
-MeshKernel::evaluate_distance_matrix(
-        const PointVector& pts1, const PointVector& pts2
-) const {
+MeshKernel::distance_matrix(const InputVector& pts1, const InputVector& pts2) const {
     const Eigen::MatrixXd D12 = eval_distance_matrix(*_mesh, pts1, pts2);
     const Eigen::MatrixXd D21 = eval_distance_matrix(*_mesh, pts2, pts1);
     assert(D12.cols() == D21.rows() && D12.rows() == D21.cols());
@@ -88,26 +94,6 @@ MeshKernel::evaluate_distance_matrix(
         for (long j = 0; j < nc; ++j) { res(i, j) = std::min(D12(i, j), D21(j, i)); }
     }
     return res;
-}
-
-Eigen::MatrixXd
-MeshKernel::squared_exponential_from_matrix(
-        const Eigen::MatrixXd& distance_matrix, const double lengthscale
-) {
-    const double    lambda = 0.5 / (lengthscale * lengthscale);
-    Eigen::MatrixXd res    = distance_matrix.unaryExpr([lambda](const double x) {
-        return std::exp(-lambda * x * x);
-    });
-    return res;
-}
-
-Eigen::MatrixXd
-MeshKernel::squared_exponential(
-        const PointVector& pts1, const PointVector& pts2, const double lengthscale
-) const {
-    return squared_exponential_from_matrix(
-            evaluate_distance_matrix(pts1, pts2), lengthscale
-    );
 }
 
 double
@@ -133,7 +119,7 @@ MeshKernel::find_max_lengthscale(
         for (std::size_t j = 0; j < num_points; ++j)
             points.emplace_back(mdv::mesh::Point::random(*_mesh));
 
-        dist_matrices.emplace_back(evaluate_distance_matrix(points));
+        dist_matrices.emplace_back(distance_matrix(points, points));
     }
 
     double ls_min = 0.0;
@@ -146,10 +132,8 @@ MeshKernel::find_max_lengthscale(
 
         bool is_pd = true;
         for (std::size_t i = 0; i < dist_matrices.size(); ++i) {
-            const Eigen::MatrixXd ker =
-                    squared_exponential_from_matrix(dist_matrices[i], ls);
-            if (!is_positive_definite(ker)) {
-                // std::cout << "Test #" << i << " yields negative covariance\n";
+            const Eigen::MatrixXd ker = internal::eval_sek(dist_matrices[i], ls);
+            if (!internal::is_positive_definite(ker)) {
                 is_pd = false;
                 break;
             }
@@ -164,16 +148,16 @@ MeshKernel::find_max_lengthscale(
 
 double
 MeshKernel::find_pointset_max_lengthscale(
-        const PointVector& pts, const std::size_t num_steps
+        const InputVector& pts, const std::size_t num_steps
 ) {
     assert(_mesh);
 
-    const Eigen::MatrixXd dist_matrix = evaluate_distance_matrix(pts);
+    const Eigen::MatrixXd dist_matrix = distance_matrix(pts, pts);
     Eigen::MatrixXd       kernel;
 
     auto is_pd_kernel = [&dist_matrix, &kernel, this](const double ls) -> bool {
-        kernel = squared_exponential_from_matrix(dist_matrix, ls);
-        return is_positive_definite(kernel);
+        kernel = internal::eval_sek(dist_matrix, ls);
+        return internal::is_positive_definite(kernel);
     };
 
     double ls0 = 0.1;
@@ -215,5 +199,61 @@ MeshKernel::find_pointset_max_lengthscale(
     return ls_min;
 }
 
+struct InexactMeshKernel::Data {
+    using ShortestPath = internal::CgalImpl::ShortestPath;
+
+    InputVector               pts1;
+    std::vector<ShortestPath> shpath_objs;
+
+    Data(InputVector points) : pts1(std::move(points)) {
+        using internal::CgalGeodesicConstructor;
+
+        const auto& mesh = pts1[0].mesh();
+        const auto& m    = internal::get_mesh_impl(pts1[0].mesh());
+
+        shpath_objs.reserve(pts1.size());
+        for (const auto& pt : pts1) {
+            shpath_objs.emplace_back(m);
+            CgalGeodesicConstructor::set_source(shpath_objs.back(), pt);
+        }
+    }
+};
+
+InexactMeshKernel::~InexactMeshKernel() {
+    delete _data;
+};
+
+Eigen::MatrixXd
+InexactMeshKernel::distance_matrix(const InputVector& pts2) {
+    if (_data == nullptr)
+        throw std::runtime_error("InexactMeshKernel: cache not properly initialised!");
+
+    using internal::CgalGeodesicConstructor;
+
+    assert(_data->shpath_objs.size() == _data->pts1.size());
+    Eigen::MatrixXd distances(_data->pts1.size(), pts2.size());
+
+    std::vector<std::thread> threads;
+    threads.reserve(distances.cols());
+
+    auto row_processor = [this, &distances, &pts2](const long i) {
+        for (long j = 0; j < distances.cols(); ++j) {
+            const auto path = CgalGeodesicConstructor::construct_geodesic(
+                    _data->shpath_objs[i], pts2[j]
+            );
+            distances(i, j) = length(path);
+        }
+    };
+
+    for (long i = 0; i < distances.rows(); ++i) threads.emplace_back(row_processor, i);
+    for (auto& th : threads) th.join();
+    return distances;
+}
+
+void
+InexactMeshKernel::set_points1(const InputVector& pts1) {
+    delete _data;
+    _data = new Data(pts1);
+}
 
 }  // namespace mdv::mesh
