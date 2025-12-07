@@ -1,11 +1,17 @@
 #include "mdv/config.hpp"
 
-std::filesystem::path
-mdv::config::meshes_directory() {
-    return "@CMAKE_CURRENT_SOURCE_DIR@/meshes";
+namespace mdv::config {
+
+using path = std::filesystem::path;
+
+path
+meshes_directory() {
+    return path{"@CMAKE_CURRENT_SOURCE_DIR@"} / "data" / "meshes";
 }
 
-std::filesystem::path
-mdv::config::dataset_directory() {
-    return "@CMAKE_CURRENT_SOURCE_DIR@/dataset";
+path
+letter_dataset_directory() {
+    return path{"@CMAKE_CURRENT_SOURCE_DIR@"} / "data" / "letter_dataset";
 }
+
+}  // namespace mdv::config

@@ -6,7 +6,7 @@ build/
 install/
 json/
 trajectories/
-meshes/generated/
+data/meshes/generated/
 
 
 docs/html

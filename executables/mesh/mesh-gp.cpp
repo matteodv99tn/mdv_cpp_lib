@@ -102,7 +102,7 @@ main(int argc, char* argv[]) {
     const double ls    = 0.05;
     const double noise = 1.0;
 
-    const std::string matfile = mdv::config::dataset_directory() / "C.mat";
+    const std::string matfile = mdv::config::letter_dataset_directory() / "C.mat";
 
     matioCpp::File      letter_dataset(matfile);
     matioCpp::CellArray demos = letter_dataset.read("demos").asCellArray();

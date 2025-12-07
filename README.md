@@ -127,4 +127,6 @@ After installing _act_ (you can find the installation instructions [here](https:
   ```
   The extra arguments are required to prorperly setup your local machine to mock the github artifacts server.
 
+## Credits
 
+- [pbdlib-matlab](https://gitlab.idiap.ch/rli/pbdlib-matlab) for the handwritten letter dataset;
