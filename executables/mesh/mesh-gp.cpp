@@ -1,72 +1,30 @@
 #include <chrono>
 #include <Eigen/Core>
 #include <fmt/base.h>
-
-#include <rerun/archetypes/arrows3d.hpp>
-#include <rerun/components/vector3d.hpp>
-
-#include "mdv/eigen_defines.hpp"
-#include "mdv/mesh/gaussian_process.hpp"
-#include "mdv/mesh/tangent_vector.hpp"
-#define MATIOCPP_HAS_EIGEN
-
 #include <fmt/os.h>
-#include <iostream>
-#include <matioCpp/EigenConversions.h>
-#include <matioCpp/matioCpp.h>
 #include <string>
 
 #include <range/v3/all.hpp>
 #include <rerun.hpp>
+#include <rerun/archetypes/arrows3d.hpp>
+#include <rerun/components/vector3d.hpp>
 
 #include "mdv/config.hpp"
+#include "mdv/dataset/handwritten_dataset.hpp"
+#include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"
+#include "mdv/mesh/gaussian_process.hpp"
 #include "mdv/mesh/kernel.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/mesh_utilities.hpp"
+#include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/rerun.hpp"
 
 using namespace mdv::mesh;
 namespace rs = ::ranges;
 namespace rv = ::ranges::views;
 
-using std::filesystem::path;
-
 using PointVector = std::vector<Point>;
-
-std::pair<Eigen::MatrixXd, Eigen::MatrixXd>
-get_demonstration_data(const matioCpp::CellArray& demos, const std::size_t demo_id) {
-    matioCpp::Struct d0 = demos(demo_id).asStruct();
-    return {0.1 * matioCpp::to_eigen(d0["pos"].asMultiDimensionalArray<double>()),
-            0.1 * matioCpp::to_eigen(d0["vel"].asMultiDimensionalArray<double>())};
-}
-
-std::pair<long, long>
-find_start_end_indices(const Eigen::MatrixXd& velocities) {
-    auto start_id = std::find_if(
-            velocities.colwise().begin(),
-            velocities.colwise().end(),
-            [](const auto& v) -> bool { return v.norm() > 1e-3; }
-    );
-
-    auto end_id = std::find_if(
-            velocities.colwise().rbegin(),
-            velocities.colwise().rend(),
-            [](const auto& v) -> bool { return v.norm() > 1e-3; }
-    );
-
-    return {std::distance(velocities.colwise().begin(), start_id),
-            velocities.cols() - std::distance(velocities.colwise().rbegin(), end_id)
-                    - 1};
-}
-
-std::pair<Eigen::MatrixXd, Eigen::MatrixXd>
-get_trimmed_demonstration(const matioCpp::CellArray& demos, const std::size_t demo_id) {
-    const auto [pos, vel]         = get_demonstration_data(demos, demo_id);
-    const auto [start_id, end_id] = find_start_end_indices(vel);
-    return {pos.middleCols(start_id, end_id - start_id + 1),
-            vel.middleCols(start_id, end_id - start_id + 1)};
-}
 
 std::tuple<PointVector, Geodesic, std::vector<Eigen::Vector3d>>
 to_demonstration_data(
@@ -96,16 +54,15 @@ to_demonstration_data(
 
 int
 main(int argc, char* argv[]) {
-    // std::string mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
-    // const auto  mesh      = Mesh::from_file(mesh_path);
 
     const double ls    = 0.05;
     const double noise = 1.0;
 
     const std::string matfile = mdv::config::letter_dataset_directory() / "C.mat";
 
-    matioCpp::File      letter_dataset(matfile);
-    matioCpp::CellArray demos = letter_dataset.read("demos").asCellArray();
+    const auto letter_dataset = mdv::load_letter_dataset(0.001);
+    const auto dataset        = letter_dataset.at('c');
+
 
     const auto func     = [](double x, double y) -> double { return x * x + y * y; };
     const auto meshfile = mdv::mesh::create_from_function(func);
@@ -119,7 +76,8 @@ main(int argc, char* argv[]) {
     std::vector<PointVector>             point_data;
     std::vector<std::vector<mdv::Vec3d>> vel_data;
     for (std::size_t i = 0; i < 5; ++i) {
-        const auto [raw_pos, raw_vel] = get_trimmed_demonstration(demos, i);
+        const auto& raw_pos    = dataset.demonstrations[i].pos;
+        const auto& raw_vel    = dataset.demonstrations[i].vel;
         auto [pts, geod, vels] = to_demonstration_data(raw_pos, raw_vel, mesh, func, 6);
         for (std::size_t j = 0; j < vels.size() - 1; ++j)
             vels[j] = geod[j + 1] - geod[j];

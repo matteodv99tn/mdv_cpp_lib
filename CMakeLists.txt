@@ -42,6 +42,32 @@ find_and_log_required(range-v3)
 find_and_log_required(Microsoft.GSL)
 find_and_log(rerun_sdk)
 
+# Build libmatioCpp
+include(ExternalProject)
+set(MATIOCPP_INSTALL_DIR ${CMAKE_BINARY_DIR}/matioCpp-install)
+file(MAKE_DIRECTORY ${MATIOCPP_INSTALL_DIR}/include)
+file(MAKE_DIRECTORY ${MATIOCPP_INSTALL_DIR}/lib)
+
+ExternalProject_Add(
+    matioCpp
+    URL https://github.com/ami-iit/matio-cpp/archive/refs/tags/v0.3.0.zip
+    CMAKE_ARGS
+        -DBUILD_SHARED_LIBS=OFF
+        -DBUILD_TESTING=OFF
+        -DUSE_SYSTEM_visit_struct=OFF
+        -DCMAKE_INSTALL_PREFIX=${MATIOCPP_INSTALL_DIR}
+        -DCMAKE_BUILD_TYPE=Release
+        BUILD_BYPRODUCTS ${MATIOCPP_INSTALL_DIR}/lib/libmatioCpp.a
+)
+
+add_library(matioCpp::matioCpp STATIC IMPORTED GLOBAL)
+add_dependencies(matioCpp::matioCpp matioCpp)
+set_target_properties(matioCpp::matioCpp PROPERTIES
+    IMPORTED_LOCATION ${MATIOCPP_INSTALL_DIR}/lib/libmatioCpp.a
+    INTERFACE_INCLUDE_DIRECTORIES ${MATIOCPP_INSTALL_DIR}/include
+    INTERFACE_LINK_LIBRARIES "matio"
+)
+
 add_compile_definitions(MDV_CGAL_VERSION=${CGAL_VERSION_MAJOR})
 
 # find_program(CLANGTIDY clang-tidy)
@@ -98,6 +124,9 @@ add_library(
 
     # DMP
     ${CMAKE_CURRENT_LIST_DIR}/src/dmp/dmp.cpp
+
+    # Dataset
+    ${CMAKE_CURRENT_LIST_DIR}/src/dataset/handwritten_dataset.cpp
 )
 
 set_source_files_properties(
@@ -138,6 +167,7 @@ target_link_libraries(
     spdlog::spdlog
     PRIVATE 
     range-v3
+    matioCpp::matioCpp
 )
 target_compile_definitions(
     mdvcpplib
