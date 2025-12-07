@@ -155,7 +155,7 @@ main() {
 
     long ns_int = ns_demo * (dts_demo / 1ms);
 
-    Dmp dmp(mdv::get_default_logger(), 48.0, 12.0, 3.0, 20);
+    Dmp dmp;
     dmp.tau = 1.0;
     fmt::print("Learning...\n");
     dmp.embedding().setup(demonstration.front().y(), demonstration.back().y());
