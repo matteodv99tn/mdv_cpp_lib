@@ -228,7 +228,7 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
     for (const auto he : CGAL::halfedges_around_face(f_he, m_impl)) {
         const auto p0 = m_impl.point(CGAL::source(he, m_impl));
         const auto p1 = m_impl.point(CGAL::target(he, m_impl));
-        if (CGAL::squared_distance(point, Segment_3(p0, p1)) < 1e-12)
+        if (CGAL::squared_distance(point, Segment_3(p0, p1)) < 1e-18)
             return PointOnEdgeDescriptor{HalfEdge(mesh, he), cartesian_pt};
     }
 

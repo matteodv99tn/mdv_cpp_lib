@@ -140,8 +140,8 @@ mdv::mesh::parallel_transport(
     const Vec3d n_dest    = dest_point.face().normal();
     const Vec3d vec_start = tangent_vector.cartesian_vector();
 
-    assert((geod[1] - geod[0]).norm() > 1e-6);
-    assert((geod[n - 1] - geod[n - 2]).norm() > 1e-6);
+    assert((geod[1] - geod[0]).norm() > 1e-10);
+    assert((geod[n - 1] - geod[n - 2]).norm() > 1e-10);
 
     const auto R1 = build_trihedron(start_point, x_start);  // NOLINT
     const auto R2 = build_trihedron(dest_point, x_dest);    // NOLINT

@@ -127,15 +127,16 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
             eigen_to_str(to.position())
     );
 
-    if (is_zero_norm(from.position() - to.position())) { return {}; }
-    if (from.face() == to.face()) return {from.position(), to.position()};
+    if (is_zero_norm(from.position() - to.position())) return {};
+
+    const auto from_id = internal::to_face_impl(from.face());
+    const auto to_id   = internal::to_face_impl(to.face());
+    if (from_id == to_id) return {from.position(), to.position()};
 
 
     if (from.get_as<Point::PointInFaceDescriptor>() != nullptr
         && to.get_as<Point::PointInFaceDescriptor>() != nullptr) {
         const auto& m         = internal::get_mesh_impl(from.mesh());
-        const auto  from_id   = internal::to_face_impl(from.face());
-        const auto  to_id     = internal::to_face_impl(to.face());
         const auto  shared_he = internal::shared_halfedge(from_id, to_id, m);
 
         if (shared_he.has_value()) {
