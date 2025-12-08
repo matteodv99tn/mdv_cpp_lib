@@ -210,7 +210,7 @@ namespace {
 #endif
 
         const double dist_p0_pstar = CGAL::squared_distance(p0, pstar);
-        const double vec_len       = CGAL::squared_length(vec);
+        const double vec_len       = vec.squared_length();
 
         // Check if the vector is within the face
         if (vec_len < dist_p0_pstar) {
@@ -220,7 +220,7 @@ namespace {
 
         const Kernel::Vector_3 v_cut  = pstar - p0;
         const Kernel::Vector_3 v_left = vec - v_cut;
-        assert(CGAL::squared_length(v_left) < CGAL::squared_length(vec));
+        assert(v_left.squared_length() < vec.squared_length());
 
         if (pstar_type == TRIANGLE_VERTEX_INTERSECTION) {
             throw std::runtime_error(
