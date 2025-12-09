@@ -39,10 +39,9 @@ class MeshKernel:
         """
         self._kernel_impl = _MeshKernelImpl(mesh._mesh_impl)
 
-    def evaluate_distance_matrix(
-            self,
-            points1: list[Point],
-            points2: Optional[list[Point]] = None) -> np.ndarray:
+    def distance_matrix(self,
+                        points1: list[Point],
+                        points2: Optional[list[Point]] = None) -> np.ndarray:
         """
         Evaluate the geodesic distance matrix between points on the mesh.
         
@@ -67,15 +66,15 @@ class MeshKernel:
         """
         pts1_impl = self._to_point_impl_list(points1)
         if points2 is None:
-            return self._kernel_impl.evaluate_distance_matrix(pts1_impl)
+            return self._kernel_impl.distance_matrix(pts1_impl)
 
         pts2_impl = self._to_point_impl_list(points2)
-        return self._kernel_impl.evaluate_distance_matrix(pts1_impl, pts2_impl)
+        return self._kernel_impl.distance_matrix(pts1_impl, pts2_impl)
 
-    def squared_exponential(self,
-                            points1: list[Point | Vertex],
-                            points2: list[Point | Vertex],
-                            lengthscale: float = 1.0) -> np.ndarray:
+    def __call__(self,
+                 points1: list[Point],
+                 points2: list[Point],
+                 lengthscale: float = 1.0) -> np.ndarray:
         """
         Evaluate the squared exponential (RBF) kernel between points.
         
@@ -104,12 +103,13 @@ class MeshKernel:
         """
         pts1_impl = self._to_point_impl_list(points1)
         pts2_impl = self._to_point_impl_list(points2)
-        return self._kernel_impl.squared_exponential(pts1_impl, pts2_impl,
-                                                     lengthscale)
+        return self._kernel_impl(pts1_impl, pts2_impl, lengthscale)
 
-    def squared_exponential_from_distance_matrix(self, distance_matrix: np.ndarray, lengthscale: float = 1.0) -> np.ndarray:
+    @staticmethod
+    def evaluate_squared_exponential(distance_matrix: np.ndarray,
+                                     lengthscale: float = 1.0) -> np.ndarray:
         """
-        Evaluate the squared exponential (RBF) kernel from a pre-computed distance matrix.
+        Evaluate the squared exponential (RBF) kernel on a pre-computed distance matrix.
         
         Parameters
         ----------
@@ -134,7 +134,10 @@ class MeshKernel:
         K(x1, x2) = exp(-0.5 * d(x1, x2)^2 / l^2)
         where d(x1, x2) is the geodesic distance and l is the length scale.
         """
-        return self._kernel_impl.squared_exponential_from_matrix(distance_matrix, float(lengthscale))
+
+        from ._mesh_impl import evaluate_squared_exponential
+        return evaluate_squared_exponential(distance_matrix,
+                                            float(lengthscale))
 
     def _to_point_impl_list(self, input: list[Point | Vertex]) -> PointVector:
         """
@@ -155,6 +158,7 @@ class MeshKernel:
         ValueError
             If an input object cannot be converted to a Point
         """
+
         def ensure_point(p: Vertex | Point) -> Point:
             if isinstance(p, Vertex):
                 return Point(p)

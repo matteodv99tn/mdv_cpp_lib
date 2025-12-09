@@ -87,23 +87,30 @@ namespace mdv::mesh {
     public:
         MeshKernel(const mdv::mesh::Mesh&);
 
-        Eigen::MatrixXd evaluate_distance_matrix(
-                const std::vector<mdv::mesh::Point>& pts
+        Eigen::MatrixXd distance_matrix(
+                const std::vector<mdv::mesh::Point>& pts1, 
+                const std::vector<mdv::mesh::Point>& pts2
         ) const;
 
-        
-        Eigen::MatrixXd evaluate_distance_matrix(
-                const std::vector<mdv::mesh::Point>& pts1, const std::vector<mdv::mesh::Point>& pts2
-        ) const;
+        Eigen::MatrixXd operator()(
+                const std::vector<mdv::mesh::Point>& pts1, 
+                const std::vector<mdv::mesh::Point>& pts2, 
+                const double lengthscale
+        );
+    };
 
-        
-        Eigen::MatrixXd squared_exponential(
-                const std::vector<mdv::mesh::Point>& pts1, const std::vector<mdv::mesh::Point>& pts2, const double lengthscale
-        ) const;
+    class InexactMeshKernel : public MeshKernel {
+    public:
+        InexactMeshKernel(const mdv::mesh::Mesh&);
 
-        Eigen::MatrixXd squared_exponential_from_matrix(
-                const Eigen::MatrixXd& distance_matrix, const double lengthscale
-        ) const;
+        Eigen::MatrixXd distance_matrix(const std::vector<mdv::mesh::Point>& pts);
+
+        void set_points1(const std::vector<mdv::mesh::Point>& pts1);
+
+        Eigen::MatrixXd operator()(
+                const std::vector<mdv::mesh::Point>& pts, 
+                const double lengthscale
+        );
     };
 }
 
@@ -114,6 +121,10 @@ namespace mdv::mesh {
 
     std::string mesh_directory() {
         return mdv::config::meshes_directory();
+    }
+
+    Eigen::MatrixXd evaluate_squared_exponential(const Eigen::MatrixXd& d_mat, const double ls) {
+        return mdv::mesh::internal::eval_sek(d_mat, ls);
     }
 %}
 

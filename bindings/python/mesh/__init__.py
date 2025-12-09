@@ -4,6 +4,7 @@ from .face import Face
 from .point import Point
 from .geodesic import Geodesic
 from .kernel import MeshKernel
+from .inexact_kernel import InexactMeshKernel
 from .algorithms import length
 
 # Export the main classes
@@ -14,6 +15,7 @@ __all__ = [
     'Point',
     'Geodesic',
     'MeshKernel',
+    'InexactMeshKernel',
     'load_from_file',
     'mesh_directory',
     'length',
