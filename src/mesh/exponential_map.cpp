@@ -233,6 +233,10 @@ namespace {
         const auto      proj_he      = get_halfedge(f_id, pstar, mesh);
         const FaceIndex next_face_id = mesh.face(CGAL::opposite(proj_he, mesh));
 
+        constexpr Index invalid = -1;
+        if (next_face_id == FaceIndex{invalid})
+            throw std::runtime_error("Boarder reached when computing exponential map");
+
         const auto& v0 = mesh.point(source(proj_he, mesh));
         const auto& v1 = mesh.point(target(proj_he, mesh));
         const Vec3d ax = internal::convert(v1 - v0).normalized();

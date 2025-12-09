@@ -143,9 +143,9 @@ Point::PointInFaceDescriptor::PointInFaceDescriptor(
             is_zero(sum - 1.0) && _b(0) > 0.0 && _b(1) > 0.0 && _b(2) > 0.0;
 
     std::size_t zero_bs = 0;
-    if (is_zero(_b(0))) ++zero_bs;
-    if (is_zero(_b(1))) ++zero_bs;
-    if (is_zero(_b(2))) ++zero_bs;
+    if (std::abs(_b(0)) < 1e-10) ++zero_bs;
+    if (std::abs(_b(1)) < 1e-10) ++zero_bs;
+    if (std::abs(_b(2)) < 1e-10) ++zero_bs;
 
     if (zero_bs == 1) throw std::runtime_error("Should have been edge descriptor");
     if (zero_bs == 2) throw std::runtime_error("Should have been vertex descriptor");
