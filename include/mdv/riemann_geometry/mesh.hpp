@@ -99,6 +99,12 @@ struct MeshEmbedder {
     }
 
     template <typename StateType, typename GoalType>
+    Output
+    embed_scale(const Input& in, const StateType& x, const GoalType& g) const {
+        return embed(in, x, g);
+    }
+
+    template <typename StateType, typename GoalType>
     Input
     decode(const Output& out, const StateType& x, const GoalType& g) const {
         using mdv::condition::are_orthogonal;

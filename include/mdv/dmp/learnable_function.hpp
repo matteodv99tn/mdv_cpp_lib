@@ -93,12 +93,36 @@ public:
             _bs(std::move(basis)),
             _ws(WeightsMatrix::Zero(_bs.size(), FunctionDimension)) {}
 
+    template <typename Scale>
     void
-    learn(const Eigen::MatrixXd& phi, const Eigen::MatrixXd& fdes) {
+    learn(const Eigen::MatrixXd& phi,
+          const Eigen::MatrixXd& fdes,
+          const Scale&           phi_weights)
+        requires std::same_as<Scale, double>
+    {
         assert(phi.cols() == n_basis());
         assert(phi.rows() == fdes.rows());
         assert(fdes.cols() == FunctionDimension);
-        _ws = phi.fullPivHouseholderQr().solve(fdes);
+        _ws = (phi_weights * phi).fullPivHouseholderQr().solve(fdes);
+    }
+
+    void
+    learn(const Eigen::MatrixXd& phi, const Eigen::MatrixXd& fdes) {
+        return learn<double>(phi, fdes, 1.0);
+    }
+
+    template <typename Scale>
+    void
+    learn(const Eigen::MatrixXd& phi,
+          const Eigen::MatrixXd& fdes,
+          const Scale&           phi_weights) {
+        assert(phi.cols() == n_basis());
+        assert(phi.rows() == fdes.rows());
+        assert(fdes.cols() == FunctionDimension);
+        for (long i = 0; i < FunctionDimension; ++i) {
+            _ws.col(i) =
+                    (phi_weights(i) * phi).fullPivHouseholderQr().solve(fdes.col(i));
+        }
     }
 
     Output

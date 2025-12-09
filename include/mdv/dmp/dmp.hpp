@@ -10,6 +10,7 @@
 #include "mdv/dmp/transformation_system/transformation_system.hpp"
 #include "mdv/macros.hpp"
 #include "mdv/riemann_geometry/manifold.hpp"
+#include "mdv/riemann_geometry/s3.hpp"
 #include "mdv/riemann_geometry/se3.hpp"
 #include "mdv/riemann_geometry/utils.hpp"
 #include "mdv/utils/conditions.hpp"
@@ -19,6 +20,18 @@
 #define SQUARE(x) ((x) * (x))
 
 namespace mdv {
+
+template <typename T>
+static T
+cwise_dot(const T& x1, const T& x2) {
+    return x1.cwiseProduct(x2);
+}
+
+template <>
+double
+cwise_dot<double>(const double& x1, const double& x2) {
+    return x1 * x2;
+}
 
 template <concepts::trivially_embeddable_manifold M>
 struct DefaultManifoldEmbedding {
@@ -38,6 +51,30 @@ struct DefaultManifoldEmbedding {
     Input
     decode(const Output& out, const StateType& x, const GoalType& g) const {
         return _impl.decode(out);
+    }
+
+    template <typename StateType, typename GoalType>
+    Output
+    embed_scale(const Input& in, const StateType& x, const GoalType& g) const {
+        return embed(in, x, g);
+    }
+
+    template <typename StateType, typename GoalType>
+    Output
+    embed_scale(const Input& in, const StateType& x, const GoalType& g) const
+        requires std::same_as<M, riemann::S3>
+    {
+        return Output::Ones();
+    }
+
+    template <typename StateType, typename GoalType>
+    Output
+    embed_scale(const Input& in, const StateType& x, const GoalType& g) const
+        requires std::same_as<M, riemann::SE3>
+    {
+        Output res = embed(in, x, g);
+        res.template tail<4>() = Eigen::Vector4d::Ones();
+        return res;
     }
 
 private:
@@ -146,11 +183,17 @@ public:
             phi.row(i) =
                     fun().eval_basis(time_to_s(demo[i].t())) * time_to_s(demo[i].t());
 
+        const auto scale = embedding().embed_scale(
+                manifold().logarithmic_map(demo.front().y(), demo.back().y()),
+                demo.front(),
+                demo.back()
+        );
+
         assert(phi.rows() == demo.size());
         assert(phi.cols() == n_basis());
         assert(f_des.rows() == demo.size());
         assert(f_des.cols() == embedding_dimension);
-        fun().learn(phi, f_des);
+        fun().learn(phi, f_des, scale);
         logger().info("DMP succesfully learned");
     }
 
@@ -165,6 +208,16 @@ public:
         using mdv::convert::seconds;
         logger().info("Performing integration");
 
+
+        DemonstrationSample<M, 0> y0_sample;
+        DemonstrationSample<M, 0> g_sample;
+        y0_sample.y() = y0;
+        g_sample.y()  = g;
+
+        const auto scale = embedding().embed_scale(
+                manifold().logarithmic_map(y0, g), y0_sample, g_sample
+        );
+
         Demonstration<M> res =
                 Demonstration<M>::builder(n_steps).set_sampling_period(dt).create();
         res.front().y()   = y0;
@@ -176,7 +229,7 @@ public:
         const auto dts = seconds(dt);
         for (auto i = 0; i < n_steps - 1; ++i) {
             const double                     s    = time_to_s(i * dt);
-            const typename Embedding::Output f    = fun()(s, s);
+            const typename Embedding::Output f    = cwise_dot(fun()(s, s), scale);
             const TangentVector              f_tv = embedding().decode(f, res[i], goal);
             transf_sys().step(res[i], goal, f_tv, tau, dts, res[i + 1]);
         }
