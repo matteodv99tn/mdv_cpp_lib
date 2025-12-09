@@ -2,6 +2,7 @@
 #define MDV_DMP_HPP
 
 #include <gsl/assert>
+#include <optional>
 
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/concepts.hpp"
@@ -294,6 +295,7 @@ public:
     template <typename... Args>
     IntegrableDmp(Args... args) : _dmp(std::forward<Args>(args)...) {}
 
+    std::optional<MinimumSample> initial_state;
     MinimumSample     curr_state;
     MinimumGoalSample goal_state;
     double            s  = 1.0;
@@ -314,8 +316,15 @@ public:
 
     void
     step() {
+        if (!initial_state.has_value())
+            initial_state = curr_state;
         s                             = _dmp.coord_sys().step(s, _dmp.tau, dt);
-        const TangentVector         f = _dmp.fun()(s, s);
+        const auto scale = dmp().embedding().embed_scale(
+                dmp().manifold().logarithmic_map(initial_state.value().y(), goal_state.y()),
+                initial_state.value(),
+                goal_state
+        );
+        const TangentVector         f = cwise_dot(_dmp.fun()(s, s), scale);
         typename Dmp::MinimumSample next_state;
         _dmp.transf_sys().step(curr_state, goal_state, f, _dmp.tau, dt, next_state);
         curr_state = next_state;
