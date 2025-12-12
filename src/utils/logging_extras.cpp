@@ -15,7 +15,10 @@ namespace rv = ranges::views;
 std::string
 mdv::eigen_to_str(const Eigen::VectorXd& vec) {
     std::stringstream ss;
-    ss << vec.transpose();
+    // ss << vec.transpose();
+    for (const auto e: vec)
+        ss << fmt::format("{:.3f}, ", e);
+
     return "(" + ss.str() + ")";
 
     // Format vector string to be like (xx, xx, xx)

@@ -47,11 +47,13 @@ public:
     ) :
             _alpha(alpha), _beta(beta), _m(manifold) {}
 
+    template <manifold_sample<1, M> Sample1, manifold_sample<0, M> Sample2, typename Sample3 = Sample2>
     MDV_NODISCARD TangentVector
     eval_forcing(
-            const manifold_sample<1, M> auto& curr_state,
-            const manifold_sample<0, M> auto& goal_state,
-            const double                      tau
+            const Sample1& curr_state,
+            const Sample2& goal_state,
+            const double                      tau,
+            const Sample3& /* initial_state */ = {}
     ) const {
         const auto pos_err = manifold().logarithmic_map(curr_state.y(), goal_state.y());
         const auto& vel_err = curr_state.yd();
@@ -59,13 +61,15 @@ public:
         return tau * tau * acc_err - _alpha * (_beta * pos_err - tau * vel_err);
     }
 
+    template <manifold_sample<1, M> Sample1, manifold_sample<0, M> Sample2, typename Sample3 = Sample2>
     void
-    step(const manifold_sample<1, M> auto& curr_state,
-         const manifold_sample<0, M> auto& goal_state,
+    step(const Sample1& curr_state,
+         const Sample2& goal_state,
          const TangentVector&              force,
          const double                      tau,
          const double                      dt,
-         manifold_sample<1, M> auto&       next_state) const {
+         Sample1&       next_state,
+         const Sample3& initial_state = {}) const {
         const TangentVector log_y_g =
                 manifold().logarithmic_map(curr_state.y(), goal_state.y());
         const TangentVector dz_dt_original =

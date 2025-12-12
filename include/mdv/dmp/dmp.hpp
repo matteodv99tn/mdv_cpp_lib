@@ -73,9 +73,10 @@ struct DefaultManifoldEmbedding {
     embed_scale(const Input& in, const StateType& x, const GoalType& g) const
         requires std::same_as<M, riemann::SE3>
     {
-        Output res = embed(in, x, g);
-        res.template tail<4>() = Eigen::Vector4d::Ones();
-        return res;
+        // Output res = embed(in, x, g);
+        // res.template tail<4>() = Eigen::Vector4d::Ones();
+        // return res;
+        return Output::Ones();
     }
 
 private:
@@ -155,10 +156,11 @@ public:
         static constexpr bool is_scalar = embedding_dimension == 1;
 
         Eigen::MatrixXd f_des(demo.size(), embedding_dimension);
+        const auto initial = demo.front();
         const auto      goal = demo.back();
 
         for (long i = 0; i < demo.size(); ++i) {
-            const TangentVector force = transf_sys().eval_forcing(demo[i], goal, tau);
+            const TangentVector force = transf_sys().eval_forcing(demo[i], goal, tau, initial);
 
             if constexpr (is_scalar) f_des(i) = force;
             else f_des.row(i) = embedding().embed(force, demo[i], goal);
@@ -232,7 +234,7 @@ public:
             const double                     s    = time_to_s(i * dt);
             const typename Embedding::Output f    = cwise_dot(fun()(s, s), scale);
             const TangentVector              f_tv = embedding().decode(f, res[i], goal);
-            transf_sys().step(res[i], goal, f_tv, tau, dts, res[i + 1]);
+            transf_sys().step(res[i], goal, f_tv, tau, dts, res[i + 1], y0);
         }
         return res;
     }
@@ -326,7 +328,7 @@ public:
         );
         const TangentVector         f = cwise_dot(_dmp.fun()(s, s), scale);
         typename Dmp::MinimumSample next_state;
-        _dmp.transf_sys().step(curr_state, goal_state, f, _dmp.tau, dt, next_state);
+        _dmp.transf_sys().step(curr_state, goal_state, f, _dmp.tau, dt, next_state, initial_state.value());
         curr_state = next_state;
     }
 
