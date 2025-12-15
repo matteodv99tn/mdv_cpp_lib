@@ -97,6 +97,11 @@ public:
 
     ~InexactMeshKernel();
 
+    MDV_NODISCARD
+    Eigen::MatrixXd distance_matrix(
+            const InputVector& pts1, const InputVector& pts2
+    ) const override;
+
     MDV_NODISCARD Eigen::MatrixXd distance_matrix(const InputVector& pts2) override;
 
     MDV_NODISCARD bool
@@ -110,6 +115,8 @@ private:
     struct Data;
 
     gsl::owner<Data*> _data = nullptr;
+
+    static void process_distance_matrix(Data& data, const InputVector& pts2, Eigen::MatrixXd& res);
 };
 
 }  // namespace mdv::mesh

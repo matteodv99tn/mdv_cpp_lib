@@ -224,29 +224,23 @@ InexactMeshKernel::~InexactMeshKernel() {
 };
 
 Eigen::MatrixXd
+InexactMeshKernel::distance_matrix(
+        const InputVector& pts1, const InputVector& pts2
+) const {
+    Eigen::MatrixXd distances(pts1.size(), pts2.size());
+    Data data(pts1);
+    process_distance_matrix(data, pts2, distances);
+    return distances;
+}
+
+Eigen::MatrixXd
 InexactMeshKernel::distance_matrix(const InputVector& pts2) {
     if (_data == nullptr)
         throw std::runtime_error("InexactMeshKernel: cache not properly initialised!");
 
-    using internal::CgalGeodesicConstructor;
-
     assert(_data->shpath_objs.size() == _data->pts1.size());
     Eigen::MatrixXd distances(_data->pts1.size(), pts2.size());
-
-    std::vector<std::thread> threads;
-    threads.reserve(distances.cols());
-
-    auto row_processor = [this, &distances, &pts2](const long i) {
-        for (long j = 0; j < distances.cols(); ++j) {
-            const auto path = CgalGeodesicConstructor::construct_geodesic(
-                    _data->shpath_objs[i], pts2[j]
-            );
-            distances(i, j) = length(path);
-        }
-    };
-
-    for (long i = 0; i < distances.rows(); ++i) threads.emplace_back(row_processor, i);
-    for (auto& th : threads) th.join();
+    process_distance_matrix(*_data, pts2, distances);
     return distances;
 }
 
@@ -254,6 +248,28 @@ void
 InexactMeshKernel::set_points1(const InputVector& pts1) {
     delete _data;
     _data = new Data(pts1);
+}
+
+void
+InexactMeshKernel::process_distance_matrix(
+        Data& data, const InputVector& pts2, Eigen::MatrixXd& res
+) {
+    using internal::CgalGeodesicConstructor;
+
+    std::vector<std::thread> threads;
+    threads.reserve(res.rows());
+
+    auto row_processor = [&data, &res, &pts2](const long i) {
+        for (long j = 0; j < res.cols(); ++j) {
+            const auto path = CgalGeodesicConstructor::construct_geodesic(
+                    data.shpath_objs[i], pts2[j]
+            );
+            res(i, j) = length(path);
+        }
+    };
+
+    for (long i = 0; i < res.rows(); ++i) threads.emplace_back(row_processor, i);
+    for (auto& th : threads) th.join();
 }
 
 }  // namespace mdv::mesh
