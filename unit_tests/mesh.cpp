@@ -68,3 +68,13 @@ TEST(MeshGeodesic, RandomEdgePoints) {
                 << "\np1: " << p1.describe();
     }
 }
+
+TEST(Vertex, Curvatures) {
+    const path mesh_path = mdv::config::meshes_directory() / "cube.stl";
+    const auto mesh      = Mesh::from_file(mesh_path);
+
+    for (long i = 0; i < mesh.num_vertices(); ++i) {
+        ASSERT_FLOAT_EQ(mesh.vertex(i).total_curvature(), 1.5 * M_PI);
+        ASSERT_FLOAT_EQ(mesh.vertex(i).gauss_curvature(), 0.5 * M_PI);
+    }
+}

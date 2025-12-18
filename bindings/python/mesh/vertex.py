@@ -76,3 +76,29 @@ class Vertex:
             Description of the vertex
         """
         return self._vertex_impl.describe()
+
+    def total_curvature(self) -> float:
+        """
+        Computes the total curvature of the vertex as in the paper
+        "Straightest geodesics on polyhedral surfaces" (eq. 5)
+        https://dl.acm.org/doi/pdf/10.1145/1185657.1185664
+        
+        Returns
+        -------
+        float
+            the total curvature
+        """
+        return self._vertex_impl.total_curvature()
+
+    def gauss_curvature(self) -> float:
+        """
+        Computes the Gauss curvature of the vertex as in the paper
+        "Straightest geodesics on polyhedral surfaces" (eq. 6)
+        https://dl.acm.org/doi/pdf/10.1145/1185657.1185664
+        
+        Returns
+        -------
+        float
+            the Gauss curvature
+        """
+        return self._vertex_impl.gauss_curvature()

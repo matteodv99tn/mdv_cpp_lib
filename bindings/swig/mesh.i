@@ -32,6 +32,10 @@ namespace mdv::mesh {
         std::size_t id() const;
 
         std::string describe() const;
+
+        double total_curvature() const;
+
+        double gauss_curvature() const;
     };
 
     class Face {

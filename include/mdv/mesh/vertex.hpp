@@ -23,6 +23,10 @@ public:
 
     MDV_NODISCARD std::string describe() const override;
 
+    MDV_NODISCARD double total_curvature() const;
+
+    MDV_NODISCARD double gauss_curvature() const;
+
 private:
     friend class Mesh;
 };
