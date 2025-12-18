@@ -145,6 +145,18 @@ class Mesh:
         return Mesh(vertices=vertices, faces=faces)
 
     @property
+    def name(self) -> str:
+        """
+        Yields the name of the given mesh
+
+        Returns
+        -------
+        str
+            the name of the mesh
+        """
+        return self._mesh_impl.name()
+
+    @property
     def num_vertices(self) -> int:
         """
         Get the number of vertices in the mesh.

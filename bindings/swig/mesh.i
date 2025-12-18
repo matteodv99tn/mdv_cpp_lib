@@ -52,6 +52,8 @@ namespace mdv::mesh {
     class Mesh {
         Mesh(gsl::owner<CgalImpl*> data, const std::string& name);
     public:
+        std::string name() const;
+        
         mdv::mesh::Vertex vertex(const long& id);
 
         std::size_t num_faces() const;
