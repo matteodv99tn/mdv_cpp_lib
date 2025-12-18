@@ -12,6 +12,8 @@ namespace mdv::mesh {
 
 namespace internal {
 
+    struct Data;
+
     /*
      * Evaluates the squared exponential kernel on a given distance matrix
      */
@@ -83,9 +85,10 @@ public:
             bool        verbose    = false
     );
 
-    double find_pointset_max_lengthscale(
+    MDV_NODISCARD double find_pointset_max_lengthscale(
             const InputVector& pts, std::size_t num_steps = 30
-    );
+    ) const;
+
 
 protected:
     const Mesh* _mesh;
@@ -112,12 +115,14 @@ public:
     void set_points1(const InputVector& pts1) override;
 
 private:
-    struct Data;
+    using Data = internal::Data;
 
     gsl::owner<Data*> _data = nullptr;
-
-    static void process_distance_matrix(Data& data, const InputVector& pts2, Eigen::MatrixXd& res);
 };
+
+double find_matrix_max_lengthscale(
+        const Eigen::MatrixXd& dist_matrix, std::size_t num_steps = 30, double ls0 = 0.1
+);
 
 }  // namespace mdv::mesh
 

@@ -40,7 +40,9 @@ class InexactMeshKernel(MeshKernel):
         """
         self._kernel_impl = _InexactMeshKernelImpl(mesh._mesh_impl)
 
-    def distance_matrix(self, points: list[Point]) -> np.ndarray:
+    def distance_matrix(self,
+                        points: list[Point],
+                        points2: list[Point] | None = None) -> np.ndarray:
         """
         Compute the geodesic distance matrix for a list of points.
         
@@ -61,7 +63,11 @@ class InexactMeshKernel(MeshKernel):
         the same set of points is used multiple times.
         """
         pts_impl = self._to_point_impl_list(points)
-        return self._kernel_impl.distance_matrix(pts_impl)
+        if points2 is None:
+            return self._kernel_impl.distance_matrix(pts_impl)
+
+        pts2_impl = self._to_point_impl_list(points2)
+        return self._kernel_impl.distance_matrix(pts_impl, pts2_impl)
 
     def set_points1(self, points1: list[Point]) -> None:
         """
@@ -81,8 +87,15 @@ class InexactMeshKernel(MeshKernel):
         pts1_impl = self._to_point_impl_list(points1)
         self._kernel_impl.set_points1(pts1_impl)
 
+    def find_pointset_max_lengthscale(self,
+                                      points: list[Point],
+                                      num_steps: int = 30):
+        return self._kernel_impl.find_pointset_max_lengthscale(
+            self._to_point_impl_list(points), num_steps)
+
     def __call__(self,
                  points: list[Point],
+                 points2: list[Point] | None = None,
                  lengthscale: float = 1.0) -> np.ndarray:
         """
         Evaluate the squared exponential (RBF) kernel for cached points.
@@ -105,4 +118,8 @@ class InexactMeshKernel(MeshKernel):
         distances using cached computations for improved performance.
         """
         pts_impl = self._to_point_impl_list(points)
-        return self._kernel_impl(pts_impl, lengthscale)
+        if points2 is None:
+            return self._kernel_impl(pts_impl, lengthscale)
+
+        pts2_impl = self._to_point_impl_list(points2)
+        return self._kernel_impl(pts_impl, pts2_impl, lengthscale)

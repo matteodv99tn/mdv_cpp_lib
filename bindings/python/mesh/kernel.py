@@ -139,6 +139,12 @@ class MeshKernel:
         return evaluate_squared_exponential(distance_matrix,
                                             float(lengthscale))
 
+    def find_pointset_max_lengthscale(self,
+                                      points: list[Point],
+                                      num_steps: int = 30):
+        return self._kernel_impl.find_pointset_max_lengthscale(
+            self._to_point_impl_list(points), num_steps)
+
     def _to_point_impl_list(self, input: list[Point | Vertex]) -> PointVector:
         """
         Convert a list of Point or Vertex objects to a PointVector for SWIG calls.
@@ -169,3 +175,12 @@ class MeshKernel:
 
         res = [ensure_point(p)._point_impl for p in input]
         return PointVector(res)
+
+    @staticmethod
+    def find_matrix_max_lengthscale(
+            distance_matrix: np.ndarray,
+            num_iters: int = 20,
+            initial_lengthscale: float = 1.0) -> np.ndarray:
+        from ._mesh_impl import find_matrix_max_lengthscale as _find_impl
+        return _find_impl(distance_matrix, int(num_iters),
+                          float(initial_lengthscale))

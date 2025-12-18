@@ -103,19 +103,35 @@ namespace mdv::mesh {
                 const std::vector<mdv::mesh::Point>& pts2, 
                 const double lengthscale
         );
+
+        double find_pointset_max_lengthscale(
+                const std::vector<mdv::mesh::Point>& pts, std::size_t num_steps
+        );
     };
 
     class InexactMeshKernel : public MeshKernel {
     public:
         InexactMeshKernel(const mdv::mesh::Mesh&);
 
+        Eigen::MatrixXd distance_matrix(const std::vector<mdv::mesh::Point>& pts1, const std::vector<mdv::mesh::Point>& pts2);
+
         Eigen::MatrixXd distance_matrix(const std::vector<mdv::mesh::Point>& pts);
 
         void set_points1(const std::vector<mdv::mesh::Point>& pts1);
 
         Eigen::MatrixXd operator()(
+                const std::vector<mdv::mesh::Point>& pts1, 
+                const std::vector<mdv::mesh::Point>& pts2, 
+                const double lengthscale
+        );
+
+        Eigen::MatrixXd operator()(
                 const std::vector<mdv::mesh::Point>& pts, 
                 const double lengthscale
+        );
+
+        double find_pointset_max_lengthscale(
+                const std::vector<mdv::mesh::Point>& pts, std::size_t num_steps
         );
     };
 }
@@ -132,7 +148,12 @@ namespace mdv::mesh {
     Eigen::MatrixXd evaluate_squared_exponential(const Eigen::MatrixXd& d_mat, const double ls) {
         return mdv::mesh::internal::eval_sek(d_mat, ls);
     }
+
+    double find_matrix_max_lengthscale(const Eigen::MatrixXd& d, std::size_t n, double ls){
+        return mdv::mesh::find_matrix_max_lengthscale(d, n, ls);
+    }
 %}
+
 
 %template(Geodesic) std::vector<Eigen::Vector3d>;
 %template(PointVector) std::vector<mdv::mesh::Point>;
