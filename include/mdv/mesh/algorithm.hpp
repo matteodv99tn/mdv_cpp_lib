@@ -31,6 +31,8 @@ CartesianPoint point_from_geodesic(
  */
 Geodesic geodesic_resample(const Geodesic& geod, std::vector<double> coordinates);
 
+Eigen::MatrixXd geodesic_resample(const Geodesic& geod, const Eigen::VectorXd& coordinates);
+
 /**
  * @brief Computes the parallel transport of vector v on point p
  *
@@ -92,6 +94,25 @@ LocationType location_type(const Point& pt);
 
 LocationType location_type(const TangentVector& tv);
 
+/**
+ * @brief C++ implementation for the solve_path function for Riemannian flow-matching
+ *
+ * https://github.com/facebookresearch/riemannian-fm/blob/b6ac1e9d60e18e594fb6310ec8a68d9ae683e2b2/manifm/manifolds/mesh.py#L164-L205
+ *
+ * @param[input] x0 Nx3 matrix of starting points for the geodesics
+ * @param[input] x1 Nx3 matrix of ending points for the geodesics
+ * @param[input] t T dimensional vector of the [0,1] time indices
+ *
+ * It outputs a N dimensional vector whose entries are a pair containing respectively
+ * - a Tx3 matrix as the cartesian path on the mesh
+ * - a Tx3 matrix containing the tangent velocity at each point on the path
+ */
+std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>> solve_path(
+        const Mesh&            mesh,
+        const Eigen::MatrixXd& x0,
+        const Eigen::MatrixXd& x1,
+        const Eigen::VectorXd& t
+);
 
 }  // namespace mdv::mesh
 

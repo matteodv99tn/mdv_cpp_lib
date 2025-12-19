@@ -12,6 +12,7 @@
 %include "eigen.i"
 
 %eigen_typemaps(Eigen::Vector3d)
+%eigen_typemaps(Eigen::VectorXd)
 %eigen_typemaps(Eigen::MatrixXd)
 %eigen_typemaps(Eigen::MatrixXi)
 
@@ -89,6 +90,13 @@ namespace mdv::mesh {
 
     double length(const std::vector<Eigen::Vector3d>& geod);
 
+    std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>> solve_path(
+            const mdv::mesh::Mesh& mesh,
+            const Eigen::MatrixXd& x0,
+            const Eigen::MatrixXd& x1,
+            const Eigen::VectorXd& t
+    );
+
     class MeshKernel {
     public:
         MeshKernel(const mdv::mesh::Mesh&);
@@ -154,6 +162,27 @@ namespace mdv::mesh {
     }
 %}
 
+%{
+#include <utility>
+%}
 
+namespace std {
+    template<class T, class U> struct pair {
+        %extend {
+            const T& __getitem__(int index) {
+                if (index == 0) return $self->first;
+                if (index == 1) return $self->second;
+                throw std::out_of_range("pair index out of range");
+            }
+            
+            int __len__() {
+                return 2;
+            }
+        }
+    };
+}
+
+%template(MatrixPair) std::pair<Eigen::MatrixXd, Eigen::MatrixXd>;
 %template(Geodesic) std::vector<Eigen::Vector3d>;
 %template(PointVector) std::vector<mdv::mesh::Point>;
+%template(VectorMatrixPairs) std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>>;

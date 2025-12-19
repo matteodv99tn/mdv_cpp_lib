@@ -79,6 +79,48 @@ mdv::mesh::geodesic_resample(const Geodesic& geod, std::vector<double> coordinat
     return res;
 };
 
+Eigen::MatrixXd
+mdv::mesh::geodesic_resample(const Geodesic& geod, const Eigen::VectorXd& coordinates) {
+    if (geod.size() < 2)
+        throw std::runtime_error("Cannot resample a geodesic with size less then 2!");
+
+
+    const double    len = length(geod);
+    const long      T   = coordinates.rows();
+    Eigen::MatrixXd res(T, 3);
+
+    for (long j = 0; j < T - 1; ++j) {
+        if (coordinates[j + 1] < coordinates[j])
+            throw std::runtime_error("coordinates must be monotonically increasing!");
+    }
+
+    double s_travelled = 0.0;
+
+    auto   g_curr = geod.cbegin();
+    auto   g_next = geod.cbegin() + 1;
+    double si     = (*g_next - *g_curr).norm() / len;
+
+    for (long k = 0; k < T; ++k) {
+        const double s = coordinates(k);
+
+        while (s_travelled + si < s) {
+            s_travelled += si;
+            ++g_curr;
+            ++g_next;
+            if (g_curr == geod.cend())
+                throw std::runtime_error("Reached goedesic end!");
+            si = (*g_next - *g_curr).norm() / len;
+        }
+
+        const double sk = (s - s_travelled) / si;
+        assert(sk >= 0.0);
+        assert(sk <= 1.0 + 1e-9);
+        if (sk > 1.0 + 1e-6) throw std::runtime_error("SK error");
+        res.row(k) = *g_curr + (*g_next - *g_curr) * sk;
+    }
+    return res;
+};
+
 TangentVector
 mdv::mesh::parallel_transport(
         const TangentVector& tangent_vector, const Point& dest_point
@@ -234,4 +276,40 @@ mdv::mesh::location_type(const Point& pt) {
 mdv::mesh::LocationType
 mdv::mesh::location_type(const TangentVector& tv) {
     return location_type(tv.application_point());
+}
+
+std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>>
+mdv::mesh::solve_path(
+        const Mesh&            mesh,
+        const Eigen::MatrixXd& x0,
+        const Eigen::MatrixXd& x1,
+        const Eigen::VectorXd& t
+) {
+    using MatPair = std::pair<Eigen::MatrixXd, Eigen::MatrixXd>;
+
+    assert(x0.rows() == x1.rows());
+    const long N = x0.rows();
+
+    std::vector<MatPair> res;
+    res.reserve(N);
+
+    for (long i = 0; i < N; ++i) {
+        const auto pt0 = Point::from_cartesian(mesh, x0.row(i));
+        const auto pt1 = Point::from_cartesian(mesh, x1.row(i));
+
+        MatPair      pair;
+        const auto   geod = mesh.build_geodesic(pt0, pt1);
+        const double len  = length(geod);
+        pair.first        = geodesic_resample(geod, t);
+        pair.second       = Eigen::MatrixXd(t.rows(), 3);
+
+        for (long j = 0; j < t.rows() - 1; ++j) {
+            pair.second.row(j) =
+                    len * (pair.first.row(i + 1) - pair.first.row(i)).normalized();
+        }
+        pair.second.row(t.rows() - 1) = pair.second.row(t.rows() - 2);
+
+        res.emplace_back(std::move(pair));
+    }
+    return res;
 }
