@@ -144,9 +144,11 @@ namespace mdv::mesh {
     };
 }
 
+%newobject load_from_file;
+
 %inline %{
-    mdv::mesh::Mesh load_from_file(const char* file) {
-        return mdv::mesh::Mesh::from_file(std::filesystem::path(file));
+    mdv::mesh::Mesh* load_from_file(const char* file) {
+        return new mdv::mesh::Mesh(mdv::mesh::Mesh::from_file(std::filesystem::path(file)));
     }
 
     std::string mesh_directory() {
