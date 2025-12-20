@@ -54,6 +54,8 @@ namespace mdv::mesh {
         Mesh(gsl::owner<CgalImpl*> data, const std::string& name);
     public:
         std::string name() const;
+
+        void scale(double);
         
         mdv::mesh::Vertex vertex(const long& id);
 

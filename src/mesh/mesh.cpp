@@ -89,6 +89,16 @@ Mesh::operator=(Mesh&& other) noexcept {
 // |_|  |_|\___|_| |_| |_|_.__/ \___|_|  |___/
 //
 
+void 
+Mesh::scale(const double factor){
+    logger().info("Scaling mesh by factor {}", factor);
+    const Mesh::CgalImpl::Transform transform(
+            CGAL::Scaling{},
+            factor
+    );
+    CGAL::Polygon_mesh_processing::transform(transform, cgal()._mesh);
+}
+
 void
 Mesh::transform(const Eigen::Affine3d& transformation) {
     logger().info("Applying transformation to mesh");
