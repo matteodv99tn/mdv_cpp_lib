@@ -303,7 +303,7 @@ public:
      */
     MDV_NODISCARD Eigen::MatrixXd get_face_matrix_double() const;
 
-    MDV_NODISCARD Vertex closest_vertex(const CartesianPoint& pt);
+    MDV_NODISCARD Vertex closest_vertex(const CartesianPoint& pt) const;
 
 private:
     Mesh(gsl::owner<CgalImpl*> data, const std::string& name);

@@ -238,7 +238,7 @@ Mesh::get_face_matrix_double() const {
 }
 
 Vertex
-Mesh::closest_vertex(const CartesianPoint& pt) {
+Mesh::closest_vertex(const CartesianPoint& pt) const {
     const auto [_, f_id] = cgal()._aabb_tree.closest_point_and_primitive(
             internal::point3_from_eigen(pt)
     );
