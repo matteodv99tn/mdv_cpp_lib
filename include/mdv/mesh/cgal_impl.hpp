@@ -122,6 +122,10 @@ public:
     mutable gsl::owner<mdv::mesh::Point*>        _current_shortpath_source = nullptr;
     mutable gsl::owner<CgalGeodesicConstructor*> _geodesic_constructor     = nullptr;
 
+    void scale(double factor);
+
+    void transform(const Eigen::Affine3d& transformation);
+
     /**
      * @brief Builds or retrieves the per-vertex normal property map.
      */

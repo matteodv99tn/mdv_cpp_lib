@@ -84,6 +84,17 @@ class Mesh:
             )
             self._mesh_impl = load_from_file(tmp.name)
 
+    def scale(self, scaling: float):
+        """
+        Scales the mesh by a given scaling factor
+
+        Parameters
+        ----------
+        scaling: float
+            The scaling factor coefficient
+        """
+        self._mesh_impl.scale(scaling)
+
     @staticmethod
     def load_from_file(file_path: str) -> 'Mesh':
         """

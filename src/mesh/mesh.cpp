@@ -3,7 +3,6 @@
 #include <CGAL/Polygon_mesh_processing/repair_degeneracies.h>
 #include <CGAL/boost/graph/Euler_operations.h>
 #include <CGAL/Polygon_mesh_processing/repair.h>
-#include <CGAL/Polygon_mesh_processing/transform.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <cstdint>
 #include <Eigen/Geometry>
@@ -92,26 +91,16 @@ Mesh::operator=(Mesh&& other) noexcept {
 // |_|  |_|\___|_| |_| |_|_.__/ \___|_|  |___/
 //
 
+void 
+Mesh::scale(const double factor){
+    logger().info("Scaling mesh by factor {}", factor);
+    cgal().scale(factor);
+}
+
 void
 Mesh::transform(const Eigen::Affine3d& transformation) {
     logger().info("Applying transformation to mesh");
-    const double m11 = transformation(0, 0);
-    const double m12 = transformation(0, 1);
-    const double m13 = transformation(0, 2);
-    const double m14 = transformation(0, 3);
-    const double m21 = transformation(1, 0);
-    const double m22 = transformation(1, 1);
-    const double m23 = transformation(1, 2);
-    const double m24 = transformation(1, 3);
-    const double m31 = transformation(2, 0);
-    const double m32 = transformation(2, 1);
-    const double m33 = transformation(2, 2);
-    const double m34 = transformation(2, 3);
-
-    const Mesh::CgalImpl::Transform transform(
-            m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, 1.0
-    );
-    CGAL::Polygon_mesh_processing::transform(transform, cgal()._mesh);
+    cgal().transform(transformation);
 }
 
 mdv::mesh::Geodesic

@@ -3,6 +3,7 @@
 #include <CGAL/boost/graph/graph_traits_Surface_mesh.h>
 #include <CGAL/Polygon_mesh_processing/compute_normal.h>
 #include <CGAL/Polygon_mesh_processing/IO/polygon_mesh_io.h>
+#include <CGAL/Polygon_mesh_processing/transform.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <CGAL/Surface_mesh_shortest_path/barycentric.h>
 #include <filesystem>
@@ -126,6 +127,37 @@ mdv::mesh::internal::location_from_mesh_point(
             point.descriptor()
     );
 }
+
+void CgalImpl::scale(const double factor) {
+    const Transform transform(CGAL::Scaling{}, factor);
+    CGAL::Polygon_mesh_processing::transform(transform, _mesh);
+    // Need to rebuild AABB tree!
+    _shortest_path->build_aabb_tree(_aabb_tree);
+}
+
+void
+CgalImpl::transform(const Eigen::Affine3d& transformation) {
+    const double m11 = transformation(0, 0);
+    const double m12 = transformation(0, 1);
+    const double m13 = transformation(0, 2);
+    const double m14 = transformation(0, 3);
+    const double m21 = transformation(1, 0);
+    const double m22 = transformation(1, 1);
+    const double m23 = transformation(1, 2);
+    const double m24 = transformation(1, 3);
+    const double m31 = transformation(2, 0);
+    const double m32 = transformation(2, 1);
+    const double m33 = transformation(2, 2);
+    const double m34 = transformation(2, 3);
+
+    const Transform transform(
+            m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, 1.0
+    );
+    CGAL::Polygon_mesh_processing::transform(transform, _mesh);
+    // Need to rebuild AABB tree!
+    _shortest_path->build_aabb_tree(_aabb_tree);
+}
+
 
 void
 CgalImpl::build_vertex_normals_map() noexcept {
