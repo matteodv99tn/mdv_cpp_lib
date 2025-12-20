@@ -251,6 +251,16 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
     const Face& face = mesh.face(static_cast<Index>(face_id.idx()));
     const auto  f_he = CGAL::halfedge(face_id, m_impl);
 
+    const std::size_t n_zero_coords = rs::count(
+            coords | rv::transform([](const double b) -> bool {
+                return std::abs(b) < 1e-10;
+            }),
+            true
+    );
+
+    if (n_zero_coords == 2)
+        return PointOnVertexDescriptor{mesh.closest_vertex(cartesian_pt)};
+
     for (const auto v_id : CGAL::vertices_around_face(f_he, m_impl)) {
         if (CGAL::squared_distance(point, m_impl.point(v_id)) < 1e-15)
             return PointOnVertexDescriptor{Vertex(mesh, v_id)};

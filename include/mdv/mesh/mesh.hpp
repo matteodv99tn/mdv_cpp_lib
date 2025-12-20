@@ -362,7 +362,7 @@ public:
      * @param pt Query point in 3D.
      * @return Closest vertex on the mesh.
      */
-    MDV_NODISCARD Vertex closest_vertex(const CartesianPoint& pt);
+    MDV_NODISCARD Vertex closest_vertex(const CartesianPoint& pt) const;
 
 private:
     /**
