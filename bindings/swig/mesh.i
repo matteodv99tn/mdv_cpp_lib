@@ -57,6 +57,8 @@ namespace mdv::mesh {
     public:
         std::string name() const;
         
+        void scale(double);
+        
         mdv::mesh::Vertex vertex(const long& id);
 
         std::size_t num_faces() const;

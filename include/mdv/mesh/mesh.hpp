@@ -88,6 +88,8 @@ public:
      */
     Mesh& operator=(Mesh&& other) noexcept;
 
+    void scale(double factor);
+
     /**
      * @brief Destructor.
      */
