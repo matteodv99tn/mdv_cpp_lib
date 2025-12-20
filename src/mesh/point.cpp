@@ -113,6 +113,43 @@ Point::PointOnEdgeDescriptor::PointOnEdgeDescriptor(
     _c = std::sqrt(squared_d);
     assert((_c >= 0.0) && (_c <= 1.0));
     assert(mdv::condition::are_equal(position, this->position()));
+    if (_c <= 0.0 || _c >= 1.0) 
+        throw std::runtime_error("Point falls outside the edge!");
+}
+
+Point::PointOnEdgeDescriptor
+Point::PointOnEdgeDescriptor::from_face(const Face& f, const CartesianPoint& position) {
+    using Point   = internal::CgalImpl::Kernel::Point_3;
+    using Segment = internal::CgalImpl::Kernel::Segment_3;
+    using Line    = internal::CgalImpl::Kernel::Line_3;
+    using HeIndex = internal::CgalImpl::CgalHalfEdgeIndex;
+
+    const auto& m   = internal::get_mesh_impl(f);
+    const auto f_id = internal::to_face_impl(f);
+    const auto he_f = CGAL::halfedge(f_id, m);
+    const auto p    = internal::point3_from_eigen(position);
+
+    std::vector<HeIndex> hes;
+    for(const auto he: CGAL::halfedges_around_face(he_f, m)) 
+        hes.push_back(he);
+
+    const auto build_edge = [&](const HeIndex& he) -> Segment {
+        const auto v0 = m.point(source(he, m));
+        const auto v1 = m.point(target(he, m));
+        return Segment{v0, v1};
+    };
+    const auto edge_distance = [&](const HeIndex& he) {
+        const Segment e = build_edge(he);
+        return CGAL::squared_distance(e, p);
+    };
+
+    // Retrieve closest edge -> project on closest edge -> construct point descriptor
+    const HeIndex he = rs::min(hes, std::less{}, edge_distance);
+    const Segment ed = build_edge(he);
+    const Line line{ed};
+    const Point proj_pt = line.projection(p);
+
+    return {HalfEdge(f.mesh(), he), internal::convert(proj_pt)};
 }
 
 CartesianPoint
@@ -175,15 +212,16 @@ Point::PointInFaceDescriptor::PointInFaceDescriptor(
             is_zero(sum - 1.0) && _b(0) > 0.0 && _b(1) > 0.0 && _b(2) > 0.0;
 
     std::size_t zero_bs = 0;
-    if (std::abs(_b(0)) < 1e-10) ++zero_bs;
-    if (std::abs(_b(1)) < 1e-10) ++zero_bs;
-    if (std::abs(_b(2)) < 1e-10) ++zero_bs;
+    if (std::abs(_b(0)) < 1e-13) ++zero_bs;
+    if (std::abs(_b(1)) < 1e-13) ++zero_bs;
+    if (std::abs(_b(2)) < 1e-13) ++zero_bs;
 
+    if (zero_bs > 0) fmt::print("\rBs {} {} {}\n", _b(0), _b(1), _b(2));
     if (zero_bs == 1) throw std::runtime_error("Should have been edge descriptor");
     if (zero_bs == 2) throw std::runtime_error("Should have been vertex descriptor");
 
     if (is_undefined()) std::cerr << "Undefined face!\n";
-    if (!describes_interior_point) {
+    if (!describes_interior_point && face.id() != invalid_index) {
         std::cerr << "b1 = " << _b(0) << "\n";
         std::cerr << "b2 = " << _b(1) << "\n";
         std::cerr << "b3 = " << _b(2) << "\n";
@@ -250,6 +288,19 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
     );
     const Face& face = mesh.face(static_cast<Index>(face_id.idx()));
     const auto  f_he = CGAL::halfedge(face_id, m_impl);
+
+    const std::size_t n_zero_coords = rs::count(
+            coords | rv::transform([](const double b) -> bool {
+                return std::abs(b) < 1e-12;
+            }),
+            true
+    );
+
+    if (n_zero_coords == 2)
+        return PointOnVertexDescriptor{mesh.closest_vertex(cartesian_pt)};
+
+    if (n_zero_coords == 1)
+        return PointOnEdgeDescriptor::from_face(face, cartesian_pt);
 
     for (const auto v_id : CGAL::vertices_around_face(f_he, m_impl)) {
         if (CGAL::squared_distance(point, m_impl.point(v_id)) < 1e-15)

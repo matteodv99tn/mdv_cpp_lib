@@ -121,6 +121,15 @@ public:
         PointOnEdgeDescriptor(HalfEdge he, const CartesianPoint& position);
 
         /**
+         * @brief Creates an edge descriptor from a 3D position on the edge from a 
+         * specific face.
+         *
+         * @param f Face whose edge contains the given position
+         * @param position Cartesian position on the edge.
+         */
+        static PointOnEdgeDescriptor from_face(const Face& f, const CartesianPoint& position);
+
+        /**
          * @brief Random edge descriptor on a mesh.
          *
          * @param mesh Source mesh.
