@@ -48,6 +48,17 @@ public:
     static void set_source(ShortestPath& shpath, const Point& source);
 
     /**
+     * @brief Computes a geodesic in a local shortest path object.
+     * 
+     * This makes the function call thread-safe when called in multi-threaded 
+     * environment
+     *
+     * @param from source point of the geodesic
+     * @param to target point of the geodesic
+     */
+    static Geodesic threadlocal_geodesic(const Point& from, const Point& to);
+
+    /**
      * @brief Constructs the geodesic polyline to the CGAL source.
      *
      * @param shpath CGAL shortest-path object.
