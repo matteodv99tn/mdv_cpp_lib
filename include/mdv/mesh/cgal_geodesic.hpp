@@ -21,6 +21,8 @@ public:
 
     Geodesic operator()(const Point& from, const Point& to);
 
+    static Geodesic threadlocal_geodesic(const Point& from, const Point& to);
+
     static void set_source(ShortestPath& shpath, const Point& source);
 
     static Geodesic construct_geodesic(

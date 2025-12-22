@@ -4,6 +4,7 @@
 #include <range/v3/all.hpp>
 
 #include "mdv/eigen_defines.hpp"
+#include "mdv/mesh/cgal_geodesic.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/conditions.hpp"
 #include "mdv/mesh/fwd.hpp"
@@ -285,31 +286,41 @@ mdv::mesh::solve_path(
         const Eigen::MatrixXd& x1,
         const Eigen::VectorXd& t
 ) {
-    using MatPair = std::pair<Eigen::MatrixXd, Eigen::MatrixXd>;
+    using MatPair       = std::pair<Eigen::MatrixXd, Eigen::MatrixXd>;
+    using MatPairVector = std::vector<MatPair>;
 
     assert(x0.rows() == x1.rows());
     const long N = x0.rows();
+    const long T = t.rows();
 
-    std::vector<MatPair> res;
-    res.reserve(N);
+    std::vector<MatPair> res(N);
 
-    for (long i = 0; i < N; ++i) {
-        const auto pt0 = Point::from_cartesian(mesh, x0.row(i));
-        const auto pt1 = Point::from_cartesian(mesh, x1.row(i));
+    auto solve_path_index = [&x0, &x1, &t, &mesh, &N, &T, &res](long i) {
+        const auto pt0  = Point::from_cartesian(mesh, x0.row(i));
+        const auto pt1  = Point::from_cartesian(mesh, x1.row(i));
+        MatPair&   pair = res[i];
 
-        MatPair      pair;
-        const auto   geod = mesh.build_geodesic(pt0, pt1);
-        const double len  = length(geod);
-        pair.first        = geodesic_resample(geod, t);
-        pair.second       = Eigen::MatrixXd(t.rows(), 3);
+        if ((pt0.position() - pt1.position()).norm() < 1e-9) {
+            pair.first  = pt0.position().transpose().replicate(T, 1);
+            pair.second = Eigen::MatrixXd::Zero(T, 3);
+            return;
+        }
 
-        for (long j = 0; j < t.rows() - 1; ++j) {
+        const auto geod =
+                internal::CgalGeodesicConstructor::threadlocal_geodesic(pt0, pt1);
+        const double len = length(geod);
+        pair.first       = geodesic_resample(geod, t);
+        pair.second      = Eigen::MatrixXd(T, 3);
+
+        for (long j = 0; j < T - 1; ++j) {
             pair.second.row(j) =
                     len * (pair.first.row(i + 1) - pair.first.row(i)).normalized();
         }
-        pair.second.row(t.rows() - 1) = pair.second.row(t.rows() - 2);
+        pair.second.row(T - 1) = pair.second.row(T - 2);
+    };
 
-        res.emplace_back(std::move(pair));
-    }
+    std::vector<std::jthread> threads;
+    threads.reserve(N);
+    for (long i = 0; i < N; ++i) threads.emplace_back(solve_path_index, i);
     return res;
 }

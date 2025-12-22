@@ -136,5 +136,11 @@ CgalGeodesicConstructor::operator()(const Point& from, const Point& to) {
     return construct_geodesic(sp_obj, from);
 }
 
+Geodesic CgalGeodesicConstructor::threadlocal_geodesic(const Point& from, const Point& to) {
+    const auto& mesh = from.mesh();
+    ShortestPath shpath_obj(internal::get_mesh_impl(mesh));
+    set_source(shpath_obj, to);
+    return construct_geodesic(shpath_obj, from);
+}
 
 }  // namespace mdv::mesh::internal
