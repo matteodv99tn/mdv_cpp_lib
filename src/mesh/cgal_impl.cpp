@@ -226,6 +226,8 @@ std::optional<Kernel::Point_3>
 mdv::mesh::internal::edge_ray_intersection(
         const Kernel::Segment_3& edge, const Kernel::Ray_3& ray
 ) {
+    using namespace mdv::condition;
+
     /* or(.) = origin of .
      * dir(.) = direction of .
      *
@@ -241,6 +243,10 @@ mdv::mesh::internal::edge_ray_intersection(
     const Vec3 dir_e = internal::convert(edge.target() - edge.source());
     const Vec3 dir_r = internal::convert(ray.to_vector());
 
+    if (are_parallel(dir_r, dir_e) && !are_equal(or_e, or_r)) return std::nullopt;
+    if (are_parallel(dir_r, dir_e) && are_equal(or_e, or_r))
+        throw std::runtime_error("Can't compute intersection when ray overlaps edge");
+
     Mat32 A;
     A.col(0)       = -dir_e;
     A.col(1)       = dir_r;
@@ -249,7 +255,8 @@ mdv::mesh::internal::edge_ray_intersection(
     const double t = x(0);
     const double s = x(1);
 
-    assert(mdv::condition::are_equal(or_e + t * dir_e, or_r + s * dir_r));
+    assert(are_equal(or_e + t * dir_e, or_r + s * dir_r));
+
     if ((t >= 0.0) && (t <= 1.0) && (s > 1e-9))
         return internal::point3_from_eigen(or_e + t * dir_e);
 

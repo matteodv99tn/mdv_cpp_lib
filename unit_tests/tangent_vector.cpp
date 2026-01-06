@@ -176,3 +176,36 @@ TEST(MdvMesh, TangentVectorConstructor) {
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 0}));
     }
 }
+
+TEST(MdvMesh, ExponentialMap) {
+    // Cube is 100x100x100 in size, and the centroid of the cube is at the origin
+    // -> Cube stays in [-50, -50, -50] x [50, 50, 50]
+    using mdv::condition::are_equal;
+    using Vec3 = Eigen::Vector3d;
+
+    const path mesh_path = mdv::config::meshes_directory() / "cube.stl";
+    const auto mesh      = Mesh::from_file(mesh_path);
+
+    {
+        // Trivial exponential map: start and end at middle of the face by passing on 1
+        // edge
+        const Vec3 p0_value{50, 0, 0};
+        const Vec3 tv_value{0, 0, 100};
+
+        const auto p0 = Point::from_cartesian(mesh, p0_value);
+        const auto tv = TangentVector::from_ambient_vector(p0, tv_value);
+        ASSERT_TRUE(are_equal(p0.position(), p0_value));
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), tv_value));
+        ASSERT_EQ(location_type(p0), LocationType::ON_EDGE);
+        ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
+
+        Geodesic   geod;
+        const auto res = exponential_map(tv, &geod);
+
+        ASSERT_TRUE(are_equal(res.position(), Vec3{0, 0, 50}));
+        ASSERT_EQ(geod.size(), 3);
+        ASSERT_TRUE(are_equal(geod[0], p0_value));
+        ASSERT_TRUE(are_equal(geod[1], Vec3{50, 0, 50}));
+        ASSERT_TRUE(are_equal(geod[2], Vec3{0, 0, 50}));
+    }
+}

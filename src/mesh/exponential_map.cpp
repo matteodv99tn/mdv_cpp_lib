@@ -166,9 +166,15 @@ namespace {
         if (i0.has_value()) ++sols_found;
         if (i1.has_value()) ++sols_found;
         if (i2.has_value()) ++sols_found;
-        assert(sols_found == 1);
 
         Kernel::Point_3 res;
+
+        if (sols_found == 2) {
+            if (i0.has_value()) res = i0.value();
+            else res = i1.value();
+            return std::make_pair(res, TRIANGLE_VERTEX_INTERSECTION);
+        }
+
         if (i0.has_value()) {
             res = i0.value();
             assert(CGAL::squared_distance(edge0, res) < 1e-12);
