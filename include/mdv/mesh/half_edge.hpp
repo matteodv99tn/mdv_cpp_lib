@@ -31,6 +31,14 @@ struct HalfEdge : internal::IndexedMeshElement {
     HalfEdge(const Mesh& mesh, const Index id) : IndexedMeshElement(mesh, id) {}
 
     /**
+     * @brief Constructs the halfedge lying on the desired face with source the provided
+     * vertex.
+     *
+     * Throws if the vertex is not part of the face
+     */
+    HalfEdge(const Vertex& vertex, const Face& face);
+
+    /**
      * @brief Retrieves the face that contains this half-edge.
      *
      * @return Reference to the face object.

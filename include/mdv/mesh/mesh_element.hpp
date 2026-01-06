@@ -65,6 +65,12 @@ public:
         return MeshElement::is_valid() && _id != invalid_index;
     }
 
+protected:
+    void
+    set_id(Index id) noexcept {
+        _id = id;
+    }
+
 private:
     Index _id = invalid_index;
 };

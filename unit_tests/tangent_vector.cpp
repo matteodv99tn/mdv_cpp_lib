@@ -1,9 +1,13 @@
 #include "mdv/mesh/tangent_vector.hpp"
 
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <filesystem>
 #include <gtest/gtest.h>
+#include <stdexcept>
 
 #include "mdv/config.hpp"
+#include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/conditions.hpp"
 
@@ -62,5 +66,113 @@ TEST(MdvMesh, TangentVectorDifference) {
         ASSERT_TRUE(mdv::condition::are_orthogonal(n, delta));
         ASSERT_TRUE(mdv::condition::is_zero_norm(vec.cartesian_vector() - delta));
         ASSERT_TRUE(mdv::condition::is_zero_norm(vec.tip() - tip));
+    }
+}
+
+TEST(MdvMesh, TangentVectorOrder) {
+    using mdv::mesh::internal::vector_inside_triangle;
+    using Vec3 = Eigen::Vector3d;
+
+    ASSERT_THROW(
+            vector_inside_triangle(Vec3::UnitX(), Vec3::UnitY(), Vec3::UnitZ()),
+            std::runtime_error
+    );
+
+    const std::vector<double> v1_v3_angles{
+            0.02, M_PI / 3, M_PI / 2, 2 * M_PI / 3, M_PI - 0.01
+    };
+
+    for (const double angle : v1_v3_angles) {
+        const Vec3 v1 = Vec3::UnitX();
+        const Vec3 v3 = Eigen::AngleAxisd(angle, Vec3::UnitZ()) * Vec3::UnitX();
+
+        const Eigen::VectorXd valid_angles =
+                Eigen::VectorXd::LinSpaced(50, 0.01, angle - 0.001);
+        const Eigen::VectorXd invalid_angles =
+                Eigen::VectorXd::LinSpaced(50, angle + 0.01, 2.0 * M_PI - 0.01);
+
+        for (const double theta : valid_angles) {
+            const Vec3 v2 = Eigen::AngleAxisd(theta, Vec3::UnitZ()) * Vec3::UnitX();
+            ASSERT_TRUE(vector_inside_triangle(v1, v2, v3))
+                    << "v1 = " << v1.transpose() << "\n"
+                    << "v2 = " << v2.transpose() << "\n"
+                    << "v3 = " << v3.transpose() << "\n";
+            ASSERT_TRUE(vector_inside_triangle(v3, v2, v1));
+        }
+        for (const double theta : invalid_angles) {
+            const Vec3 v2 = Eigen::AngleAxisd(theta, Vec3::UnitZ()) * Vec3::UnitX();
+            ASSERT_FALSE(vector_inside_triangle(v1, v2, v3))
+                    << "v1 = " << v1.transpose() << "\n"
+                    << "v2 = " << v2.transpose() << "\n"
+                    << "v3 = " << v3.transpose() << "\n"
+                    << "Angle: " << angle << "\n"
+                    << "Theta: " << theta;
+            ASSERT_FALSE(vector_inside_triangle(v3, v2, v1));
+        }
+    };
+}
+
+TEST(MdvMesh, TangentVectorConstructor) {
+    // Cube is 100x100x100 in size, and the centroid of the cube is at the origin
+    // -> Cube stays in [-50, -50, -50] x [50, 50, 50]
+    using mdv::condition::are_equal;
+
+    const path mesh_path = mdv::config::meshes_directory() / "cube.stl";
+    const auto mesh      = Mesh::from_file(mesh_path);
+
+    const auto p_v = Point::from_cartesian(mesh, {-50, -50, -50});
+    ASSERT_EQ(location_type(p_v), LocationType::ON_VERTEX);
+    {
+        const auto tv = TangentVector::from_ambient_vector(p_v, {0, 0, 10.0});
+        ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 0, 10.0}));
+    }
+    {
+        const auto tv = TangentVector::from_ambient_vector(p_v, {0.0, -5.0, 10.0});
+        ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 0, 10.0}));
+    }
+    {
+        const auto tv = TangentVector::from_ambient_vector(p_v, {-5.0, -5.0, 10.0});
+        ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 0, 10.0}));
+    }
+    {
+        const auto tv = TangentVector::from_ambient_vector(p_v, {0, 10.0, 10.0});
+        ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 10.0}));
+    }
+    {
+        const auto tv = TangentVector::from_ambient_vector(p_v, {-5.0, 10.0, 10.0});
+        ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 10.0}));
+    }
+
+    const auto p_he = Point::from_cartesian(mesh, {-50, 0.0, -50});
+    ASSERT_EQ(location_type(p_he), LocationType::ON_EDGE);
+    {
+        const auto tv = TangentVector::from_ambient_vector(p_he, {0, 0, 10.0});
+        ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 0, 10.0}));
+    }
+    {
+        const auto tv = TangentVector::from_ambient_vector(p_he, {0, 10.0, 10.0});
+        ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 10.0}));
+    }
+    {
+        const auto tv = TangentVector::from_ambient_vector(p_he, {0, 10.0, 0});
+        ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 0}));
+    }
+    {
+        const auto tv = TangentVector::from_ambient_vector(p_he, {0, 10.0, -10.0});
+        ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 0}));
+    }
+    {
+        const auto tv = TangentVector::from_ambient_vector(p_he, {-10.0, 10.0, -10.0});
+        ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 0}));
     }
 }

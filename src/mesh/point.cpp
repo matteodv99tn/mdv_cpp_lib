@@ -1,8 +1,11 @@
 #include "mdv/mesh/point.hpp"
 
+#include <CGAL/boost/graph/graph_traits_Surface_mesh.h>
 #include <cstdlib>
 #include <Eigen/Core>
 #include <random>
+
+#include <range/v3/all.hpp>
 
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
@@ -12,6 +15,9 @@
 #include "mdv/utils/logging_extras.hpp"
 
 // \cond DOXYGEN_IGNORE
+namespace rs = ::ranges;
+namespace rv = ::ranges::views;
+
 using mdv::mesh::CartesianPoint;
 using mdv::mesh::Face;
 using mdv::mesh::Mesh;
@@ -36,16 +42,42 @@ Point::PointOnVertexDescriptor::describe() const {
 
 Face
 Point::PointOnVertexDescriptor::face() const {
-    const auto& m            = internal::get_mesh_impl(_v);
-    const auto  v_id         = static_cast<CgalImpl::CgalVertexIndex>(_v.id());
-    const auto  he           = CGAL::halfedge(v_id, m);
-    static bool warn_printed = false;
-    if (!warn_printed) {
-        std::cerr << "Warning: Point::face() called from point described on vertex\n";
-        warn_printed = true;
-    }
-    return {_v.mesh(), CGAL::face(he, m)};
+    auto default_face = [this]() -> Face {
+        const auto& m            = internal::get_mesh_impl(_v);
+        const auto  v_id         = static_cast<CgalImpl::CgalVertexIndex>(_v.id());
+        const auto  he           = CGAL::halfedge(v_id, m);
+        static bool warn_printed = false;
+        if (!warn_printed) {
+            std::cerr
+                    << "Warning: Point::face() called from point described on vertex\n";
+            warn_printed = true;
+        }
+        return {_v.mesh(), CGAL::face(he, m)};
+    };
+
+    if (_f.has_value()) return _f.value();
+    return default_face();
 };
+
+void
+Point::PointOnVertexDescriptor::assign_face(const Face& f) {
+    const auto& m     = internal::get_mesh_impl(f.mesh());
+    const auto  f_id  = internal::to_face_impl(f);
+    const auto  he_id = CGAL::halfedge(f_id, m);
+    const auto  v_id  = internal::CgalImpl::CgalVertexIndex{_v.id()};
+
+    const auto face_vertices =
+            CGAL::vertices_around_face(he_id, internal::get_mesh_impl(f.mesh()))
+            | rs::to_vector;
+    if (!rs::contains(face_vertices, v_id)) {
+        const std::string msg = fmt::format(
+                "Face {} does not contain vertex #{}", f_id.idx(), v_id.idx()
+        );
+        throw std::runtime_error(msg.c_str());
+    }
+
+    _f = f;
+}
 
 //  ____  _                   _____    _
 // |  _ \| |_    ___  _ __   | ____|__| | __ _  ___

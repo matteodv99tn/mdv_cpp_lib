@@ -3,6 +3,7 @@
 #include <fmt/format.h>
 
 #include "mdv/mesh/cgal_impl.hpp"
+#include "mdv/mesh/mesh_element.hpp"
 #include "mdv/utils/conditions.hpp"
 
 // \cond DOXYGEN_IGNORE
@@ -12,6 +13,35 @@ using mdv::mesh::Vertex;
 
 // \endcond
 
+HalfEdge::HalfEdge(const Vertex& v, const Face& f) :
+        internal::IndexedMeshElement(v.mesh(), invalid_index) {
+    assert(&v.mesh() == &f.mesh());
+
+    using VertexIndex = internal::CgalImpl::CgalVertexIndex;
+    using FaceIndex   = internal::CgalImpl::CgalFaceIndex;
+    using HeIndex     = internal::CgalImpl::CgalHalfEdgeIndex;
+
+    const VertexIndex v_id{v.id()};
+    const FaceIndex   f_id{f.id()};
+    const auto&       m = internal::get_mesh_impl(v.mesh());
+
+    for (const auto he_id : CGAL::halfedges_around_face(CGAL::halfedge(f_id, m), m)) {
+        if (source(he_id, m) == v_id) {
+            set_id(he_id);
+            break;
+        }
+    }
+
+    if (id() == invalid_index) {
+        const std::string msg = fmt::format(
+                "Face #{} does not contain vertex #{}; cannot initialise proper "
+                "halfedge",
+                f_id.idx(),
+                v_id.idx()
+        );
+        throw std::runtime_error(msg.c_str());
+    };
+}
 
 Face
 HalfEdge::face() const noexcept {

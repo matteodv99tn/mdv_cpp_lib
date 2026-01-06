@@ -1,6 +1,7 @@
 #ifndef MDV_MESH_POINT_HPP
 #define MDV_MESH_POINT_HPP
 
+#include <optional>
 #include <variant>
 
 #include "mdv/eigen_defines.hpp"
@@ -17,7 +18,8 @@ class Point {
 public:
     class PointOnVertexDescriptor {
     public:
-        PointOnVertexDescriptor(Vertex v) : _v(std::move(v)) {}
+        PointOnVertexDescriptor(Vertex v, std::optional<Face> f = std::nullopt) :
+                _v(std::move(v)), _f(std::move(f)) {}
 
         MDV_NODISCARD CartesianPoint
         position() const noexcept {
@@ -38,8 +40,11 @@ public:
             return _v;
         }
 
+        void assign_face(const Face& f);
+
     private:
-        Vertex _v;
+        Vertex              _v;
+        std::optional<Face> _f = std::nullopt;
     };
 
     class PointOnEdgeDescriptor {
@@ -69,6 +74,11 @@ public:
         MDV_NODISCARD double
         coordinate() const {
             return _c;
+        }
+
+        MDV_NODISCARD const HalfEdge&
+        halfedge() const {
+            return _he;
         }
 
     private:
