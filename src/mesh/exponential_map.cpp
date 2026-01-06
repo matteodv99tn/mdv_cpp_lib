@@ -1,6 +1,7 @@
 #include <CGAL/Polygon_mesh_processing/compute_normal.h>
 #include <cstdint>
 #include <Eigen/Geometry>
+#include <stdexcept>
 
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/all.hpp>
@@ -190,6 +191,76 @@ namespace {
         return std::make_pair(res, TRIANGLE_EDGE_INTERSECTION);
     }
 
+    /*
+     * Given a vector "v" applied at point "p" on the edge of face "f" whose direction
+     * is outbound the face, gives the projected inbound vector on the contiguous face.
+     */
+    std::pair<Kernel::Vector_3, FaceIndex>
+    propagate_along_edge(
+            const Kernel::Point_3           p,
+            const FaceIndex                 f,
+            const Kernel::Vector_3          v,
+            const internal::CgalImpl::Mesh& m
+    ) {
+        using CGAL::Polygon_mesh_processing::compute_face_normal;
+        const auto      he     = get_halfedge(f, p, m);
+        const FaceIndex next_f = m.face(CGAL::opposite(he, m));
+
+        constexpr Index invalid = -1;
+        if (next_f == FaceIndex{invalid})
+            throw std::runtime_error("Boarder reached when computing exponential map");
+
+        const auto& v0 = m.point(source(he, m));
+        const auto& v1 = m.point(target(he, m));
+        const Vec3d ax = internal::convert(v1 - v0).normalized();
+        const Vec3d n1 = internal::convert(compute_face_normal(f, m));
+        const Vec3d n2 = internal::convert(compute_face_normal(next_f, m));
+
+        // Binormal axis computation
+        const Vec3d b1 = -ax.cross(n1);
+        const Vec3d b2 = ax.cross(n2);
+
+        // Compute rotation
+        const Eigen::Quaterniond q = Eigen::Quaterniond::FromTwoVectors(-b1, b2);
+        const Vec3d              v_next_eigen = q * internal::convert(v);
+        const auto               v_next = internal::vector3_from_eigen(v_next_eigen);
+
+        using mdv::condition::are_orthogonal, mdv::condition::is_unit_norm;
+        assert(are_orthogonal(b1, ax) && are_orthogonal(b1, n1) && is_unit_norm(b1));
+        assert(are_orthogonal(b2, ax) && are_orthogonal(b2, n2) && is_unit_norm(b2));
+        assert(are_orthogonal(v_next_eigen, n2));
+
+        return std::make_pair(v_next, next_f);
+    }
+
+    /*
+     * Given a vector "v" applied at point "p" which is a vertex of face "f" whose
+     * direction is outbound the face, gives the projected inbound vector on the
+     * contiguous face.
+     */
+    std::pair<Kernel::Vector_3, FaceIndex>
+    propagate_along_vertex(
+            const Kernel::Point_3           p,
+            const FaceIndex                 f,
+            const Kernel::Vector_3          v,
+            const internal::CgalImpl::Mesh& m
+    ) {
+        throw std::runtime_error("propagate along vertex not implemented");
+    }
+
+    std::pair<Kernel::Vector_3, FaceIndex>
+    propagate_vector(
+            const IntersectionType          intersection_type,
+            const Kernel::Point_3           p,
+            const FaceIndex                 f,
+            const Kernel::Vector_3          v,
+            const internal::CgalImpl::Mesh& m
+    ) {
+        if (intersection_type == TRIANGLE_EDGE_INTERSECTION)
+            return propagate_along_edge(p, f, v, m);
+        return propagate_along_vertex(p, f, v, m);
+    }
+
     std::pair<Kernel::Point_3, FaceIndex>
     exponential_map_impl(
             const Kernel::Point_3           p0,
@@ -228,35 +299,8 @@ namespace {
         const Kernel::Vector_3 v_left = vec - v_cut;
         assert(v_left.squared_length() < vec.squared_length());
 
-        if (pstar_type == TRIANGLE_VERTEX_INTERSECTION) {
-            throw std::runtime_error(
-                    "Mesh::exponential_map: don't know how to propagate tangent "
-                    "vectors through vertices!"
-            );
-        }
-
-        using CGAL::Polygon_mesh_processing::compute_face_normal;
-        const auto      proj_he      = get_halfedge(f_id, pstar, mesh);
-        const FaceIndex next_face_id = mesh.face(CGAL::opposite(proj_he, mesh));
-
-        constexpr Index invalid = -1;
-        if (next_face_id == FaceIndex{invalid})
-            throw std::runtime_error("Boarder reached when computing exponential map");
-
-        const auto& v0 = mesh.point(source(proj_he, mesh));
-        const auto& v1 = mesh.point(target(proj_he, mesh));
-        const Vec3d ax = internal::convert(v1 - v0).normalized();
-        const Vec3d n1 = internal::convert(compute_face_normal(f_id, mesh));
-        const Vec3d n2 = internal::convert(compute_face_normal(next_face_id, mesh));
-
-        // Binormal axis computation
-        const Vec3d b1 = -ax.cross(n1);
-        const Vec3d b2 = ax.cross(n2);
-
-        // Compute rotation
-        const Eigen::Quaterniond q = Eigen::Quaterniond::FromTwoVectors(-b1, b2);
-        const Vec3d              v_next_eigen = q * internal::convert(v_left);
-        const auto               v_next = internal::vector3_from_eigen(v_next_eigen);
+        const auto [v_next, next_face_id] =
+                propagate_vector(pstar_type, pstar, f_id, v_left, mesh);
 
 #if RERUN_DEBUG_ENABLED
         const Kernel::Triangle_3 tri_next = get(tri_gen, next_face_id);
@@ -271,10 +315,6 @@ namespace {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
 #endif
 
-        using mdv::condition::are_orthogonal, mdv::condition::is_unit_norm;
-        assert(are_orthogonal(b1, ax) && are_orthogonal(b1, n1) && is_unit_norm(b1));
-        assert(are_orthogonal(b2, ax) && are_orthogonal(b2, n2) && is_unit_norm(b2));
-        assert(are_orthogonal(v_next_eigen, n2));
 
         // TODO: check that the updated vector points "internally" to the face
         return exponential_map_impl(pstar, next_face_id, v_next, mesh, geod);
