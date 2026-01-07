@@ -257,8 +257,34 @@ mdv::mesh::internal::edge_ray_intersection(
 
     assert(are_equal(or_e + t * dir_e, or_r + s * dir_r));
 
-    if ((t >= 0.0) && (t <= 1.0) && (s > 1e-9))
+    if ((t >= 0.0) && (t <= 1.0 + 1e-9) && (s > 1e-9))
         return internal::point3_from_eigen(or_e + t * dir_e);
 
     return std::nullopt;
+}
+
+double
+mdv::mesh::internal::total_curvature_deg(
+        const CgalImpl::Mesh& m, const CgalImpl::VertexDescriptor& v
+) {
+    const auto v_pos = m.point(v);
+
+    double res = 0.0;
+    for (const auto he : CGAL::halfedges_around_target(v, m)) {
+        const auto p1 = m.point(source(he, m));
+        const auto p2 = m.point(target(next(he, m), m));
+
+        auto e1 = p1 - v_pos;
+        auto e2 = p2 - v_pos;
+        res += CGAL::approximate_angle(e1, e2);
+    }
+
+    return res;
+}
+
+double
+mdv::mesh::internal::total_curvature_rad(
+        const CgalImpl::Mesh& m, const CgalImpl::VertexDescriptor& v
+) {
+    return total_curvature_deg(m, v) * M_PI / 180.0;
 }

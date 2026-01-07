@@ -182,6 +182,7 @@ TEST(MdvMesh, ExponentialMap) {
     // -> Cube stays in [-50, -50, -50] x [50, 50, 50]
     using mdv::condition::are_equal;
     using Vec3 = Eigen::Vector3d;
+    using AS   = Eigen::AngleAxisd;
 
     const path mesh_path = mdv::config::meshes_directory() / "cube.stl";
     const auto mesh      = Mesh::from_file(mesh_path);
@@ -207,5 +208,45 @@ TEST(MdvMesh, ExponentialMap) {
         ASSERT_TRUE(are_equal(geod[0], p0_value));
         ASSERT_TRUE(are_equal(geod[1], Vec3{50, 0, 50}));
         ASSERT_TRUE(are_equal(geod[2], Vec3{0, 0, 50}));
+    }
+    {
+        // Exponential map with start and end at middle of the face and passing through
+        // 1 vertex
+        const Vec3 p1_value{50, 50, 50};  // Vertex position to pass through
+
+        // angle of the tangent vector from the vector (0, 0, 1):
+        const double theta_deg = 20.0;
+        const double theta_rad = theta_deg * M_PI / 180.0;
+
+        const double phi_deg = 270.0 / 2.0 - theta_deg - 90.0;
+        const double phi_rad = phi_deg * M_PI / 180.0;
+        EXPECT_GT(phi_deg, 0.0);
+
+        // Construction of other points
+        const Vec3 delta0   = AS(-theta_rad, Vec3::UnitX()) * (50.0 * Vec3::UnitZ());
+        const Vec3 delta2   = AS(phi_rad, Vec3::UnitZ()) * (-50.0 * Vec3::UnitX());
+        const Vec3 p0_value = p1_value - delta0;
+        const Vec3 p2_value = p1_value + delta2;
+        const Vec3 tv_value = (p1_value - p0_value).normalized() * 100.0;
+
+        const auto p0 = Point::from_cartesian(mesh, p0_value);
+        const auto p1 = Point::from_cartesian(mesh, p1_value);
+        const auto p2 = Point::from_cartesian(mesh, p2_value);
+        const auto tv = TangentVector::from_ambient_vector(p0, tv_value);
+        ASSERT_TRUE(are_equal(p0.position(), p0_value));
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), tv_value));
+        ASSERT_EQ(location_type(p0), LocationType::INSIDE_FACE);
+        ASSERT_EQ(location_type(p1), LocationType::ON_VERTEX);
+        ASSERT_EQ(location_type(p2), LocationType::INSIDE_FACE);
+        ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
+
+        Geodesic   geod;
+        const auto res = exponential_map(tv, &geod);
+
+        ASSERT_TRUE(are_equal(res.position(), p2_value));
+        ASSERT_EQ(geod.size(), 3);
+        ASSERT_TRUE(are_equal(geod[0], p0_value));
+        ASSERT_TRUE(are_equal(geod[1], p1_value));
+        ASSERT_TRUE(are_equal(geod[2], p2_value));
     }
 }

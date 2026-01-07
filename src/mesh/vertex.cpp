@@ -51,21 +51,9 @@ Vertex::normal() const noexcept {
 
 double
 Vertex::total_curvature() const {
-    const auto&                                m     = internal::get_mesh_impl(mesh());
-    const auto                                 v_pos = internal::to_vertex_impl(*this);
+    const auto&                                m = internal::get_mesh_impl(mesh());
     const internal::CgalImpl::VertexDescriptor v_id{id()};
-
-    double res = 0.0;
-    for (const auto he : CGAL::halfedges_around_target(v_id, m)) {
-        const auto p1 = m.point(source(he, m));
-        const auto p2 = m.point(target(next(he, m), m));
-
-        auto e1 = p1 - v_pos;
-        auto e2 = p2 - v_pos;
-        res += CGAL::approximate_angle(e1, e2);
-    }
-
-    return res * M_PI / 180.0;
+    return internal::total_curvature_rad(m, v_id);
 }
 
 double

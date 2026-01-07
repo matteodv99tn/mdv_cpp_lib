@@ -205,6 +205,13 @@ std::optional<CgalImpl::Kernel::Point_3> edge_ray_intersection(
         const CgalImpl::Kernel::Segment_3& edge, const CgalImpl::Kernel::Ray_3& ray
 );
 
+double total_curvature_rad(
+        const CgalImpl::Mesh& m, const CgalImpl::VertexDescriptor& v
+);
+
+double total_curvature_deg(
+        const CgalImpl::Mesh& m, const CgalImpl::VertexDescriptor& v
+);
 
 }  // namespace mdv::mesh::internal
 

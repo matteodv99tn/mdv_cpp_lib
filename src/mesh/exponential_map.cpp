@@ -43,6 +43,8 @@ namespace mdv::mesh {
 namespace {
     using Kernel           = internal::CgalImpl::Kernel;
     using FaceIndex        = internal::CgalImpl::CgalFaceIndex;
+    using VertexIndex      = internal::CgalImpl::CgalVertexIndex;
+    using HalfEdgeIndex    = internal::CgalImpl::CgalHalfEdgeIndex;
     using VertexDescriptor = Point::PointOnVertexDescriptor;
     using CgalHalfEdge     = internal::CgalImpl::CgalHalfEdgeIndex;
     using CgalMesh         = internal::CgalImpl::Mesh;
@@ -130,21 +132,6 @@ namespace {
         );
     }
 
-    double
-    vertex_total_angle(
-            const internal::CgalImpl::VertexDescriptor& v,
-            const internal::CgalImpl::Mesh&             m
-    ) {
-        double res = 0.0;
-        for (const auto he : CGAL::halfedges_around_source(v, m)) {
-            const Kernel::Point_3& p0 = m.point(CGAL::source(he, m));
-            const Kernel::Point_3& p1 = m.point(CGAL::target(he, m));
-            const Kernel::Point_3& p2 = m.point(CGAL::target(next(he, m), m));
-            res += CGAL::approximate_angle(p1, p0, p2);  // CGAL returns in degs!
-        }
-        return res * M_PI / 180.0;  // Convert to radians
-    }
-
     enum IntersectionType : std::uint8_t {
         TRIANGLE_VERTEX_INTERSECTION,
         TRIANGLE_EDGE_INTERSECTION
@@ -189,6 +176,25 @@ namespace {
             assert(CGAL::squared_distance(edge2, res) < 1e-12);
         }
         return std::make_pair(res, TRIANGLE_EDGE_INTERSECTION);
+    }
+
+    /**
+     * @brief Given a point "p" which is assumed to be a vertex for the face "f",
+     * retrieves the vertex id on the mesh "m" and the halfedge on "f" that has "v" as
+     * source.
+     */
+    std::pair<VertexIndex, HalfEdgeIndex>
+    get_vertex_halfedge_pair(
+            const Kernel::Point_3           p,
+            const FaceIndex                 f,
+            const internal::CgalImpl::Mesh& m
+    ) {
+        for (const auto he : CGAL::halfedges_around_face(CGAL::halfedge(f, m), m)) {
+            const auto v_id = source(he, m);
+            if ((m.point(v_id) - p).squared_length() < 1e-18)
+                return std::make_pair(v_id, he);
+        }
+        throw std::runtime_error("Provided point is not a vertex for the face");
     }
 
     /*
@@ -245,7 +251,55 @@ namespace {
             const Kernel::Vector_3          v,
             const internal::CgalImpl::Mesh& m
     ) {
-        throw std::runtime_error("propagate along vertex not implemented");
+        using HalfEdgeCirculator =
+                CGAL::Halfedge_around_source_circulator<internal::CgalImpl::Mesh>;
+        using CGAL::Polygon_mesh_processing::compute_face_normal;
+        using internal::convert, internal::total_curvature_deg,
+                internal::vector_inside_triangle, internal::vector3_from_eigen;
+        using mdv::condition::are_orthogonal;
+
+        const auto he_to_vec3 = [m](const HalfEdgeIndex& he_id) -> Kernel::Vector_3 {
+            return m.point(target(he_id, m)) - m.point(source(he_id, m));
+        };
+        const auto length = [](const Kernel::Vector_3& v) {
+            return CGAL::approximate_sqrt(CGAL::squared_length(v));
+        };
+        const auto normalize = [length](const Kernel::Vector_3& v) -> Kernel::Vector_3 {
+            return v / length(v);
+        };
+
+        // Note: CGAL approximate angle works in degrees
+        const auto [v_id, start_he] = get_vertex_halfedge_pair(p, f, m);
+        const double tot_curv       = total_curvature_deg(m, v_id);
+        const double target_angle   = tot_curv * 0.5;
+        double traversed_angle      = CGAL::approximate_angle(-v, he_to_vec3(start_he));
+
+        assert(face(start_he, m) == f);
+
+        HalfEdgeCirculator he_circ(start_he, m);
+        while (traversed_angle < target_angle) {
+            const auto curr_he = *he_circ;
+            ++he_circ;
+            const auto next_he = *he_circ;
+            traversed_angle +=
+                    CGAL::approximate_angle(he_to_vec3(curr_he), he_to_vec3(next_he));
+        }
+
+        const auto              next_f       = face(*he_circ, m);
+        const double            excess_angle = traversed_angle - target_angle;
+        const auto              n            = convert(compute_face_normal(next_f, m));
+        const auto              d            = convert(normalize(he_to_vec3(*he_circ)));
+        const Eigen::AngleAxisd rot(excess_angle * M_PI / 180.0, n);
+        const Vec3d             vec_dir = rot * d;
+
+        assert(are_orthogonal(n, d));
+        assert(are_orthogonal(vec_dir, n));
+        assert(vector_inside_triangle(
+                convert(he_to_vec3(*he_circ)),
+                vec_dir,
+                convert(he_to_vec3(*(he_circ--)))
+        ));
+        return std::make_pair(vector3_from_eigen(vec_dir * length(v)), next_f);
     }
 
     std::pair<Kernel::Vector_3, FaceIndex>
