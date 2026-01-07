@@ -1,7 +1,6 @@
 #include <CGAL/Polygon_mesh_processing/compute_normal.h>
 #include <cstdint>
 #include <Eigen/Geometry>
-#include <limits>
 #include <stdexcept>
 
 #include "mdv/eigen_defines.hpp"
@@ -187,19 +186,24 @@ namespace {
         return std::make_pair(res, TRIANGLE_EDGE_INTERSECTION);
     }
 
+    /*
+     * Retrieves the halfedge on face "f" which is "most parallel" to the vector "v"
+     */
     HalfEdgeIndex
-    get_closest_halfedge(
-            const Kernel::Point_3           p,
+    get_most_parallel_halfedge(
+            const Kernel::Vector_3          v,
             const FaceIndex                 f,
             const internal::CgalImpl::Mesh& m
     ) {
-        double        dist = std::numeric_limits<double>::infinity();
+        double        best_dot = 0.0;
         HalfEdgeIndex closest_he{invalid_index};
         for (const auto he : CGAL::halfedges_around_face(halfedge(f, m), m)) {
-            const Kernel::Ray_3 ray(m.point(source(he, m)), m.point(target(he, m)));
-            const double        this_d = CGAL::squared_distance(ray, p);
-            if (this_d < dist) {
-                dist       = this_d;
+            const Kernel::Vector_3 dir =
+                    m.point(source(he, m)) - m.point(target(he, m));
+            const double len      = std::sqrt(squared_length(dir));
+            const double this_dot = std::abs(dir * v) / len;
+            if (this_dot > best_dot) {
+                best_dot   = this_dot;
                 closest_he = he;
             }
         }
@@ -215,13 +219,13 @@ namespace {
             const internal::CgalImpl::Mesh& m,
             VectorAlongEdge /* unused */
     ) {
-        const auto he = get_closest_halfedge(p, f, m);
+        const auto he = get_most_parallel_halfedge(v, f, m);
         const auto v0 = m.point(source(he, m));
         const auto v1 = m.point(target(he, m));
         const auto d0 = v0 - p;
         const auto d1 = v1 - p;
 
-        assert((d0 * v) * (d1 * v) < 0.0);
+        assert((d0 * v) * (d1 * v) <= 0.0);
 
         if (d0 * v > 1e-18) return std::make_pair(v0, TRIANGLE_VERTEX_INTERSECTION);
         return std::make_pair(v1, TRIANGLE_VERTEX_INTERSECTION);
@@ -270,11 +274,17 @@ namespace {
         throw std::runtime_error("Provided point is not a vertex for the face");
     }
 
+    struct PropagationResult {
+        Kernel::Vector_3    v;
+        FaceIndex           f;
+        TangentVector::Type type;
+    };
+
     /*
      * Given a vector "v" applied at point "p" on the edge of face "f" whose direction
      * is outbound the face, gives the projected inbound vector on the contiguous face.
      */
-    std::pair<Kernel::Vector_3, FaceIndex>
+    PropagationResult
     propagate_along_edge(
             const Kernel::Point_3           p,
             const FaceIndex                 f,
@@ -309,7 +319,7 @@ namespace {
         assert(are_orthogonal(b2, ax) && are_orthogonal(b2, n2) && is_unit_norm(b2));
         assert(are_orthogonal(v_next_eigen, n2));
 
-        return std::make_pair(v_next, next_f);
+        return {.v = v_next, .f = next_f, .type = TangentVector::INSIDE_FACE};
     }
 
     /*
@@ -317,7 +327,7 @@ namespace {
      * direction is outbound the face, gives the projected inbound vector on the
      * contiguous face.
      */
-    std::pair<Kernel::Vector_3, FaceIndex>
+    PropagationResult
     propagate_along_vertex(
             const Kernel::Point_3           p,
             const FaceIndex                 f,
@@ -350,7 +360,7 @@ namespace {
         assert(face(start_he, m) == f);
 
         HalfEdgeCirculator he_circ(start_he, m);
-        while (traversed_angle < target_angle) {
+        while (traversed_angle < target_angle - 1e-9) {
             const auto curr_he = *he_circ;
             ++he_circ;
             const auto next_he = *he_circ;
@@ -358,10 +368,19 @@ namespace {
                     CGAL::approximate_angle(he_to_vec3(curr_he), he_to_vec3(next_he));
         }
 
-        const auto              next_f       = face(*he_circ, m);
-        const double            excess_angle = traversed_angle - target_angle;
-        const auto              n            = convert(compute_face_normal(next_f, m));
-        const auto              d            = convert(normalize(he_to_vec3(*he_circ)));
+        const auto   next_f       = face(*he_circ, m);
+        const double excess_angle = traversed_angle - target_angle;
+        const auto   n            = convert(compute_face_normal(next_f, m));
+        const auto   d            = convert(normalize(he_to_vec3(*he_circ)));
+
+        if (mdv::condition::is_zero(excess_angle)) {
+            return {
+                    .v    = normalize(he_to_vec3(*he_circ)) * length(v),
+                    .f    = next_f,
+                    .type = TangentVector::ALONG_EDGE,
+            };
+        }
+
         const Eigen::AngleAxisd rot(excess_angle * M_PI / 180.0, n);
         const Vec3d             vec_dir = rot * d;
 
@@ -372,10 +391,14 @@ namespace {
                 vec_dir,
                 convert(he_to_vec3(*(he_circ--)))
         ));
-        return std::make_pair(vector3_from_eigen(vec_dir * length(v)), next_f);
+        return {
+                .v    = vector3_from_eigen(vec_dir * length(v)),
+                .f    = next_f,
+                .type = TangentVector::INSIDE_FACE,
+        };
     }
 
-    std::pair<Kernel::Vector_3, FaceIndex>
+    PropagationResult
     propagate_vector(
             const IntersectionType          intersection_type,
             const Kernel::Point_3           p,
@@ -427,7 +450,7 @@ namespace {
         const Kernel::Vector_3 v_left = vec - v_cut;
         assert(v_left.squared_length() < vec.squared_length());
 
-        const auto [v_next, next_face_id] =
+        const auto [v_next, next_face_id, next_type] =
                 propagate_vector(pstar_type, pstar, f_id, v_left, mesh);
 
 #if RERUN_DEBUG_ENABLED
@@ -439,9 +462,7 @@ namespace {
 #endif
 
         // TODO: check that the updated vector points "internally" to the face
-        return exponential_map_impl(
-                pstar, next_face_id, v_next, TangentVector::INSIDE_FACE, mesh, geod
-        );
+        return exponential_map_impl(pstar, next_face_id, v_next, next_type, mesh, geod);
     }
 }  // namespace
 

@@ -281,4 +281,112 @@ TEST(MdvMesh, ExponentialMap) {
         ASSERT_TRUE(are_equal(geod[1], p1_value));
         ASSERT_TRUE(are_equal(geod[2], p2_value));
     }
+    {
+        // Exponential map running along edges
+
+        // Vertex position to pass through; choice is made so that the "landing" lies on
+        // another edge
+        const Vec3 p1_value{50, 50, 50};
+        const Vec3 p0_value{50, 50, 0};
+
+        const Vec3 delta2   = AS(M_PI_4, Vec3::UnitZ()) * (-50.0 * Vec3::UnitX());
+        const Vec3 p2_value = p1_value + delta2;
+        const Vec3 tv_value{0, 0, 100};
+
+        const auto p0 = Point::from_cartesian(mesh, p0_value);
+        const auto p1 = Point::from_cartesian(mesh, p1_value);
+        const auto p2 = Point::from_cartesian(mesh, p2_value);
+        const auto tv = TangentVector::from_ambient_vector(p0, tv_value);
+        ASSERT_TRUE(are_equal(p0.position(), p0_value));
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), tv_value));
+        ASSERT_EQ(location_type(p0), LocationType::ON_EDGE);
+        ASSERT_EQ(location_type(p1), LocationType::ON_VERTEX);
+        ASSERT_EQ(location_type(p2), LocationType::ON_EDGE);
+        ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
+
+        Geodesic   geod;
+        const auto res = exponential_map(tv, &geod);
+
+        ASSERT_TRUE(are_equal(res.position(), p2_value));
+        ASSERT_EQ(geod.size(), 3);
+        ASSERT_TRUE(are_equal(geod[0], p0_value));
+        ASSERT_TRUE(are_equal(geod[1], p1_value));
+        ASSERT_TRUE(are_equal(geod[2], p2_value));
+    }
+
+    {
+        // Exponential map running along multiple edges
+
+        // Vertex position to pass through; choice is made so that the "landing" lies on
+        // another edge
+        const Vec3 p1_value{50, 50, 50};
+        const Vec3 p0_value{50, 50, 0};
+        const Vec3 p2_value{-50, -50, 50};
+        const Vec3 p3_value{-50, -50, 0};
+
+        const Vec3 tv_value{0, 0, 100 + 100 * std::sqrt(2)};
+
+        const auto p0 = Point::from_cartesian(mesh, p0_value);
+        const auto p1 = Point::from_cartesian(mesh, p1_value);
+        const auto p2 = Point::from_cartesian(mesh, p2_value);
+        const auto p3 = Point::from_cartesian(mesh, p3_value);
+        const auto tv = TangentVector::from_ambient_vector(p0, tv_value);
+        ASSERT_TRUE(are_equal(p0.position(), p0_value));
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), tv_value));
+        ASSERT_EQ(location_type(p0), LocationType::ON_EDGE);
+        ASSERT_EQ(location_type(p1), LocationType::ON_VERTEX);
+        ASSERT_EQ(location_type(p2), LocationType::ON_VERTEX);
+        ASSERT_EQ(location_type(p3), LocationType::ON_EDGE);
+        ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
+
+        Geodesic   geod;
+        const auto res = exponential_map(tv, &geod);
+
+        ASSERT_EQ(geod.size(), 4);
+        ASSERT_TRUE(are_equal(geod[0], p0_value));
+        ASSERT_TRUE(are_equal(geod[1], p1_value));
+        ASSERT_TRUE(are_equal(geod[2], p2_value));
+        ASSERT_TRUE(are_equal(geod[3], p3_value));
+        ASSERT_TRUE(are_equal(res.position(), p3_value)) << res.position().transpose();
+    }
+
+    {
+        // Exponential map running along multiple vertices and edges
+
+        // Vertex position to pass through; choice is made so that the "landing" lies on
+        // another edge
+        const Vec3 p0_value{50, -50, 0};
+        const Vec3 p1_value{50, -50, 50};
+        const Vec3 p2_value{0, 0, 50};
+        const Vec3 p3_value{-50, 50, 50};
+        const Vec3 p4_value{-50, 50, 0};
+
+        const Vec3 tv_value{0, 0, 100 + 100 * std::sqrt(2)};
+
+        const auto p0 = Point::from_cartesian(mesh, p0_value);
+        const auto p1 = Point::from_cartesian(mesh, p1_value);
+        const auto p2 = Point::from_cartesian(mesh, p2_value);
+        const auto p3 = Point::from_cartesian(mesh, p3_value);
+        const auto p4 = Point::from_cartesian(mesh, p4_value);
+        const auto tv = TangentVector::from_ambient_vector(p0, tv_value);
+        ASSERT_TRUE(are_equal(p0.position(), p0_value));
+        ASSERT_TRUE(are_equal(tv.cartesian_vector(), tv_value));
+        ASSERT_EQ(location_type(p0), LocationType::ON_EDGE);
+        ASSERT_EQ(location_type(p1), LocationType::ON_VERTEX);
+        ASSERT_EQ(location_type(p2), LocationType::ON_EDGE);
+        ASSERT_EQ(location_type(p3), LocationType::ON_VERTEX);
+        ASSERT_EQ(location_type(p4), LocationType::ON_EDGE);
+        ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
+
+        Geodesic   geod;
+        const auto res = exponential_map(tv, &geod);
+
+        ASSERT_EQ(geod.size(), 5);
+        ASSERT_TRUE(are_equal(geod[0], p0_value));
+        ASSERT_TRUE(are_equal(geod[1], p1_value));
+        ASSERT_TRUE(are_equal(geod[2], p2_value));
+        ASSERT_TRUE(are_equal(geod[3], p3_value));
+        ASSERT_TRUE(are_equal(geod[4], p4_value));
+        ASSERT_TRUE(are_equal(res.position(), p4_value));
+    }
 }
