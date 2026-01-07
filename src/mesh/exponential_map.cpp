@@ -16,8 +16,9 @@
 // \cond DOXYGEN_IGNORE
 
 // Uncomment the following line to enable the compilation with the integrated rerun
-// logger that will display all the steps of the shortest path computation #define
-// DEBUG_EXPONENTIAL_MAP
+// logger that will display all the steps of the shortest path computation
+
+// #define DEBUG_EXPONENTIAL_MAP
 
 #if defined(DEBUG_EXPONENTIAL_MAP) && defined(MDV_WITH_RERUN_SDK)
 #define RERUN_DEBUG_ENABLED true
@@ -111,7 +112,7 @@ namespace {
             const Vec3d&           direction,
             const std::string&     label
     ) {
-        draw_arrow(path, origin, internal::eigen_to_vec3(direction), label);
+        draw_arrow(path, origin, internal::vector3_from_eigen(direction), label);
     }
 #endif
 
@@ -398,17 +399,15 @@ namespace {
     ) {
         if (geod != nullptr) geod->emplace_back(internal::convert(p0));
 
-        const Kernel::Ray_3                     ray(p0, vec);
-        CGAL::Triangle_from_face_descriptor_map tri_gen(&mesh);
-        const Kernel::Triangle_3                tri = get(tri_gen, f_id);
-
         const auto [pstar, pstar_type] =
                 compute_intersection(p0, f_id, vec, vec_type, mesh);
-
 
 #if RERUN_DEBUG_ENABLED
         rec.set_time_sequence("iteration", iter_count);
         ++iter_count;
+
+        CGAL::Triangle_from_face_descriptor_map tri_gen(&mesh);
+        const Kernel::Triangle_3                tri = get(tri_gen, f_id);
         draw_triangle("initial_face", tri, "Starting face");
         draw_point("p0", p0, "p0");
         draw_point("pstar", pstar, "pstar");
@@ -435,15 +434,9 @@ namespace {
         const Kernel::Triangle_3 tri_next = get(tri_gen, next_face_id);
 
         draw_triangle("next_face", tri_next, "next face");
-        draw_arrow("n1", pstar, n1, "initial face normal");
-        draw_arrow("n2", pstar, n2, "target face normal");
-        draw_arrow("b1", pstar, b1, "initial face binormal");
-        draw_arrow("b2", pstar, b2, "target face binormal");
         draw_arrow("v1", pstar, internal::convert(v_left), "vector");
-        draw_arrow("v2", pstar, v_next_eigen, "next vector");
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        draw_arrow("v2", pstar, internal::convert(v_next), "next vector");
 #endif
-
 
         // TODO: check that the updated vector points "internally" to the face
         return exponential_map_impl(
