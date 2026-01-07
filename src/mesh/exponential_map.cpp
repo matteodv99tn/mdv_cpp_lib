@@ -1,10 +1,8 @@
 #include <CGAL/Polygon_mesh_processing/compute_normal.h>
 #include <cstdint>
 #include <Eigen/Geometry>
+#include <limits>
 #include <stdexcept>
-
-#include <range/v3/algorithm/for_each.hpp>
-#include <range/v3/all.hpp>
 
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"
@@ -137,8 +135,18 @@ namespace {
         TRIANGLE_EDGE_INTERSECTION
     };
 
-    std::pair<Kernel::Point_3, IntersectionType>
-    compute_intersection(const Kernel::Ray_3 ray, const Kernel::Triangle_3 tri) {
+    using IntersectionResult = std::pair<Kernel::Point_3, IntersectionType>;
+
+    struct VectorInsideFace {};
+
+    struct VectorAlongEdge {};
+
+    IntersectionResult
+    compute_intersection(
+            const Kernel::Ray_3      ray,
+            const Kernel::Triangle_3 tri,
+            VectorInsideFace /* unused */
+    ) {
         const auto& v0 = tri.vertex(0);
         const auto& v1 = tri.vertex(1);
         const auto& v2 = tri.vertex(2);
@@ -176,6 +184,70 @@ namespace {
             assert(CGAL::squared_distance(edge2, res) < 1e-12);
         }
         return std::make_pair(res, TRIANGLE_EDGE_INTERSECTION);
+    }
+
+    HalfEdgeIndex
+    get_closest_halfedge(
+            const Kernel::Point_3           p,
+            const FaceIndex                 f,
+            const internal::CgalImpl::Mesh& m
+    ) {
+        double        dist = std::numeric_limits<double>::infinity();
+        HalfEdgeIndex closest_he{invalid_index};
+        for (const auto he : CGAL::halfedges_around_face(halfedge(f, m), m)) {
+            const Kernel::Ray_3 ray(m.point(source(he, m)), m.point(target(he, m)));
+            const double        this_d = CGAL::squared_distance(ray, p);
+            if (this_d < dist) {
+                dist       = this_d;
+                closest_he = he;
+            }
+        }
+        assert(closest_he != HalfEdgeIndex{invalid_index});
+        return closest_he;
+    }
+
+    IntersectionResult
+    compute_intersection(
+            const Kernel::Point_3           p,
+            const FaceIndex                 f,
+            const Kernel::Vector_3          v,
+            const internal::CgalImpl::Mesh& m,
+            VectorAlongEdge /* unused */
+    ) {
+        const auto he = get_closest_halfedge(p, f, m);
+        const auto v0 = m.point(source(he, m));
+        const auto v1 = m.point(target(he, m));
+        const auto d0 = v0 - p;
+        const auto d1 = v1 - p;
+
+        assert((d0 * v) * (d1 * v) < 0.0);
+
+        if (d0 * v > 1e-18) return std::make_pair(v0, TRIANGLE_VERTEX_INTERSECTION);
+        return std::make_pair(v1, TRIANGLE_VERTEX_INTERSECTION);
+    }
+
+    /**
+     * @brief Given a vector "v" applied in point "p" on face "f", returns the
+     * intersection of the ray given by the vector itself with the face.
+     *
+     * The "type" is used to dispatch proper intersection calculation on wether the
+     * tangent vector lies inside the face, or along an edge of the face.
+     */
+    IntersectionResult
+    compute_intersection(
+            const Kernel::Point_3           p,
+            const FaceIndex                 f,
+            const Kernel::Vector_3          v,
+            const TangentVector::Type       type,
+            const internal::CgalImpl::Mesh& m
+    ) {
+        if (type == TangentVector::Type::INSIDE_FACE) [[likely]] {
+            const Kernel::Ray_3                     ray(p, v);
+            CGAL::Triangle_from_face_descriptor_map tri_gen(&m);
+            const Kernel::Triangle_3                tri = get(tri_gen, f);
+            return compute_intersection(ray, tri, VectorInsideFace{});
+        }
+        return compute_intersection(p, f, v, m, VectorAlongEdge{});
     }
 
     /**
@@ -320,6 +392,7 @@ namespace {
             const Kernel::Point_3           p0,
             const FaceIndex                 f_id,
             const Kernel::Vector_3          vec,
+            const TangentVector::Type       vec_type,
             const internal::CgalImpl::Mesh& mesh,
             Geodesic*                       geod
     ) {
@@ -329,7 +402,9 @@ namespace {
         CGAL::Triangle_from_face_descriptor_map tri_gen(&mesh);
         const Kernel::Triangle_3                tri = get(tri_gen, f_id);
 
-        const auto [pstar, pstar_type] = compute_intersection(ray, tri);
+        const auto [pstar, pstar_type] =
+                compute_intersection(p0, f_id, vec, vec_type, mesh);
+
 
 #if RERUN_DEBUG_ENABLED
         rec.set_time_sequence("iteration", iter_count);
@@ -371,7 +446,9 @@ namespace {
 
 
         // TODO: check that the updated vector points "internally" to the face
-        return exponential_map_impl(pstar, next_face_id, v_next, mesh, geod);
+        return exponential_map_impl(
+                pstar, next_face_id, v_next, TangentVector::INSIDE_FACE, mesh, geod
+        );
     }
 }  // namespace
 
@@ -393,7 +470,7 @@ exponential_map(TangentVector v, Geodesic* geod) {
     const auto  f_id       = internal::to_face_impl(v.application_point().face());
     const auto& mesh       = internal::get_mesh_impl(v.application_point().face());
     const auto  vec        = internal::vector3_from_eigen(v.cartesian_vector());
-    const auto [pfinal, f] = exponential_map_impl(p0, f_id, vec, mesh, geod);
+    const auto [pfinal, f] = exponential_map_impl(p0, f_id, vec, v.type(), mesh, geod);
     const auto res         = Point::from_cartesian(
             v.application_point().mesh(), internal::convert(pfinal)
     );
