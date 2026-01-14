@@ -306,3 +306,18 @@ mdv::mesh::create_cone(const std::size_t n_edges, const double axis_from_angle_d
     write_off(res, vertices, faces);
     return res;
 }
+
+std::filesystem::path
+mdv::mesh::create_flat(const double size) {
+    const std::filesystem::path res =
+            std::filesystem::temp_directory_path() / "flat.off";
+
+    DrawableFunctionParameters params{
+            .x_range                = std::make_pair(-size / 2, size / 2),
+            .y_range                = std::make_pair(-size / 2, size / 2),
+            .x_discretisation_steps = 2,
+            .y_discretisation_steps = 2,
+    };
+    const auto zero_func = [](const double x, const double y) -> double { return 0.0; };
+    return create_from_function(zero_func, params);
+}

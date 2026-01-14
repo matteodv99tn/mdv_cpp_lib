@@ -68,6 +68,8 @@ std::filesystem::path create_cone(
         std::size_t n_edges = 5, double angle_from_axis_deg = 40.0
 );
 
+std::filesystem::path create_flat(double size);
+
 }  // namespace mdv::mesh
 
 
