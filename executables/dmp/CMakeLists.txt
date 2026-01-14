@@ -61,3 +61,14 @@ target_link_libraries(
     mdvcpplib
     range-v3
 )
+
+add_executable(
+    comparison_meshdmps
+    ${CMAKE_CURRENT_LIST_DIR}/comparison_meshdmps.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/data.cpp
+)
+target_link_libraries(
+    comparison_meshdmps
+    mdvcpplib
+    range-v3
+)
