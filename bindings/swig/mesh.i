@@ -99,6 +99,12 @@ namespace mdv::mesh {
             const Eigen::VectorXd& t
     );
 
+    Eigen::MatrixXd multithreaded_exponential_map(
+            const mdv::mesh::Mesh& mesh,
+            const Eigen::MatrixXd& xs,
+            const Eigen::MatrixXd& vs
+    );
+
     class MeshKernel {
     public:
         MeshKernel(const mdv::mesh::Mesh&);
