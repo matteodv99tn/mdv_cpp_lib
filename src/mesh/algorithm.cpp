@@ -293,14 +293,17 @@ mdv::mesh::solve_path(
     const long N = x0.rows();
     const long T = t.rows();
 
+    long n_trivials = 0;
+
     std::vector<MatPair> res(N);
 
-    auto solve_path_index = [&x0, &x1, &t, &mesh, &N, &T, &res](long i) {
+    auto solve_path_index = [&x0, &x1, &t, &mesh, &N, &T, &res, &n_trivials](long i) {
         const auto pt0  = Point::from_cartesian(mesh, x0.row(i));
         const auto pt1  = Point::from_cartesian(mesh, x1.row(i));
         MatPair&   pair = res[i];
 
         if ((pt0.position() - pt1.position()).norm() < 1e-9) {
+            ++n_trivials;
             pair.first  = pt0.position().transpose().replicate(T, 1);
             pair.second = Eigen::MatrixXd::Zero(T, 3);
             return;
@@ -319,9 +322,16 @@ mdv::mesh::solve_path(
         pair.second.row(T - 1) = pair.second.row(T - 2);
     };
 
-    std::vector<std::jthread> threads;
+    std::vector<std::thread> threads;
     threads.reserve(N);
     for (long i = 0; i < N; ++i) threads.emplace_back(solve_path_index, i);
+    for (long i = 0; i < N; ++i) threads[i].join();
+    if (n_trivials > 2) {
+        std::cout << "Number of trivial paths: " << n_trivials << " / " << N << "\n"
+                  << std::flush;
+    }
+    return res;
+}
 
 Eigen::MatrixXd
 mdv::mesh::multithreaded_exponential_map(

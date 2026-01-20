@@ -200,7 +200,7 @@ namespace {
         for (const auto he : CGAL::halfedges_around_face(halfedge(f, m), m)) {
             const Kernel::Vector_3 dir =
                     m.point(source(he, m)) - m.point(target(he, m));
-            const double len      = std::sqrt(squared_length(dir));
+            const double len      = std::sqrt(dir.squared_length());
             const double this_dot = std::abs(dir * v) / len;
             if (this_dot > best_dot) {
                 best_dot   = this_dot;
@@ -345,7 +345,7 @@ namespace {
             return m.point(target(he_id, m)) - m.point(source(he_id, m));
         };
         const auto length = [](const Kernel::Vector_3& v) {
-            return CGAL::approximate_sqrt(CGAL::squared_length(v));
+            return CGAL::approximate_sqrt(v.squared_length());
         };
         const auto normalize = [length](const Kernel::Vector_3& v) -> Kernel::Vector_3 {
             return v / length(v);
