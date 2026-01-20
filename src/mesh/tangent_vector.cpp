@@ -137,7 +137,7 @@ TangentVector::validate_app_point_on_vertex() {
     assert(location_type(_pt) == LocationType::ON_VERTEX);
 
     if (_type == ALONG_EDGE) {
-        if (!are_equal(_he->normalised_direction(), _vec.normalized())) {
+        if (!are_parallel(_he->normalised_direction(), _vec.normalized())) {
             throw std::runtime_error(
                     "Unable to construct tangent vector on vertex with vector along an "
                     "halfedge"
@@ -318,7 +318,9 @@ TangentVector::from_ambient_vector_on_vertex(
     // Candidates inside faces
     const auto project_on_halfedge = [&vec, &v](const HeIndex he_id) -> Vec3d {
         const HalfEdge he{v.mesh(), he_id};
-        return project_along_direction(vec, he.direction());
+        const Vec3d proj = project_along_direction(vec, he.direction());
+        if (proj.dot(vec) <= 0.0) return Vec3d::Zero();
+        return proj;
     };
     const auto along_edge_candidates =
             halfedges | rv::transform([project_on_halfedge, &m](const HeIndex& he_id) {
