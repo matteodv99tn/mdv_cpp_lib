@@ -36,3 +36,17 @@ def solve_path(mesh: Mesh, x0: np.ndarray, x1: np.ndarray, t: np.ndarray) -> tup
         ut[:, i, :] = path_data[i][0]
 
     return xt, ut
+
+
+def multithreaded_exponential_map(
+    mesh: Mesh, xs: np.ndarray, vs: np.ndarray
+) -> np.ndarray:
+    """
+    Inputs:
+        mesh: mesh on which doing computation
+        xs : (N, 3) Tensors on the mesh. The starting point.
+        vs : (N, 3) Tensors on the mesh. The tangent vector at each xs.
+    Outputs:
+        ys : (N, 3) Tensors of the exponential map
+    """
+    return _impl.multithreaded_exponential_map(mesh._mesh_impl, xs, vs)
