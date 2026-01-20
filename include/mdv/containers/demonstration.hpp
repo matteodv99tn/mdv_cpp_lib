@@ -6,6 +6,7 @@
 #include <concepts>
 #include <fmt/format.h>
 #include <functional>
+#include <memory>
 #include <tuple>
 #include <type_traits>
 

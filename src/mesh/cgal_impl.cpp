@@ -233,9 +233,14 @@ mdv::mesh::internal::edge_ray_intersection(
     const Vec3 dir_e = internal::convert(edge.target() - edge.source());
     const Vec3 dir_r = internal::convert(ray.to_vector());
 
-    if (are_parallel(dir_r, dir_e) && !are_equal(or_e, or_r)) return std::nullopt;
-    if (are_parallel(dir_r, dir_e) && are_equal(or_e, or_r))
-        throw std::runtime_error("Can't compute intersection when ray overlaps edge");
+    const auto dist = CGAL::squared_distance(edge, ray.source());
+
+    if (are_parallel(dir_r, dir_e) && dist > 1e-18) return std::nullopt;
+    if (are_parallel(dir_r, dir_e) && dist <= 1e-18) {
+        if ( dir_r.dot(or_e - or_r) > 0.0) 
+            return internal::point3_from_eigen(or_e);;
+        return edge.target();
+    }
 
     Mat32 A;
     A.col(0)       = -dir_e;
