@@ -159,6 +159,10 @@ std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>> solve_path(
         const Eigen::VectorXd& t
 );
 
+Eigen::MatrixXd multithreaded_exponential_map(
+        const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
+);
+
 }  // namespace mdv::mesh
 
 

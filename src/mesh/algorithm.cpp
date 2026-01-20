@@ -322,5 +322,31 @@ mdv::mesh::solve_path(
     std::vector<std::jthread> threads;
     threads.reserve(N);
     for (long i = 0; i < N; ++i) threads.emplace_back(solve_path_index, i);
+
+Eigen::MatrixXd
+mdv::mesh::multithreaded_exponential_map(
+        const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
+) {
+    if (xs.rows() != vs.rows() || xs.cols() != vs.cols())
+        throw std::runtime_error("multithreaded exponential map with different sizes!");
+
+    Eigen::MatrixXd res(xs.rows(), xs.cols());
+    long n_zeroed = 0;
+
+    auto process_row = [&res, &mesh, &xs, &vs, &n_zeroed](const long i) {
+        const auto pt = Point::from_cartesian(mesh, xs.row(i));
+        const auto tv = TangentVector::from_ambient_vector(pt, vs.row(i));
+        if (!mdv::condition::is_zero_norm(vs.row(i)) && tv.cartesian_vector().isZero())
+            ++n_zeroed;
+        res.row(i)    = exponential_map(tv).position();
+    };
+
+    // std::vector<std::jthread> threads;
+    // threads.reserve(xs.rows());
+    // for (long i = 0; i < xs.rows(); ++i) threads.emplace_back(process_row, i);
+    for (long i = 0; i < xs.rows(); ++i) process_row(i);
+
+    if (n_zeroed > 0)
+        std::cout << "Zeroed " << n_zeroed << " vectors\n";
     return res;
 }
