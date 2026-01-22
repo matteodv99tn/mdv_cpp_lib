@@ -2,6 +2,7 @@
 #include <string>
 
 #include "mdv/config.hpp"
+#include "mdv/mesh/flat_parameterisation.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/spdlog.hpp"
 
@@ -24,11 +25,16 @@ main(int argc, char* argv[]) {
     const std::string mesh_path =
             mdv::config::meshes_directory() / "fender_low_res.stl";
 
-    const auto  mesh     = Mesh::from_file(mesh_path);
+    auto        mesh     = Mesh::from_file(mesh_path);
     const Point p0       = mesh.vertex(3884);  // NOLINT: extracted from meshlab
-    const auto  sub_mesh = Mesh::extract_normal_bounded_surface(mesh, p0, 40.0);
+    auto        sub_mesh = Mesh::extract_normal_bounded_surface(mesh, p0, 40.0);
 
     FlatParameterisation param(sub_mesh);
+
+    std::vector<Eigen::Vector2d> projs;
+    projs.reserve(sub_mesh.num_vertices());
+    for (long i = 0; i < sub_mesh.num_vertices(); ++i)
+        projs.emplace_back(param.project(sub_mesh.vertex(i)));
 
 #ifdef MDV_WITH_RERUN_SDK
     mdv::RerunConverter    to_rerun;
@@ -37,6 +43,18 @@ main(int argc, char* argv[]) {
 
     rec.log_static("mesh", to_rerun(mesh));
     rec.log_static("sub_mesh", to_rerun(sub_mesh));
+
+
+    std::vector<rerun::components::Position3D> planar_pos;
+    planar_pos.reserve(sub_mesh.num_vertices());
+    for (long i = 0; i < sub_mesh.num_vertices(); ++i) {
+        planar_pos.emplace_back(projs[i](0), projs[i](1), 0.0);
+    }
+
+    rec.log_static(
+            "uv_vertices", rerun::Points3D().with_positions(std::move(planar_pos))
+    );
+
 #endif  // MDV_WITH_RERUN_SDK
     return 0;
 }

@@ -15,8 +15,6 @@ class HalfEdge;
 class Point;
 class TangentSpace;
 
-class UvMap;
-
 using Index        = unsigned int;
 using IndexTriplet = std::array<Index, 3>;
 // Note: preferred std::array over Eigen::Vector to leverage unpacking features
