@@ -1,7 +1,11 @@
 #include "mdv/mesh/mesh.hpp"
 
+#include <CGAL/Polygon_mesh_processing/repair_degeneracies.h>
+#include <CGAL/boost/graph/Euler_operations.h>
+#include <CGAL/Polygon_mesh_processing/repair.h>
 #include <CGAL/Polygon_mesh_processing/transform.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
+#include <cstdint>
 #include <Eigen/Geometry>
 #include <gsl/assert>
 #include <random>
@@ -240,4 +244,71 @@ Mesh::closest_vertex(const CartesianPoint& pt) {
     const auto vids = CGAL::vertices_around_face(halfedge(f_id, m), m) | rs::to_vector;
     const auto min_id = rs::min_element(vids, std::less{}, func);
     return Vertex{*this, *min_id};
+}
+
+Mesh
+Mesh::extract_normal_bounded_surface(
+        const Mesh& mesh, const Point& pt, const double max_normal_angle
+) {
+    enum class VisitState : std::uint8_t {
+        UNVISITED,
+        VALID_FACE,
+        INVALID_FACE,
+    };
+
+    std::vector<VisitState> face_class(mesh.num_faces(), VisitState::UNVISITED);
+
+    const auto   n_ref     = pt.face().normal();
+    const double cos_angle = std::cos(max_normal_angle * M_PI / 180.0);
+
+    const auto classify = [&cos_angle, &n_ref](const Face& f) -> VisitState {
+        const auto n = f.normal();
+        if (n.dot(n_ref) > cos_angle) return VisitState::VALID_FACE;
+        return VisitState::INVALID_FACE;
+    };
+
+    // Recursive lambda
+    // https://stackoverflow.com/questions/78166176/how-can-i-write-an-inline-recursive-lambda-in-c
+    const auto propagate = [&](const auto& self, const Index& id) -> void {
+        if (face_class[id] != VisitState::UNVISITED) return;
+
+        const auto f                     = mesh.face(id);
+        face_class[id]                   = classify(f);
+        if(face_class[id] == VisitState::INVALID_FACE) return;
+
+        const auto [f_id1, f_id2, f_id3] = f.neighbour_ids();
+        self(self, f_id1);
+        self(self, f_id2);
+        self(self, f_id3);
+    };
+
+    mesh.logger().info(
+            "Constructing submesh by from point {} - maximum normal angle: {}deg",
+            pt.describe(),
+            max_normal_angle
+    );
+    propagate(propagate, pt.face().id());
+
+    const auto& m_original = internal::get_mesh_impl(mesh);
+    auto        m_new      = m_original;
+
+    long n_removed = 0;
+    for (long i = 0; i < mesh.num_faces(); ++i) {
+        if (face_class[i] != VisitState::VALID_FACE) {
+            ++n_removed;
+            CgalImpl::CgalFaceIndex f_id(i);
+            CGAL::Euler::remove_face(CGAL::halfedge(f_id, m_new), m_new);
+        }
+    }
+    mesh.logger().debug("Removed {} faces", n_removed);
+
+    CGAL::Polygon_mesh_processing::remove_isolated_vertices(m_new);
+    m_new.collect_garbage();
+    CGAL::Polygon_mesh_processing::remove_isolated_vertices(m_new);
+
+    Logger::SharedPtr logger = mesh._logger;
+    return {
+            new CgalImpl(std::move(m_new), std::move(logger)),
+            fmt::format("{}_normal_bounded", mesh.name()),
+    };
 }

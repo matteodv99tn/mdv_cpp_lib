@@ -25,3 +25,12 @@ target_link_libraries(
     mdvcpplib
     range-v3
 )
+
+add_executable(
+    mesh_planar_morphism
+    ${CMAKE_CURRENT_LIST_DIR}/mesh_planar_morphism.cpp
+)
+target_link_libraries(
+    mesh_planar_morphism
+    mdvcpplib
+)

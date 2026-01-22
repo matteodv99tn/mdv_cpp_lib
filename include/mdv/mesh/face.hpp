@@ -40,6 +40,11 @@ public:
 
     MDV_NODISCARD std::array<Index, 3> vertices_ids() const;
 
+    /*
+     * ids of neighbouring faces.
+     */
+    MDV_NODISCARD std::array<Index, 3> neighbour_ids() const;
+
 private:
     friend class Mesh;
 

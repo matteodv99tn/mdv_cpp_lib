@@ -37,8 +37,8 @@ overload(Ts...) -> overload<Ts...>;
 
 }  // namespace mdv::mesh::internal
 
-CgalImpl::CgalImpl(const Mesh&& mesh, Logger::SharedPtr&& logger) :
-        _mesh(mesh), _logger(std::move(logger)) {
+CgalImpl::CgalImpl(Mesh&& mesh, Logger::SharedPtr&& logger) :
+        _mesh(std::move(mesh)), _logger(std::move(logger)) {
     _shortest_path        = std::make_unique<ShortestPath>(_mesh);
     _geodesic_constructor = new CgalGeodesicConstructor(&_mesh);
     this->logger().trace("Initialised geodesic constructor");
@@ -55,7 +55,7 @@ CgalImpl::~CgalImpl() {
 }
 
 CgalImpl::CgalImpl(CgalImpl&& other) noexcept :
-        _logger(other._logger),
+        _logger(std::move(other._logger)),
         _mesh(std::move(other._mesh)),
         _geodesic_constructor(other._geodesic_constructor),
         _aabb_tree(std::move(other._aabb_tree)),

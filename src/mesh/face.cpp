@@ -77,3 +77,18 @@ Face::vertices_ids() const {
     assert(j == 3);
     return res;
 }
+
+std::array<mdv::mesh::Index, 3>
+Face::neighbour_ids() const {
+    const auto           f_id = internal::to_face_impl(*this);
+    const auto&          m    = internal::get_mesh_impl(*this);
+    std::array<Index, 3> res;
+    std::size_t          j = 0;
+    for (const auto v_id : CGAL::faces_around_face(CGAL::halfedge(f_id, m), m)) {
+        assert(j < 3);
+        res[j] = v_id;
+        ++j;
+    }
+    assert(j == 3);
+    return res;
+}

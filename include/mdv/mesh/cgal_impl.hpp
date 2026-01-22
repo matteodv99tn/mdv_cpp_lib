@@ -72,7 +72,7 @@ public:
             const std::filesystem::path& file_path, Logger::SharedPtr&& logger
     );
 
-    CgalImpl(const Mesh&& mesh, Logger::SharedPtr&& logger);
+    CgalImpl(Mesh&& mesh, Logger::SharedPtr&& logger);
     CgalImpl(const CgalImpl&)            = delete;
     CgalImpl& operator=(const CgalImpl&) = delete;
     CgalImpl(CgalImpl&&) noexcept;

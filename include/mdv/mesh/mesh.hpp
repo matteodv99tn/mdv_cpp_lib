@@ -43,6 +43,15 @@ public:
      */
     static Mesh from_file(const std::filesystem::path& file_path);
 
+    /**
+     * Given a mesh and a point on it, constructs a "submesh" which is obtained by
+     * recursively selecting faces whose normal form an angle with the initial points
+     * normal less then the specified bound.
+     */
+    static Mesh extract_normal_bounded_surface(
+            const Mesh& mesh, const Point& pt, double max_normal_angle = 90.0
+    );
+
     // Copy and move constructors/assignment operators are deleted
     Mesh(const Mesh& other) = delete;
     Mesh(Mesh&& other);
