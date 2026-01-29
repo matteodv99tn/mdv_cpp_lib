@@ -30,6 +30,7 @@ struct FlatParameterisation::FlatParameterisationImpl {
     using Mesh3       = internal::CgalImpl::Mesh;
     using VertexIndex = Mesh3::Vertex_index;
     using FaceIndex   = Mesh3::Face_index;
+    using HalfEdge    = Mesh3::Halfedge_index;
 
 
     // Parameterisation types
@@ -74,13 +75,36 @@ struct FlatParameterisation::FlatParameterisationImpl {
 
         const auto [v0, v1, v2] = get_vertices(f);
         const auto bs           = construct_barycentric<Eigen::Vector2d>(
-                query, get_vertex2(v0), get_vertex2(v1), get_vertex2(v2)
+                {qclose.x(), qclose.y()},
+                get_vertex2(v0),
+                get_vertex2(v1),
+                get_vertex2(v2)
         );
         return bs(0) * get_vertex3(v0) + bs(1) * get_vertex3(v1)
                + bs(2) * get_vertex3(v2);
-
     }
 
+    MDV_NODISCARD bool
+    is_one_to_one() const {
+        return Parameteriser{}.is_one_to_one_mapping(m, bhe, uv_map);
+    }
+
+    MDV_NODISCARD bool
+    is_inside_face(const Eigen::Vector2d& uv) const {
+        const K2::Point_2 q(uv(0), uv(1));
+        const auto        qc = aabb.closest_point(q);
+        return CGAL::squared_distance(q, qc) < 1e-18;
+    }
+
+    MDV_NODISCARD Eigen::Vector2d
+                  min_uv() const {
+        return {aabb.bbox().min(0), aabb.bbox().min(1)};
+    }
+
+    MDV_NODISCARD Eigen::Vector2d
+                  max_uv() const {
+        return {aabb.bbox().max(0), aabb.bbox().max(1)};
+    }
 
 private:
     MDV_NODISCARD K2::Point_2
@@ -120,8 +144,8 @@ private:
     void
     setup_uv_parameterisation() {
         uv_map   = m.add_property_map<VertexIndex, K3::Point_2>("v:uv").first;
-        auto he  = CGAL::Polygon_mesh_processing::longest_border(m).first;
-        auto err = smp::parameterize(m, Parameteriser{}, he, uv_map);
+        bhe      = CGAL::Polygon_mesh_processing::longest_border(m).first;
+        auto err = smp::parameterize(m, Parameteriser{}, bhe, uv_map);
         if (err != smp::OK) {
             std::cerr << "Error: " << smp::get_error_message(err) << "\n";
             throw std::runtime_error("Unable to construct parameterisation!");
@@ -164,6 +188,7 @@ private:
     UvMap         uv_map;
     Triangle2List tris;
     Aabb          aabb;
+    HalfEdge      bhe;
 };
 
 FlatParameterisation::FlatParameterisation(Mesh& mesh) :
@@ -203,6 +228,26 @@ FlatParameterisation::project(const Point& pt) const {
 Point
 FlatParameterisation::retrieve(const Eigen::Vector2d& uv) const {
     return Point::from_cartesian(*_mesh, _impl->plane_to_mesh(uv));
+}
+
+bool
+FlatParameterisation::is_one_to_one_mapping() const {
+    return _impl->is_one_to_one();
+}
+
+bool
+FlatParameterisation::is_inside_mesh(const Eigen::Vector2d& uv) const {
+    return _impl->is_inside_face(uv);
+}
+
+Eigen::Vector2d
+FlatParameterisation::min_uv() const {
+    return _impl->min_uv();
+}
+
+Eigen::Vector2d
+FlatParameterisation::max_uv() const {
+    return _impl->max_uv();
 }
 
 }  // namespace mdv::mesh

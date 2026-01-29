@@ -1,9 +1,12 @@
+#include <fmt/base.h>
 #include <fmt/os.h>
+#include <limits>
 #include <string>
 
 #include "mdv/config.hpp"
 #include "mdv/mesh/flat_parameterisation.hpp"
 #include "mdv/mesh/mesh.hpp"
+#include "mdv/utils/logging_extras.hpp"
 #include "mdv/utils/spdlog.hpp"
 
 #ifdef MDV_WITH_RERUN_SDK
@@ -22,12 +25,17 @@ main(int argc, char* argv[]) {
     Mesh::default_logger = mdv::static_logger_factory("Mesh");
     Mesh::default_logger->set_log_level(mdv::Logger::LogLevel::Debug);
 
-    const std::string mesh_path =
-            mdv::config::meshes_directory() / "fender_low_res.stl";
+    // const std::string mesh_path =
+    //         mdv::config::meshes_directory() / "fender_low_res.stl";
+    // auto        mesh     = Mesh::from_file(mesh_path);
+    // const Point p0       = mesh.vertex(3884);  // NOLINT: extracted from meshlab
+    // auto        sub_mesh = Mesh::extract_normal_bounded_surface(mesh, p0, 20.0);
 
-    auto        mesh     = Mesh::from_file(mesh_path);
-    const Point p0       = mesh.vertex(3884);  // NOLINT: extracted from meshlab
-    auto        sub_mesh = Mesh::extract_normal_bounded_surface(mesh, p0, 40.0);
+    const std::string mesh_path = mdv::config::meshes_directory() / "bunny_simple.off";
+    auto              mesh      = Mesh::from_file(mesh_path);
+    const Point       p0        = mesh.vertex(0);  // NOLINT: extracted from meshlab
+    auto              sub_mesh  = Mesh::extract_normal_bounded_surface(mesh, p0, 90.0);
+
 
     FlatParameterisation param(sub_mesh);
 
@@ -86,6 +94,30 @@ main(int argc, char* argv[]) {
             n_wrong,
             sub_mesh.num_vertices()
     );
+
+    double max_err = 0.0;
+    for (long i = 0; i < 2000; ++i) {
+        const auto   pt  = Point::random(sub_mesh);
+        const auto   uv  = param.project(pt);
+        const auto   rev = param.retrieve(uv);
+        const double e   = (pt.position() - rev.position()).norm();
+        max_err          = std::max(max_err, e);
+    }
+    fmt::println("Maximum reconstruction error: {}", max_err);
+
+    max_err            = 0.0;
+    constexpr double b = 1.0 / 3.0;
+    for (long i = 0; i < sub_mesh.num_faces(); ++i) {
+        const auto pt = Point::PointInFaceDescriptor(
+                sub_mesh.face(i), Eigen::Vector3d{b, b, b}
+        );
+        const auto   uv  = param.project(pt);
+        const auto   rev = param.retrieve(uv);
+        const double e   = (pt.position() - rev.position()).norm();
+        max_err          = std::max(max_err, e);
+        if (e > 1e-6) { fmt::println("Err at face {} = {}", i, e); }
+    }
+    fmt::println("Maximum reconstruction error: {}", max_err);
 
     return 0;
 }

@@ -19,9 +19,17 @@ public:
 
     ~FlatParameterisation();
 
+    MDV_NODISCARD bool is_one_to_one_mapping() const;
+
     MDV_NODISCARD Eigen::Vector2d project(const Point& pt) const;
 
     MDV_NODISCARD Point retrieve(const Eigen::Vector2d& uv) const;
+
+    MDV_NODISCARD bool is_inside_mesh(const Eigen::Vector2d& uv) const;
+
+    MDV_NODISCARD Eigen::Vector2d min_uv() const;
+
+    MDV_NODISCARD Eigen::Vector2d max_uv() const;
 
 private:
     class FlatParameterisationImpl;
