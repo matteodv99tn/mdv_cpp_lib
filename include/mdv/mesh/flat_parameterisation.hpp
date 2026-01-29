@@ -21,6 +21,8 @@ public:
 
     MDV_NODISCARD Eigen::Vector2d project(const Point& pt) const;
 
+    MDV_NODISCARD Point retrieve(const Eigen::Vector2d& uv) const;
+
 private:
     class FlatParameterisationImpl;
 

@@ -1,5 +1,8 @@
 #include "mdv/mesh/flat_parameterisation.hpp"
 
+#include <CGAL/AABB_face_graph_triangle_primitive.h>
+#include <CGAL/AABB_traits_2.h>
+#include <CGAL/AABB_triangle_primitive_2.h>
 #include <CGAL/Polygon_mesh_processing/measure.h>
 #include <CGAL/Simple_cartesian.h>
 #include <CGAL/Surface_mesh_parameterization/Error_code.h>
@@ -34,9 +37,15 @@ struct FlatParameterisation::FlatParameterisationImpl {
     using BorderParameteriser = smp::Two_vertices_parameterizer_3<Mesh3>;
     using Parameteriser       = smp::LSCM_parameterizer_3<Mesh3>;
 
+    // AabbTree
+    using Triangle2List = std::vector<K2::Triangle_2>;
+    using AabbPrimitive = CGAL::AABB_triangle_primitive_2<K2, Triangle2List::iterator>;
+    using AabbTraits    = CGAL::AABB_traits_2<K2, AabbPrimitive>;
+    using Aabb          = CGAL::AABB_tree<AabbTraits>;
 
     FlatParameterisationImpl(::mdv::mesh::Mesh* mesh) : m(mesh->cgal()._mesh) {
         setup_uv_parameterisation();
+        setup_aabb_tree();
     }
 
     MDV_NODISCARD Eigen::Vector2d
@@ -52,6 +61,24 @@ struct FlatParameterisation::FlatParameterisationImpl {
     MDV_NODISCARD Eigen::Vector2d
                   mesh_to_plane(const VertexIndex& v) const {
         return get_vertex2(v);
+    }
+
+    Eigen::Vector3d
+    plane_to_mesh(const Eigen::Vector2d& query) {
+        const K2::Point_2 q{query(0), query(1)};
+        const auto [qclose, tri] = aabb.closest_point_and_primitive(q);
+
+        assert(std::distance(tris.begin(), tri)
+               < std::distance(tris.begin(), tris.end()));
+        const FaceIndex f(std::distance(tris.begin(), tri));
+
+        const auto [v0, v1, v2] = get_vertices(f);
+        const auto bs           = construct_barycentric<Eigen::Vector2d>(
+                query, get_vertex2(v0), get_vertex2(v1), get_vertex2(v2)
+        );
+        return bs(0) * get_vertex3(v0) + bs(1) * get_vertex3(v1)
+               + bs(2) * get_vertex3(v2);
+
     }
 
 
@@ -80,6 +107,12 @@ private:
 
     MDV_NODISCARD Eigen::Vector2d
                   get_vertex2(const VertexIndex& v) const {
+        const auto pt = uv_map[v];
+        return {pt.x(), pt.y()};
+    }
+
+    MDV_NODISCARD K2::Point_2
+                  get_point2(const VertexIndex& v) const {
         const auto pt = uv_map[v];
         return {pt.x(), pt.y()};
     }
@@ -117,8 +150,20 @@ private:
         return Eigen::Vector3d{u, v, w};
     }
 
-    Mesh3& m;
-    UvMap  uv_map;
+    void
+    setup_aabb_tree() {
+        tris.reserve(m.number_of_faces());
+        for (const auto f : m.faces()) {
+            const auto [v0, v1, v2] = get_vertices(f);
+            tris.emplace_back(get_point2(v0), get_point2(v1), get_point2(v2));
+        }
+        aabb = Aabb(tris.begin(), tris.end());
+    }
+
+    Mesh3&        m;
+    UvMap         uv_map;
+    Triangle2List tris;
+    Aabb          aabb;
 };
 
 FlatParameterisation::FlatParameterisation(Mesh& mesh) :
@@ -153,6 +198,11 @@ FlatParameterisation::project(const Point& pt) const {
     if (v_desc != nullptr)
         return _impl->mesh_to_plane(VertexIndex{v_desc->vertex().id()});
     return _impl->mesh_to_plane(pt.position(), FaceIndex{pt.face().id()});
+}
+
+Point
+FlatParameterisation::retrieve(const Eigen::Vector2d& uv) const {
+    return Point::from_cartesian(*_mesh, _impl->plane_to_mesh(uv));
 }
 
 }  // namespace mdv::mesh

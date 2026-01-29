@@ -36,6 +36,11 @@ main(int argc, char* argv[]) {
     for (long i = 0; i < sub_mesh.num_vertices(); ++i)
         projs.emplace_back(param.project(sub_mesh.vertex(i)));
 
+    std::vector<Eigen::Vector3d> reconstructed;
+    reconstructed.reserve(sub_mesh.num_vertices());
+    for (const auto& uv : projs)
+        reconstructed.emplace_back(param.retrieve(uv).position());
+
 #ifdef MDV_WITH_RERUN_SDK
     mdv::RerunConverter    to_rerun;
     rerun::RecordingStream rec("mesh_extraction");
@@ -51,10 +56,36 @@ main(int argc, char* argv[]) {
         planar_pos.emplace_back(projs[i](0), projs[i](1), 0.0);
     }
 
+    std::vector<rerun::components::Position3D> reconstructed_pos;
+    reconstructed_pos.reserve(sub_mesh.num_vertices());
+    for (long i = 0; i < sub_mesh.num_vertices(); ++i) {
+        reconstructed_pos.emplace_back(
+                reconstructed[i](0), reconstructed[i](1), reconstructed[i](2)
+        );
+    }
+
     rec.log_static(
             "uv_vertices", rerun::Points3D().with_positions(std::move(planar_pos))
     );
-
+    rec.log_static(
+            "reconstructed_vertices",
+            rerun::Points3D().with_positions(std::move(reconstructed_pos))
+    );
 #endif  // MDV_WITH_RERUN_SDK
+
+    constexpr double err_th  = 1e-9;
+    long             n_wrong = 0;
+    for (long i = 0; i < sub_mesh.num_vertices(); ++i) {
+        const auto v   = sub_mesh.vertex(i).position();
+        const auto err = (v - reconstructed[i]).norm();
+        if (err > err_th) ++n_wrong;
+    }
+
+    fmt::println(
+            "Number of wrongly reconstructed vertices: {} / {}",
+            n_wrong,
+            sub_mesh.num_vertices()
+    );
+
     return 0;
 }
