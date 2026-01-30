@@ -74,11 +74,6 @@ namespace mdv::mesh {
 
         mdv::mesh::Vertex closest_vertex(const Eigen::Vector3d&);
 
-        static mdv::mesh::Mesh extract_normal_bounded_surface(
-                const mdv::mesh::Mesh& mesh, 
-                const mdv::mesh::Point& pt, 
-                double max_normal_angle
-        );
     };
 
     class Point {
@@ -164,9 +159,17 @@ namespace mdv::mesh {
 }
 
 %inline %{
-    mdv::mesh::Mesh load_from_file(const char* file) {
-        return mdv::mesh::Mesh::from_file(std::filesystem::path(file));
+    mdv::mesh::Mesh* load_from_file(const char* file) {
+        return new mdv::mesh::Mesh(mdv::mesh::Mesh::from_file(std::filesystem::path(file)));
     }
+
+    mdv::mesh::Mesh* extract_normal_bounded_surface(
+                const mdv::mesh::Mesh& mesh, 
+                const mdv::mesh::Point& pt, 
+                const double a
+   ){
+       return new mdv::mesh::Mesh(mdv::mesh::Mesh::extract_normal_bounded_surface(mesh, pt, a));
+   }
 
     std::string mesh_directory() {
         return mdv::config::meshes_directory();
@@ -180,6 +183,13 @@ namespace mdv::mesh {
         return mdv::mesh::find_matrix_max_lengthscale(d, n, ls);
     }
 %}
+
+%newobject mdv::mesh::extract_normal_bounded_surface;
+%newobject mdv::mesh::load_from_file;
+
+%typemap(out) mdv::mesh::Mesh {
+    $result = SWIG_NewPointerObj((new $1_ltype(std::move($1))), $&1_descriptor, SWIG_POINTER_OWN);
+}
 
 %{
 #include <utility>

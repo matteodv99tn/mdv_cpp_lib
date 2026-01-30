@@ -1,8 +1,13 @@
 #include "mdv/mesh/flat_parameterisation.hpp"
 
-#include <CGAL/AABB_face_graph_triangle_primitive.h>
+#if MDV_CGAL_VERSION == 5
+#include <CGAL/AABB_traits.h>
+#include <CGAL/AABB_triangle_primitive.h>
+#elif MDV_CGAL_VERSION == 6
 #include <CGAL/AABB_traits_2.h>
 #include <CGAL/AABB_triangle_primitive_2.h>
+#endif
+#include <CGAL/AABB_face_graph_triangle_primitive.h>
 #include <CGAL/Polygon_mesh_processing/measure.h>
 #include <CGAL/Simple_cartesian.h>
 #include <CGAL/Surface_mesh_parameterization/Error_code.h>
@@ -39,10 +44,17 @@ struct FlatParameterisation::FlatParameterisationImpl {
     using Parameteriser       = smp::LSCM_parameterizer_3<Mesh3>;
 
     // AabbTree
+#if MDV_CGAL_VERSION == 5
+    using Triangle2List = std::vector<K3::Triangle_3>;
+    using AabbPrimitive = CGAL::AABB_triangle_primitive<K3, Triangle2List::iterator>;
+    using AabbTraits    = CGAL::AABB_traits<K3, AabbPrimitive>;
+    using Aabb          = CGAL::AABB_tree<AabbTraits>;
+#elif MDV_CGAL_VERSION == 6
     using Triangle2List = std::vector<K2::Triangle_2>;
     using AabbPrimitive = CGAL::AABB_triangle_primitive_2<K2, Triangle2List::iterator>;
     using AabbTraits    = CGAL::AABB_traits_2<K2, AabbPrimitive>;
     using Aabb          = CGAL::AABB_tree<AabbTraits>;
+#endif
 
     FlatParameterisationImpl(::mdv::mesh::Mesh* mesh) : m(mesh->cgal()._mesh) {
         setup_uv_parameterisation();
@@ -66,7 +78,11 @@ struct FlatParameterisation::FlatParameterisationImpl {
 
     Eigen::Vector3d
     plane_to_mesh(const Eigen::Vector2d& query) {
+#if MDV_CGAL_VERSION == 5
+        const K3::Point_3 q{query(0), query(1), 0.0};
+#elif MDV_CGAL_VERSION == 6
         const K2::Point_2 q{query(0), query(1)};
+#endif
         const auto [qclose, tri] = aabb.closest_point_and_primitive(q);
 
         assert(std::distance(tris.begin(), tri)
@@ -91,8 +107,12 @@ struct FlatParameterisation::FlatParameterisationImpl {
 
     MDV_NODISCARD bool
     is_inside_face(const Eigen::Vector2d& uv) const {
-        const K2::Point_2 q(uv(0), uv(1));
-        const auto        qc = aabb.closest_point(q);
+#if MDV_CGAL_VERSION == 5
+        const K3::Point_3 q{uv(0), uv(1), 0.0};
+#elif MDV_CGAL_VERSION == 6
+        const K2::Point_2 q{uv(0), uv(1)};
+#endif
+        const auto qc = aabb.closest_point(q);
         return CGAL::squared_distance(q, qc) < 1e-18;
     }
 
@@ -135,11 +155,19 @@ private:
         return {pt.x(), pt.y()};
     }
 
+#if MDV_CGAL_VERSION == 5
+    MDV_NODISCARD K3::Point_3
+                  get_point2(const VertexIndex& v) const {
+        const auto pt = uv_map[v];
+        return {pt.x(), pt.y(), 0.0};
+    }
+#elif MDV_CGAL_VERSION == 6
     MDV_NODISCARD K2::Point_2
                   get_point2(const VertexIndex& v) const {
         const auto pt = uv_map[v];
         return {pt.x(), pt.y()};
     }
+#endif
 
     void
     setup_uv_parameterisation() {
@@ -184,11 +212,12 @@ private:
         aabb = Aabb(tris.begin(), tris.end());
     }
 
-    Mesh3&        m;
-    UvMap         uv_map;
+    Mesh3&   m;
+    UvMap    uv_map;
+    Aabb     aabb;
+    HalfEdge bhe;
+
     Triangle2List tris;
-    Aabb          aabb;
-    HalfEdge      bhe;
 };
 
 FlatParameterisation::FlatParameterisation(Mesh& mesh) :

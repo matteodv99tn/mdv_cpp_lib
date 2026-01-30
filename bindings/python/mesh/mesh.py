@@ -2,7 +2,7 @@ from .vertex import Vertex
 from .face import Face
 from .point import Point
 from .geodesic import Geodesic
-from ._mesh_impl import Mesh as _MeshImpl, load_from_file, mesh_directory
+from ._mesh_impl import Mesh as _MeshImpl, load_from_file, mesh_directory, extract_normal_bounded_surface
 
 import numpy as np
 import pymeshlab
@@ -412,6 +412,6 @@ class Mesh:
         and keeping faces whose normals deviate by at most max_normal_angle from
         the seed face normal. The result is a locally smooth patch of the original mesh.
         """
-        mesh_impl = _MeshImpl.extract_normal_bounded_surface(
+        mesh_impl = extract_normal_bounded_surface(
             mesh._mesh_impl, point._point_impl, max_normal_angle)
         return Mesh(mesh_impl=mesh_impl)
