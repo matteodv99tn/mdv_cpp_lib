@@ -20,124 +20,159 @@
 namespace mdv::mesh {
 
 /**
- * @brief Represents a mesh composed of vertices, faces, and half-edges.
+ * @brief Discrete 2-manifold surface mesh with geodesic and differential tools.
  *
- * This class encapsulates the necessary data and functionality to work with
- * meshes. It provides methods for loading, processing, and querying mesh data.
+ * Mesh models a discrete 2-manifold surface via a half-edge data structure and
+ * provides the core geometric operators used for learning policies on surfaces:
+ * geodesic construction, local surface queries, and mesh-level utilities.
  *
- * The mesh stores data as half-edge data structure, and internally uses CGAL
- * to load the data and perform some operations.
+ * The class hides CGAL behind a PIMPL (`internal::CgalImpl`) to keep compile time
+ * low while exposing a stable, lightweight interface. The CGAL backend is used
+ * for loading, AABB queries, and shortest-path computations.
  */
 class Mesh {
 public:
+    /**
+     * @brief Default logger used by mesh instances.
+     */
     static Logger::SharedPtr default_logger;
 
     using CgalImpl = internal::CgalImpl;
 
     // Factory functions
     /**
-     * @brief Creates a new mesh from a file.
+     * @brief Creates a mesh from a file on disk.
      *
-     * @param file_path The path to the file containing the mesh data.
-     * @return Mesh A new mesh object loaded from the specified file.
+     * @param file_path Path to a mesh file supported by CGAL.
+     * @return Loaded mesh.
      */
     static Mesh from_file(const std::filesystem::path& file_path);
 
     /**
-     * Given a mesh and a point on it, constructs a "submesh" which is obtained by
-     * recursively selecting faces whose normal form an angle with the initial points
-     * normal less then the specified bound.
+     * @brief Extracts a connected submesh by bounding normal deviation.
+     *
+     * Starting from a seed point, this function propagates across adjacent faces and
+     * keeps faces whose normals stay within the specified angle of the seed face
+     * normal. This is useful to isolate locally smooth patches for learning or
+     * analysis on surfaces.
+     *
+     * @param mesh Source mesh.
+     * @param pt Seed point on the mesh.
+     * @param max_normal_angle Maximum allowed normal deviation in degrees.
+     * @return Extracted submesh.
      */
     static Mesh extract_normal_bounded_surface(
             const Mesh& mesh, const Point& pt, double max_normal_angle = 90.0
     );
 
     // Copy and move constructors/assignment operators are deleted
+    /**
+     * @brief Mesh is non-copyable.
+     */
     Mesh(const Mesh& other) = delete;
+    /**
+     * @brief Move constructor.
+     *
+     * @param other Mesh to move from.
+     */
     Mesh(Mesh&& other);
+    /**
+     * @brief Mesh is non-copyable.
+     */
     Mesh& operator=(const Mesh& other) = delete;
+    /**
+     * @brief Move assignment.
+     *
+     * @param other Mesh to move from.
+     * @return Reference to this mesh.
+     */
     Mesh& operator=(Mesh&& other) noexcept;
 
     /**
      * @brief Destructor.
-     *
-     * Cleans up any resources associated with the mesh.
      */
     ~Mesh();
 
     /**
-     * @brief Applies a transformation to the mesh.
+     * @brief Applies an affine transformation to the mesh geometry.
      *
-     * @param transformation The affine transformation to apply.
+     * @param transformation Affine transform in 3D.
      */
     void transform(const Eigen::Affine3d& transformation);
 
     /**
-     * @brief Builds a geodesic path between two points on the mesh.
+     * @brief Builds a shortest-path geodesic between two surface points.
      *
-     * @param from The starting point of the geodesic.
-     * @param to The ending point of the geodesic.
-     * @return Geodesic The constructed geodesic path.
+     * @param from Start point on the mesh.
+     * @param to End point on the mesh.
+     * @return Geodesic polyline representing the shortest path on the surface.
      */
     MDV_NODISCARD Geodesic build_geodesic(const Point& from, const Point& to) const;
 
     /**
-     * @brief Computes vertex normals for the mesh.
+     * @brief Computes per-vertex normals.
      *
-     * @return std::vector<Eigen::Vector3d> A vector of normal vectors for each vertex.
+     * @return Vector of vertex normals indexed by vertex id.
      */
     MDV_NODISCARD std::vector<Eigen::Vector3d> compute_vertex_normals() const noexcept;
 
     // Getters
     /**
-     * @brief Retrieves the number of vertices in the mesh.
+     * @brief Number of vertices.
      *
-     * @return std::size_t The number of vertices.
+     * @return Number of vertices.
      */
     MDV_NODISCARD std::size_t num_vertices() const;
 
     /**
-     * @brief Retrieves the number of faces in the mesh.
+     * @brief Number of faces.
      *
-     * @return std::size_t The number of faces.
+     * @return Number of faces.
      */
     MDV_NODISCARD std::size_t num_faces() const;
 
     /**
-     * @brief Retrieves the name of the mesh.
+     * @brief Mesh name (typically derived from filename).
      *
-     * @return std::string_view A view of the mesh's name.
+     * @return Mesh name.
      */
     MDV_NODISCARD std::string_view
                   name() const {
         return _name;
     };
 
-    // clang-format off
     /**
-     * @brief Retrieves a face by its index.
+     * @brief Retrieves a face by index.
      *
-     * @param id The index of the face to retrieve.
-     * @return const Face& A reference to the retrieved face.
+     * @param id Face index.
+     * @return Face handle.
      */
-    MDV_NODISCARD Face face(const Index id) const   { return {*this, id}; }
+    MDV_NODISCARD Face
+    face(const Index id) const {
+        return {*this, id};
+    }
 
     /**
-     * @brief Retrieves a vertex by its index.
+     * @brief Retrieves a vertex by index.
      *
-     * @param id The index of the vertex to retrieve.
-     * @return const Vertex& A reference to the retrieved vertex.
+     * @param id Vertex index.
+     * @return Vertex handle.
      */
-    MDV_NODISCARD Vertex vertex(const Index& id) const { return Vertex(*this, id); }
+    MDV_NODISCARD Vertex
+    vertex(const Index& id) const {
+        return Vertex(*this, id);
+    }
 
     /**
-     * @brief Retrieves the logger associated with the mesh.
+     * @brief Logger associated with this mesh instance.
      *
-     * @return Logger& A reference to the logger.
+     * @return Logger reference.
      */
-    MDV_NODISCARD Logger&       logger() const                { assert(_logger != nullptr); return *_logger.get(); };
-
-    // clang-format on
+    MDV_NODISCARD Logger&
+    logger() const {
+        assert(_logger != nullptr);
+        return *_logger.get();
+    };
 
     //  ___ _                 _
     // |_ _| |_ ___ _ __ __ _| |_ ___  _ __ ___
@@ -266,72 +301,88 @@ public:
     // clang-format on
 #endif
 
-    // clang-format off
     /**
-     * @brief Retrieves the CGAL implementation data associated with the mesh.
+     * @brief Access CGAL implementation (mutable).
      *
-     * @return CgalImpl& A reference to the CGAL implementation data.
+     * @return Reference to CGAL backend.
      */
-    MDV_NODISCARD CgalImpl&        cgal()       { assert(_impl); return *_impl; }
+    MDV_NODISCARD CgalImpl&
+    cgal() {
+        assert(_impl);
+        return *_impl;
+    }
 
     /**
-     * @brief Retrieves the const CGAL implementation data associated with the mesh.
+     * @brief Access CGAL implementation (const).
      *
-     * @return const CgalImpl& A const reference to the CGAL implementation data.
+     * @return Const reference to CGAL backend.
      */
-    MDV_NODISCARD const CgalImpl&  cgal() const { assert(_impl); return *_impl; }
-
-    // clang-format on
+    MDV_NODISCARD const CgalImpl&
+    cgal() const {
+        assert(_impl);
+        return *_impl;
+    }
 
     /**
      * @brief Retrieves a random face from the mesh.
      *
-     * @return const Face& A reference to a randomly selected face.
+     * @return Random face.
      */
-    Face random_face() const;
+    MDV_NODISCARD Face random_face() const;
 
     /**
-     * @brief Constructs the Nx3 matrix with all vertices of the mesh
+     * @brief Constructs an Nx3 matrix with all vertex positions.
      *
+     * @return Vertex matrix (N x 3).
      */
     MDV_NODISCARD Eigen::MatrixXd get_vertex_matrix() const;
 
     /**
-     * @brief Constructs the Nx3 matrix with all faces of the mesh
+     * @brief Constructs an Nx3 matrix of face vertex indices.
      *
+     * @return Face index matrix (N x 3).
      */
     MDV_NODISCARD Eigen::MatrixXi get_face_matrix() const;
 
     /**
-     * @brief Constructs the Nx3 matrix with all faces of the mesh
+     * @brief Constructs an Nx3 matrix of face indices as doubles.
      *
-     * This function returns indices as doubles, which is ultimately not correct and
-     * error prone, but is necessary for having proper python bindings
+     * This is intended for Python bindings where integer matrices are less
+     * convenient. Use `get_face_matrix()` for native C++ workflows.
+     *
+     * @return Face index matrix (N x 3) as doubles.
      */
     MDV_NODISCARD Eigen::MatrixXd get_face_matrix_double() const;
 
+    /**
+     * @brief Returns the closest vertex to a 3D point.
+     *
+     * @param pt Query point in 3D.
+     * @return Closest vertex on the mesh.
+     */
     MDV_NODISCARD Vertex closest_vertex(const CartesianPoint& pt);
 
 private:
+    /**
+     * @brief Constructs a mesh from a CGAL backend and name.
+     *
+     * @param data CGAL backend pointer.
+     * @param name Mesh name.
+     */
     Mesh(gsl::owner<CgalImpl*> data, const std::string& name);
 
-    // Members
     /**
-     * @brief The logger associated with the mesh.
-     *
-     * @var Logger::SharedPtr _logger
+     * @brief Logger associated with the mesh instance.
      */
     Logger::SharedPtr _logger = default_logger;
+
     /**
-     * @brief The CGAL implementation data associated with the mesh.
-     *
-     * @var gsl::owner<CgalImpl*> _impl
+     * @brief CGAL backend (PIMPL) owning the heavy implementation data.
      */
     gsl::owner<CgalImpl*> _impl = nullptr;
+
     /**
-     * @brief The name of the mesh.
-     *
-     * @var std::string _name
+     * @brief Mesh name for logging and debugging.
      */
     std::string _name;
 };

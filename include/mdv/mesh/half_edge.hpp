@@ -12,11 +12,14 @@
 namespace mdv::mesh {
 
 /**
- * @brief Represents a half-edge in a mesh.
+ * @brief Directed half-edge for mesh connectivity and local frame transport.
  *
- * A half-edge is one of two directed edges that share the same edge but
- * point in opposite directions. It is used to represent the connectivity between
- * vertices and faces in a mesh.
+ * A half-edge represents one orientation of an undirected edge. It is used to
+ * traverse the mesh, compute local frames, and propagate tangent directions
+ * across faces, which are central operations for geodesic-based learning on
+ * surfaces.
+ * 
+ * Half-edges are view-types on a Mesh object.
  */
 struct HalfEdge : internal::IndexedMeshElement {
     using Vector        = std::vector<HalfEdge>;
@@ -26,30 +29,32 @@ struct HalfEdge : internal::IndexedMeshElement {
     /**
      * @brief Constructs a half-edge associated with the given mesh.
      *
-     * @param mesh The mesh to which this half-edge belongs.
+     * @param mesh Owning mesh.
+     * @param id Half-edge index.
      */
     HalfEdge(const Mesh& mesh, const Index id) : IndexedMeshElement(mesh, id) {}
 
     /**
-     * @brief Constructs the halfedge lying on the desired face with source the provided
-     * vertex.
+     * @brief Constructs the half-edge on a face with a given source vertex.
      *
-     * Throws if the vertex is not part of the face
+     * Throws if the vertex is not part of the face.
+     *
+     * @param vertex Source vertex.
+     * @param face Face containing the half-edge.
      */
     HalfEdge(const Vertex& vertex, const Face& face);
 
     /**
-     * @brief Retrieves the face that contains this half-edge.
+     * @brief Face incident to this half-edge.
      *
-     * @return Reference to the face object.
-     * @throw std::runtime_error If this half-edge is not associated with any face.
+     * @return Face containing the half-edge.
      */
     MDV_NODISCARD Face face() const noexcept;
 
     /**
-     * @brief Retrieves the position of the origin vertex of this half-edge.
+     * @brief Position of the origin vertex.
      *
-     * @return CartesianPoint representing the position of the origin vertex.
+     * @return Origin position.
      */
     MDV_NODISCARD CartesianPoint
     origin_position() const {
@@ -57,9 +62,9 @@ struct HalfEdge : internal::IndexedMeshElement {
     }
 
     /**
-     * @brief Retrieves the direction vector of this half-edge.
+     * @brief Direction vector from origin to next vertex.
      *
-     * @return Eigen::Vector3d representing the direction vector.
+     * @return Direction vector.
      */
     MDV_NODISCARD Eigen::Vector3d
                   direction() const {
@@ -67,9 +72,9 @@ struct HalfEdge : internal::IndexedMeshElement {
     }
 
     /**
-     * @brief Retrieves the normalized direction vector of this half-edge.
+     * @brief Normalized direction vector.
      *
-     * @return Eigen::Vector3d representing the normalized direction vector.
+     * @return Unit direction vector.
      */
     MDV_NODISCARD Eigen::Vector3d
                   normalised_direction() const {
@@ -77,72 +82,61 @@ struct HalfEdge : internal::IndexedMeshElement {
     }
 
     /**
-     * @brief Computes the inbound direction vector for this half-edge.
+     * @brief Inbound direction within the face.
      *
-     * The inbound direction points "inward" the face containing this half-edge.
+     * The inbound direction is orthogonal to the edge and lies in the face.
      *
-     * @return Eigen::Vector3d representing the inbound direction vector.
+     * @return Inbound unit direction.
      */
     MDV_NODISCARD Eigen::Vector3d inbound_direction() const;
 
     /**
-     * @brief Computes the rotation that aligns the inbound direction of this
-     *        half-edge with the inbound direction of its opposite face.
+     * @brief Rotation aligning this half-edge frame to its twin face frame.
      *
-     * @return Eigen::Quaterniond representing the alignment rotation.
+     * @return Quaternion aligning local frames.
      */
     MDV_NODISCARD Eigen::Quaterniond aligning_rotation() const;
 
     /**
-     * @brief Retrieves the next half-edge in the sequence around this edge.
+     * @brief Next half-edge in the face loop.
      *
-     * @return Pointer to the next half-edge.
+     * @return Next half-edge.
      */
     MDV_NODISCARD HalfEdge next() const noexcept;
 
     /**
-     * @brief Retrieves the previous half-edge in the sequence around this edge.
+     * @brief Previous half-edge in the face loop.
      *
-     * @return Pointer to the previous half-edge.
+     * @return Previous half-edge.
      */
     MDV_NODISCARD HalfEdge prev() const noexcept;
 
     /**
-     * @brief Retrieves the twin half-edge of this half-edge.
+     * @brief Twin half-edge (same edge, opposite direction).
      *
-     * The twin half-edge is the one that shares the same edge but points in
-     * the opposite direction.
-     *
-     * @return Pointer to the twin half-edge.
+     * @return Twin half-edge.
      */
     MDV_NODISCARD HalfEdge twin() const noexcept;
 
     /**
-     * @brief Retrieves the origin vertex of this half-edge.
+     * @brief Origin vertex of the half-edge.
      *
-     * @return Reference to the origin vertex object.
+     * @return Origin vertex.
      */
     MDV_NODISCARD Vertex origin() const noexcept;
 
     /**
-     * @brief Retrieves the opposite face of this half-edge.
+     * @brief Face on the opposite side of the edge.
      *
-     * The opposite face is the one that shares the same edge but points in
-     * the opposite direction.
-     *
-     * @return Reference to the opposite face object.
+     * @return Opposite face.
      */
     MDV_NODISCARD Face opposite_face() const noexcept;
 
     /**
-     * @brief Checks if this half-edge is equal to another half-edge.
+     * @brief Equality check by identity.
      *
-     * Two half-edges are considered equal if they point to the same memory
-     * location.
-     *
-     * @param other The half-edge to compare with.
-     * @return true If both half-edges are the same.
-     * @return false Otherwise.
+     * @param other Half-edge to compare.
+     * @return True if same object.
      */
     MDV_NODISCARD bool
     operator==(const HalfEdge& other) const {
@@ -150,14 +144,10 @@ struct HalfEdge : internal::IndexedMeshElement {
     }
 
     /**
-     * @brief Checks if this half-edge is not equal to another half-edge.
+     * @brief Inequality check by identity.
      *
-     * Two half-edges are considered not equal if they do not point to the same
-     * memory location.
-     *
-     * @param other The half-edge to compare with.
-     * @return true If both half-edges are different.
-     * @return false Otherwise.
+     * @param other Half-edge to compare.
+     * @return True if different object.
      */
     MDV_NODISCARD bool
     operator!=(const HalfEdge& other) const {
@@ -165,11 +155,9 @@ struct HalfEdge : internal::IndexedMeshElement {
     }
 
     /**
-     * @brief Provides a string representation of this half-edge.
+     * @brief Human-readable half-edge description.
      *
-     * The description includes the face ID and the origin vertex ID.
-     *
-     * @return std::string representing the half-edge.
+     * @return Description string.
      */
     MDV_NODISCARD std::string describe() const override;
 
@@ -180,14 +168,10 @@ private:
     HalfEdge() = default;
 
     /**
-     * @brief Checks if this half-edge is opposite to another half-edge.
+     * @brief Returns true if this half-edge is opposite to another.
      *
-     * Two half-edges are considered opposite if they share the same edge but
-     * point in opposite directions.
-     *
-     * @param other The half-edge to compare with.
-     * @return true If both half-edges are opposite.
-     * @return false Otherwise.
+     * @param other Half-edge to compare.
+     * @return True if opposite.
      */
     bool is_opposite_of(const HalfEdge& other) const noexcept;
 };

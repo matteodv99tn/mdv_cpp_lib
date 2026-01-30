@@ -10,6 +10,7 @@
 #include <gsl/pointers>
 #include <optional>
 
+#include "mdv/macros.hpp"
 #include "mdv/mesh/face.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
@@ -30,11 +31,12 @@ namespace mdv::mesh::internal {
 class CgalGeodesicConstructor;
 
 /**
- * @brief Implementation class for mesh data using CGAL.
+ * @brief CGAL-backed implementation of mesh storage and algorithms.
  *
- * This class encapsulates the necessary data and functionality to work with
- * meshes using the Computational Geometry Algorithms Library (CGAL). It
- * provides methods for loading, processing, and querying mesh data.
+ * This internal class owns CGAL data structures for the mesh, shortest-path
+ * computations, and spatial queries. It is hidden behind the Mesh PIMPL to
+ * reduce compilation time while exposing the geometric capabilities required
+ * for policy learning on surfaces.
  */
 class CgalImpl {
 public:
@@ -67,16 +69,50 @@ public:
     // CGAL typedefs - descriptors
     using VertexDescriptor = boost::graph_traits<Mesh>::vertex_descriptor;
 
-    // Factory functions
+    /**
+     * @brief Loads a CGAL mesh from file and builds its auxiliary structures.
+     *
+     * @param file_path Path to mesh file.
+     * @param logger Logger instance to use.
+     * @return Owned CGAL implementation pointer.
+     */
     static gsl::owner<CgalImpl*> from_file(
             const std::filesystem::path& file_path, Logger::SharedPtr&& logger
     );
 
+    /**
+     * @brief Constructs from a CGAL mesh instance.
+     *
+     * @param mesh CGAL mesh.
+     * @param logger Logger instance.
+     */
     CgalImpl(Mesh&& mesh, Logger::SharedPtr&& logger);
-    CgalImpl(const CgalImpl&)            = delete;
+
+    /**
+     * @brief Non-copyable.
+     */
+    CgalImpl(const CgalImpl&) = delete;
+
+    /**
+     * @brief Non-copyable.
+     */
     CgalImpl& operator=(const CgalImpl&) = delete;
+
+    /**
+     * @brief Move constructor.
+     *
+     * @param other Instance to move from.
+     */
     CgalImpl(CgalImpl&&) noexcept;
+
+    /**
+     * @brief Non-movable assignment.
+     */
     CgalImpl& operator=(CgalImpl&&) noexcept = delete;
+
+    /**
+     * @brief Destructor.
+     */
     ~CgalImpl();
 
     std::unique_ptr<ShortestPath>                _shortest_path;
@@ -86,12 +122,30 @@ public:
     mutable gsl::owner<mdv::mesh::Point*>        _current_shortpath_source = nullptr;
     mutable gsl::owner<CgalGeodesicConstructor*> _geodesic_constructor     = nullptr;
 
+    /**
+     * @brief Builds or retrieves the per-vertex normal property map.
+     */
     void build_vertex_normals_map() noexcept;
 
+    /**
+     * @brief Returns all mesh vertices as Eigen vectors.
+     *
+     * @return Vertex positions.
+     */
     MDV_NODISCARD std::vector<Eigen::Vector3d> yield_vertices() const;
 
+    /**
+     * @brief Returns all mesh faces as index triplets.
+     *
+     * @return Face index triplets.
+     */
     MDV_NODISCARD std::vector<IndexTriplet> yield_faces() const;
 
+    /**
+     * @brief Access logger.
+     *
+     * @return Logger reference.
+     */
     Logger&
     logger() const {
         assert(_logger);
@@ -99,6 +153,12 @@ public:
     };
 };
 
+/**
+ * @brief Converts a mesh point to a CGAL face location (face + barycentric).
+ *
+ * @param pt Mesh point.
+ * @return CGAL face location.
+ */
 CgalImpl::FaceLocation location_from_mesh_point(const ::mdv::mesh::Point& pt) noexcept;
 
 //   ____                              _
@@ -113,61 +173,146 @@ CgalImpl::FaceLocation location_from_mesh_point(const ::mdv::mesh::Point& pt) no
 // | | | |  __/ | |_) |  __/ |  \__ \
 // |_| |_|\___|_| .__/ \___|_|  |___/
 //              |_|
-Eigen::Vector3d convert(const CgalImpl::Vec3& x);
-Eigen::Vector3d convert(const CgalImpl::Point3& x);
+/**
+ * @brief Converts CGAL vectors to Eigen.
+ *
+ * @param x CGAL vector.
+ * @return Eigen vector.
+ */
+MDV_INLINE Eigen::Vector3d
+           convert(const CgalImpl::Vec3& x) {
+    return {x.x(), x.y(), x.z()};
+}
 
+/**
+ * @brief Converts CGAL points to Eigen.
+ *
+ * @param x CGAL point.
+ * @return Eigen vector.
+ */
+MDV_INLINE Eigen::Vector3d
+           convert(const CgalImpl::Point3& x) {
+    return {x.x(), x.y(), x.z()};
+}
+
+/**
+ * @brief Converts Eigen 3D vector to CGAL point.
+ *
+ * @param vec Eigen vector.
+ * @return CGAL point.
+ */
 MDV_INLINE CgalImpl::Kernel::Point_3
            point3_from_eigen(const Vec3d& vec) {
     return {vec(0), vec(1), vec(2)};
 };
 
+/**
+ * @brief Converts Eigen 3D vector to CGAL direction.
+ *
+ * @param vec Eigen vector.
+ * @return CGAL direction.
+ */
 MDV_INLINE CgalImpl::Kernel::Direction_3
            direction3_from_eigen(const Vec3d& vec) {
     return {vec(0), vec(1), vec(2)};
 };
 
+/**
+ * @brief Converts Eigen 3D vector to CGAL vector.
+ *
+ * @param vec Eigen vector.
+ * @return CGAL vector.
+ */
 MDV_INLINE CgalImpl::Kernel::Vector_3
            vector3_from_eigen(const Vec3d& vec) {
     return {vec(0), vec(1), vec(2)};
 };
 
+/**
+ * @brief Retrieves CGAL mesh from a mesh element.
+ *
+ * @param elem Mesh element.
+ * @return CGAL mesh reference.
+ */
 MDV_INLINE const CgalImpl::Mesh&
                  get_mesh_impl(const MeshElement& elem) {
     return elem.mesh().cgal()._mesh;
 };
 
+/**
+ * @brief Retrieves CGAL mesh from a mesh instance.
+ *
+ * @param mesh Mesh instance.
+ * @return CGAL mesh reference.
+ */
 MDV_INLINE const CgalImpl::Mesh&
                  get_mesh_impl(const Mesh& mesh) {
     return mesh.cgal()._mesh;
 };
 
+/**
+ * @brief Converts a mesh vertex to CGAL point.
+ *
+ * @param v Mesh vertex.
+ * @return CGAL point.
+ */
 MDV_INLINE CgalImpl::Point3
            to_vertex_impl(const Vertex& v) {
     CgalImpl::CgalVertexIndex id(v.id());
     return v.mesh().cgal()._mesh.point(id);
 }
 
+/**
+ * @brief Converts a mesh face to CGAL face index.
+ *
+ * @param f Mesh face.
+ * @return CGAL face index.
+ */
 MDV_INLINE CgalImpl::CgalFaceIndex
            to_face_impl(const Face& f) {
     return CgalImpl::CgalFaceIndex{f.id()};
 }
 
+/**
+ * @brief Converts a mesh half-edge to CGAL half-edge index.
+ *
+ * @param he Mesh half-edge.
+ * @return CGAL half-edge index.
+ */
 MDV_INLINE CgalImpl::CgalHalfEdgeIndex
            to_halfedge_impl(const HalfEdge& he) {
     return CgalImpl::CgalHalfEdgeIndex{he.id()};
 }
 
+/**
+ * @brief Converts a mesh point to CGAL point.
+ *
+ * @param pt Mesh point.
+ * @return CGAL point.
+ */
 MDV_INLINE CgalImpl::Kernel::Point_3
            point3_from_point(const Point& pt) {
     return point3_from_eigen(pt.position());
 }
 
+/**
+ * @brief Converts a tangent vector to a CGAL ray.
+ *
+ * @param tv Tangent vector.
+ * @return CGAL ray.
+ */
 MDV_INLINE CgalImpl::Kernel::Ray_3
            ray3_from_tangent_vector(const TangentVector& tv) {
     return {point3_from_point(tv.application_point()),
                        direction3_from_eigen(tv.cartesian_vector())};
 }
 
+/**
+ * @brief Constructs a CGAL triangle from a mesh face.
+ *
+ * @param f Mesh face.
+ * @return CGAL triangle.
+ */
 MDV_INLINE CgalImpl::Kernel::Triangle_3
            triangle3_from_face(const Face& f) {
     const auto& m   = get_mesh_impl(f);
@@ -181,8 +326,12 @@ MDV_INLINE CgalImpl::Kernel::Triangle_3
 }
 
 /**
- * If existing, returns the halfedge of the source face which is shared with the target
- * face.
+ * @brief Returns the shared half-edge between two faces if they are adjacent.
+ *
+ * @param source_face Source face index.
+ * @param target_face Target face index.
+ * @param mesh CGAL mesh.
+ * @return Shared half-edge if adjacent.
  */
 MDV_INLINE std::optional<CgalImpl::CgalHalfEdgeIndex>
            shared_halfedge(
@@ -197,18 +346,46 @@ MDV_INLINE std::optional<CgalImpl::CgalHalfEdgeIndex>
     return std::nullopt;
 }
 
+/**
+ * @brief Rotation aligning the normal frames of two adjacent faces.
+ *
+ * @param he Half-edge shared by the faces.
+ * @param mesh CGAL mesh.
+ * @return Quaternion aligning face frames.
+ */
 Eigen::Quaterniond relative_face_rotation(
         const CgalImpl::CgalHalfEdgeIndex& he, const CgalImpl::Mesh& mesh
 );
 
+/**
+ * @brief Ray-segment intersection on a mesh edge.
+ *
+ * @param edge CGAL segment.
+ * @param ray CGAL ray.
+ * @return Intersection point if it exists.
+ */
 std::optional<CgalImpl::Kernel::Point_3> edge_ray_intersection(
         const CgalImpl::Kernel::Segment_3& edge, const CgalImpl::Kernel::Ray_3& ray
 );
 
+/**
+ * @brief Total angle around a vertex in radians.
+ *
+ * @param m CGAL mesh.
+ * @param v Vertex descriptor.
+ * @return Total angle in radians.
+ */
 double total_curvature_rad(
         const CgalImpl::Mesh& m, const CgalImpl::VertexDescriptor& v
 );
 
+/**
+ * @brief Total angle around a vertex in degrees.
+ *
+ * @param m CGAL mesh.
+ * @param v Vertex descriptor.
+ * @return Total angle in degrees.
+ */
 double total_curvature_deg(
         const CgalImpl::Mesh& m, const CgalImpl::VertexDescriptor& v
 );

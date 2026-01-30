@@ -182,16 +182,6 @@ CgalImpl::yield_faces() const {
 // | | | |  __/ | |_) |  __/ |  \__ \
 // |_| |_|\___|_| .__/ \___|_|  |___/
 //              |_|
-Eigen::Vector3d
-mdv::mesh::internal::convert(const CgalImpl::Vec3& x) {
-    return {x.x(), x.y(), x.z()};
-}
-
-Eigen::Vector3d
-mdv::mesh::internal::convert(const CgalImpl::Point3& x) {
-    return {x.x(), x.y(), x.z()};
-}
-
 Eigen::Quaterniond
 mdv::mesh::internal::relative_face_rotation(
         const CgalImpl::CgalHalfEdgeIndex& he, const CgalImpl::Mesh& mesh

@@ -7,105 +7,150 @@
 
 namespace mdv::mesh {
 
+/**
+ * @brief Computes the length of a geodesic polyline.
+ *
+ * @param geod Geodesic polyline.
+ * @return Total length.
+ */
 double length(const Geodesic& geod);
 
 
 /**
- * @brief Retrieves the point at a given normalised curvilinear coordinate "s" on a
- * geodesic.
+ * @brief Retrieves a point at a normalized curvilinear coordinate on a geodesic.
  *
- * s is assumed to be in the range 0 (beginning of geodesic) to 1 (end of geodesic).
- * To avoid recomputation of the geodesic length, the parameter can be passed as
- * pointer. If not provided, the value is computed.
+ * s is clamped to [0, 1]. If len is provided, it is used to avoid recomputing the
+ * geodesic length.
  *
+ * @param geod Geodesic polyline.
+ * @param s Normalized curvilinear coordinate.
+ * @param len Optional pointer to precomputed geodesic length.
+ * @return Point on the geodesic in ambient space.
  */
 CartesianPoint point_from_geodesic(
         const Geodesic& geod, double s, const double* len = nullptr
 );
 
 /**
- * @brief Resamples a geodesic polyline at some specified coordinates.
+ * @brief Resamples a geodesic polyline at normalized coordinates.
  *
- * The coordinate are assumed to be in the range [0, 1]; if a coordinate is outside such
- * range, it gets rounded to the closest admissible value.
+ * Coordinates are clamped to [0, 1].
+ *
+ * @param geod Geodesic polyline.
+ * @param coordinates Normalized coordinates to sample.
+ * @return Resampled geodesic polyline.
  */
 Geodesic geodesic_resample(const Geodesic& geod, std::vector<double> coordinates);
 
-Eigen::MatrixXd geodesic_resample(const Geodesic& geod, const Eigen::VectorXd& coordinates);
+/**
+ * @brief Resamples a geodesic polyline into a T x 3 matrix.
+ *
+ * @param geod Geodesic polyline.
+ * @param coordinates T-dimensional vector of normalized coordinates to sample.
+ * @return Matrix of sampled points (T x 3).
+ */
+Eigen::MatrixXd geodesic_resample(
+        const Geodesic& geod, const Eigen::VectorXd& coordinates
+);
 
 /**
- * @brief Computes the parallel transport of vector v on point p
+ * @brief Parallel transports a tangent vector to a destination point.
  *
+ * @param v Tangent vector to transport.
+ * @param p Destination point on the mesh.
+ * @return Transported tangent vector.
  */
 TangentVector parallel_transport(const TangentVector& v, const Point& p);
 
 /**
- * @brief Computes the logarithmic of point "y" w.r.t. to point "p".
+ * @brief Logarithmic map of y at p.
  *
+ * @param p Base point on the mesh.
+ * @param y Target point on the mesh.
+ * @return Tangent vector at p pointing toward y.
  */
 TangentVector logarithmic_map(const Point& p, const Point& y);
 
 /**
- * @brief Computes the exponential map.
+ * @brief Exponential map of a tangent vector on the mesh.
  *
- * Note that v already contains information about the position as well as of the vector
- * itself.
+ * Optionally returns the unfolded geodesic path traced by the vector.
  *
- * Optionally, it can yield the geodesic retrieved when "unfolding" the vector v.
- *
+ * @param v Tangent vector to apply.
+ * @param geod Optional output geodesic polyline.
+ * @return Point reached by the exponential map.
  */
 Point exponential_map(TangentVector v, Geodesic* geod = nullptr);
 
 
 /**
- * @brief Computes the point-to-face distance
+ * @brief Point-to-face distance (absolute distance to plane).
  *
+ * @param f Face on the mesh.
+ * @param pt Query point in 3D.
+ * @return Absolute distance to the face plane.
  */
 double distance(const Face& f, const CartesianPoint& pt);
 
 /**
- * @brief Computes the point-to-point distance
+ * @brief Point-to-point distance in ambient 3D.
  *
+ * @param p1 First point on the mesh.
+ * @param p2 Second point on the mesh.
+ * @return Euclidean distance in 3D.
  */
 double distance(const Point& p1, const Point& p2);
 
 /**
- * @brief Computes the edge-to-point distance
+ * @brief Distance from a half-edge to a 3D point.
  *
+ * @param he Half-edge on the mesh.
+ * @param p Query point in 3D.
+ * @return Euclidean distance to the edge line segment.
  */
 double distance(const HalfEdge& he, const Eigen::Vector3d& p);
 
 /**
- * @brief Checks wether the provided UV coordinates are within the "unitary" triangle
- * with vertices
- *   (0, 0)
- *   (1, 0)
- *   (0, 1)
+ * @brief Checks if UV lies in the unit right triangle.
+ *
+ * @param uv UV coordinate.
+ * @return True if inside or on the triangle.
  */
 bool uv_in_unitary_triangle(const Eigen::Vector2d& uv);
 
+/**
+ * @brief Location type for a point on the mesh.
+ */
 enum LocationType : std::uint8_t {
     INSIDE_FACE = 0,
     ON_EDGE,
     ON_VERTEX
 };
 
+/**
+ * @brief Returns the location type for a point.
+ *
+ * @param pt Point on the mesh.
+ * @return Location type.
+ */
 LocationType location_type(const Point& pt);
 
+/**
+ * @brief Returns the location type for a tangent vector application point.
+ *
+ * @param tv Tangent vector.
+ * @return Location type.
+ */
 LocationType location_type(const TangentVector& tv);
 
 /**
- * @brief C++ implementation for the solve_path function for Riemannian flow-matching
+ * @brief Solves geodesic paths and velocities for flow-matching on meshes.
  *
- * https://github.com/facebookresearch/riemannian-fm/blob/b6ac1e9d60e18e594fb6310ec8a68d9ae683e2b2/manifm/manifolds/mesh.py#L164-L205
- *
- * @param[input] x0 Nx3 matrix of starting points for the geodesics
- * @param[input] x1 Nx3 matrix of ending points for the geodesics
- * @param[input] t T dimensional vector of the [0,1] time indices
- *
- * It outputs a N dimensional vector whose entries are a pair containing respectively
- * - a Tx3 matrix as the cartesian path on the mesh
- * - a Tx3 matrix containing the tangent velocity at each point on the path
+ * @param[in] mesh Surface mesh used for geodesics.
+ * @param[in] x0 Nx3 matrix of starting points.
+ * @param[in] x1 Nx3 matrix of ending points.
+ * @param[in] t T-vector of normalized time indices in [0, 1].
+ * @return Vector of N pairs: (Tx3 positions, Tx3 tangent velocities).
  */
 std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>> solve_path(
         const Mesh&            mesh,

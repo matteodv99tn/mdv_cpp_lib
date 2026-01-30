@@ -11,28 +11,69 @@
 
 namespace mdv::mesh::internal {
 
+/**
+ * @brief Constructs geodesic polylines using CGAL shortest paths.
+ *
+ * Provides a cache for shortest-path objects and utilities for building
+ * geodesics between points on a mesh, which are key for surface learning tasks.
+ */
 class CgalGeodesicConstructor {
 public:
     using ShortestPath = CgalImpl::ShortestPath;
 
     using ShortestPathPtr = std::unique_ptr<ShortestPath>;
 
+    /**
+     * @brief Constructs a geodesic constructor for a given CGAL mesh.
+     *
+     * @param mesh CGAL mesh pointer.
+     */
     CgalGeodesicConstructor(const CgalImpl::Mesh* mesh) : _reference_mesh(mesh) {};
 
+    /**
+     * @brief Builds a geodesic polyline between two points.
+     *
+     * @param from Start point.
+     * @param to End point.
+     * @return Geodesic polyline.
+     */
     Geodesic operator()(const Point& from, const Point& to);
 
+    /**
+     * @brief Sets the source point for a CGAL shortest-path object.
+     *
+     * @param shpath CGAL shortest-path object.
+     * @param source Source point on the mesh.
+     */
     static void set_source(ShortestPath& shpath, const Point& source);
 
+    /**
+     * @brief Constructs the geodesic polyline to the CGAL source.
+     *
+     * @param shpath CGAL shortest-path object.
+     * @param from Target point.
+     * @return Geodesic polyline.
+     */
     static Geodesic construct_geodesic(
             ShortestPath& shpath, const ::mdv::mesh::Point& from
     );
 
+    /**
+     * @brief Constructs a geodesic polyline with optional reversal.
+     *
+     * @note: if you know that construct_reversed is always false, then use the overload
+     * withouth the construct_reversed flag.
+     *
+     * @param shpath CGAL shortest-path object.
+     * @param from Target point.
+     * @param construct_reversed If true, reverses the path.
+     * @return Geodesic polyline.
+     */
     static Geodesic construct_geodesic(
             ShortestPath&             shpath,
             const ::mdv::mesh::Point& from,
             bool                      construct_reversed
-    );  // if construct_reversed = false always, use the overload without the construct
-        // reversed flag
+    );
 
 private:
     using PointShortPathPair = std::tuple<Point, ShortestPathPtr>;

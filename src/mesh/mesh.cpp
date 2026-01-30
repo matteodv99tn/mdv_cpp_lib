@@ -16,7 +16,6 @@
 #include "mdv/mesh/cgal_geodesic.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/fwd.hpp"
-#include "mdv/mesh/helpers.hpp"
 #include "mdv/mesh/vertex.hpp"
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging.hpp"
