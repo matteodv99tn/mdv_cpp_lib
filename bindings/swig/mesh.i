@@ -5,12 +5,14 @@
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/kernel.hpp"
+#include "mdv/mesh/flat_parameterisation.hpp"
 %}
 
 %include "std_string.i"
 %include "std_vector.i"
 %include "eigen.i"
 
+%eigen_typemaps(Eigen::Vector2d)
 %eigen_typemaps(Eigen::Vector3d)
 %eigen_typemaps(Eigen::VectorXd)
 %eigen_typemaps(Eigen::MatrixXd)
@@ -141,6 +143,16 @@ namespace mdv::mesh {
         double find_pointset_max_lengthscale(
                 const std::vector<mdv::mesh::Point>& pts, std::size_t num_steps
         );
+    };
+
+    class FlatParameterisation {
+        FlatParameterisation(mdv::mesh::Mesh&);
+        bool is_one_to_one_mapping();
+        Eigen::Vector2d project(const mdv::mesh::Point&);
+        Point retrieve(const Eigen::Vector2d&);
+        bool is_inside_mesh(const Eigen::Vector2d&);
+        Eigen::Vector2d min_uv();
+        Eigen::Vector2d max_uv();
     };
 }
 
