@@ -35,7 +35,7 @@ function(swig_lib_module_wrapper MODULE_NAME)
     target_link_libraries(
         lib${MODULE_NAME}
         mdvcpplib
-        Python3::Python
+        Python3::Module
         Python3::NumPy
     )
     

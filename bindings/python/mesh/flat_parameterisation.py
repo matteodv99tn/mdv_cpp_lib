@@ -81,8 +81,7 @@ class FlatParameterisation:
         in the parameterized domain. The UV coordinates represent the planar
         projection of the surface point.
         """
-        uv = self._parameterisation_impl.project(point._point_impl)
-        return np.array([uv.x(), uv.y()])
+        return self._parameterisation_impl.project(point._point_impl).reshape(-1)
 
     def retrieve(self, uv: np.ndarray) -> Point:
         """
@@ -103,8 +102,7 @@ class FlatParameterisation:
         This method transforms 2D UV coordinates back to a 3D point on the mesh
         surface. This is the inverse operation of the project method.
         """
-        uv_vec = _PointImpl.Vector2d(uv[0], uv[1])
-        point_impl = self._parameterisation_impl.retrieve(uv_vec)
+        point_impl = self._parameterisation_impl.retrieve(uv)
         return Point(point_impl)
 
     def is_inside_mesh(self, uv: np.ndarray) -> bool:
@@ -127,8 +125,7 @@ class FlatParameterisation:
         valid parameterization domain of the mesh. Points outside this domain
         may not have meaningful mappings back to the mesh surface.
         """
-        uv_vec = _PointImpl.Vector2d(uv[0], uv[1])
-        return self._parameterisation_impl.is_inside_mesh(uv_vec)
+        return self._parameterisation_impl.is_inside_mesh(uv)
 
     def min_uv(self) -> np.ndarray:
         """
@@ -144,8 +141,7 @@ class FlatParameterisation:
         Returns the lower bounds of the UV parameterization domain. These values
         define the extent of the 2D parameterization space.
         """
-        min_uv = self._parameterisation_impl.min_uv()
-        return np.array([min_uv.x(), min_uv.y()])
+        return self._parameterisation_impl.min_uv().reshape(-1)
 
     def max_uv(self) -> np.ndarray:
         """
@@ -161,5 +157,4 @@ class FlatParameterisation:
         Returns the upper bounds of the UV parameterization domain. These values
         define the extent of the 2D parameterization space.
         """
-        max_uv = self._parameterisation_impl.max_uv()
-        return np.array([max_uv.x(), max_uv.y()])
+        return self._parameterisation_impl.max_uv().reshape(-1)

@@ -19,6 +19,7 @@ dependencies = [
 
 [tool.scikit-build.cmake.define]
 BUILD_BINDINGS = "ON"
+Python_FIND_STRATEGY = "LOCATION"
 
 [tool.scikit-build.editable]
 mode = "redirect"

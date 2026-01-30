@@ -381,3 +381,37 @@ class Mesh:
         # Call the underlying SWIG method
         vertex_impl = self._mesh_impl.closest_vertex(point)
         return Vertex(vertex_impl)
+
+    @staticmethod
+    def extract_normal_bounded_surface(mesh, point, max_normal_angle=90.0) -> 'Mesh':
+        """
+        Extract a connected submesh by bounding normal deviation.
+        
+        Starting from a seed point, this function propagates across adjacent faces and
+        keeps faces whose normals stay within the specified angle of the seed face
+        normal. This is useful to isolate locally smooth patches for learning or
+        analysis on surfaces.
+        
+        Parameters
+        ----------
+        mesh : Mesh
+            Source mesh
+        point : Point
+            Seed point on the mesh
+        max_normal_angle : float, default=90.0
+            Maximum allowed normal deviation in degrees
+            
+        Returns
+        -------
+        Mesh
+            Extracted submesh
+            
+        Notes
+        -----
+        This method extracts a connected submesh by propagating from a seed point
+        and keeping faces whose normals deviate by at most max_normal_angle from
+        the seed face normal. The result is a locally smooth patch of the original mesh.
+        """
+        mesh_impl = _MeshImpl.extract_normal_bounded_surface(
+            mesh._mesh_impl, point._point_impl, max_normal_angle)
+        return Mesh(mesh_impl=mesh_impl)

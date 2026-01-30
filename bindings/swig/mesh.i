@@ -73,6 +73,12 @@ namespace mdv::mesh {
         Eigen::MatrixXd get_face_matrix_double() const;
 
         mdv::mesh::Vertex closest_vertex(const Eigen::Vector3d&);
+
+        static mdv::mesh::Mesh extract_normal_bounded_surface(
+                const mdv::mesh::Mesh& mesh, 
+                const mdv::mesh::Point& pt, 
+                double max_normal_angle
+        );
     };
 
     class Point {
@@ -146,6 +152,7 @@ namespace mdv::mesh {
     };
 
     class FlatParameterisation {
+    public:
         FlatParameterisation(mdv::mesh::Mesh&);
         bool is_one_to_one_mapping();
         Eigen::Vector2d project(const mdv::mesh::Point&);
