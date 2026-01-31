@@ -75,33 +75,44 @@ On a machine with ROS2 installed, you may simply:
    rosdep install --from-paths <path/to/mdvcpplib> --ignore-src -r -y
    ```
 
-## Python bindings
+## Python bindings (developer workflow)
 
-You can easily build and install python bindings through `pip`; assuming you are in the root directory of the project, simply call:
-``` 
-pip install -e . 
+You can build and install python bindings through `pip`. From the repository root:
+
+```
+pip install -e .
 ```
 
 ### Development
 
-Calling `pip install -e .` triggers the complete build of the library (which is quite expensive). 
-For developers, it is recommeded to call `pip install` only once to properly setup dependencies and the binding package. 
-Then update the install directory prefix of CMake so that by calling `make install` the dependencies are installed in the correct location; an example would be to call, from the root directory of the project, the following command:
-``` 
-CMAKE_INSTALL_MODE=ABS_SYMLINK cmake -B build -DBUILD_BINDINGS=ON -DCMAKE_INSTALL_PREFIX=$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")
+`pip install -e .` triggers a full C++ build (expensive). For iterative binding
+development, run it once to set up the environment, then use a bindings-only CMake
+build and install directly into your active `site-packages`.
+
+Configure (from repo root):
+
+```
+CMAKE_INSTALL_MODE=ABS_SYMLINK \
+  cmake -B build \
+  -DBUILD_BINDINGS=ON \
+  -DCMAKE_INSTALL_PREFIX=$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")
 ```
 
-Then proceed by building 
+Build:
+
 ```
 CMAKE_INSTALL_MODE=ABS_SYMLINK cmake --build build --parallel
 ```
-and finally install
+
+Install:
+
 ```
 CMAKE_INSTALL_MODE=ABS_SYMLINK cmake --install build
 ```
 
-**Note**: by setting [`CMAKE_INSTALL_MODE=ABS_SYMLINK`](https://cmake.org/cmake/help/latest/envvar/CMAKE_INSTALL_MODE.html), files are getting symlink installed. 
-This means that you can actively modify the wrapping `.py` files directly from the python `site-packages` folder, to avoid linting issues when working in the main repo, but still track the changes with git and eventually commit.
+**Note**: setting [`CMAKE_INSTALL_MODE=ABS_SYMLINK`](https://cmake.org/cmake/help/latest/envvar/CMAKE_INSTALL_MODE.html)
+creates symlink installs. This lets you edit the wrapper `.py` files directly
+from `site-packages` while still tracking changes in git.
 
 
 ## Local testing of changes
