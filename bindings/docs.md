@@ -189,6 +189,14 @@ python -c "import mdv.my_module as mm; print(mm.Foo().value())"
   `bindings/python/`.
 - If you add new SWIG-exposed symbols, mirror them in the Python wrappers and
   keep the public API stable.
+- Normalize vector outputs from SWIG to 1D numpy arrays
+  (e.g., use `np.asarray(x).reshape(-1)` for 3x1 vectors).
+- Validate array-like inputs at the Python boundary with `np.asarray(...)` and
+  explicit shape checks. Prefer the helpers in `bindings/python/mesh/_validation.py`.
+- Prefer explicit constructors (`from_*`/`@classmethod`) for multi-input objects.
+  Keep `__init__` minimal and document alternative constructors.
+- Maintain `.pyi` stubs alongside the wrappers for clear signatures and IDE
+  support. Keep them in sync with runtime behavior.
 
 ## Debugging and troubleshooting
 

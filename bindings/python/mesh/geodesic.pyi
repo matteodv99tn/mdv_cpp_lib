@@ -1,0 +1,13 @@
+from __future__ import annotations
+
+from typing import List
+
+import numpy as np
+from numpy.typing import NDArray
+
+class _GeodesicImpl: ...
+
+class Geodesic:
+    def __init__(self, geodesic_impl: _GeodesicImpl) -> None: ...
+    def length(self) -> float: ...
+    def to_list(self) -> List[NDArray[np.float64]]: ...
