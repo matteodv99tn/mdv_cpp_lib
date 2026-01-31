@@ -61,6 +61,7 @@ from .face import Face
 from .geodesic import Geodesic
 from .point import Point
 from .vertex import Vertex
+from ._validation import as_matrix, as_vector
 
 
 class Mesh:
@@ -122,7 +123,14 @@ class Mesh:
                 "To construct a mesh, provide (nv, 3) vertices and (nf, 3) faces."
             )
 
-        pymesh = pymeshlab.Mesh(vertex_matrix=vertices, face_matrix=faces)
+        vertex_matrix = as_matrix(vertices, shape=(-1, 3), name="vertices")
+        face_matrix = np.asarray(faces)
+        if face_matrix.ndim != 2 or face_matrix.shape[1] != 3:
+            raise ValueError(f"faces must have shape (nf, 3); got {face_matrix.shape}.")
+        if not np.issubdtype(face_matrix.dtype, np.integer):
+            face_matrix = face_matrix.astype(np.int32)
+
+        pymesh = pymeshlab.Mesh(vertex_matrix=vertex_matrix, face_matrix=face_matrix)
         meshset = pymeshlab.MeshSet()
         meshset.add_mesh(pymesh)
 
@@ -245,7 +253,7 @@ class Mesh:
         np.ndarray
             Matrix of shape ``(N, 3)`` with vertex positions.
         """
-        return self._mesh_impl.get_vertex_matrix()
+        return np.asarray(self._mesh_impl.get_vertex_matrix())
 
     def get_face_matrix(self) -> NDArray[np.int32]:
         """Return the face index matrix of the mesh.
@@ -260,7 +268,7 @@ class Mesh:
         The SWIG binding exposes faces as doubles; this wrapper converts them to
         ``int32`` for typical Python usage.
         """
-        res = self._mesh_impl.get_face_matrix_double()
+        res = np.asarray(self._mesh_impl.get_face_matrix_double())
         return res.astype(np.int32)
 
     def vertex(self, id: int) -> Vertex:
@@ -331,7 +339,10 @@ class Mesh:
             Geodesic path between the two points.
         """
         return Geodesic(
-            self._mesh_impl.build_geodesic(from_point._point_impl, to_point._point_impl)
+            self._mesh_impl.build_geodesic(
+                from_point._point_impl,  # type: ignore[attr-defined]
+                to_point._point_impl,  # type: ignore[attr-defined]
+            )
         )
 
     def midpoint_subdivide(self, iterations: int = 1) -> "Mesh":
@@ -408,7 +419,7 @@ class Mesh:
         Vertex
             Closest vertex on the mesh.
         """
-        point_array = np.asarray(point, dtype=np.float64)
+        point_array = as_vector(point, size=3, name="point")
         vertex_impl = self._mesh_impl.closest_vertex(point_array)
         return Vertex(vertex_impl)
 
@@ -439,6 +450,8 @@ class Mesh:
             Extracted submesh.
         """
         mesh_impl = extract_normal_bounded_surface(
-            mesh._mesh_impl, point._point_impl, max_normal_angle
+            mesh._mesh_impl,  # type: ignore[attr-defined]
+            point._point_impl,  # type: ignore[attr-defined]
+            max_normal_angle,
         )
         return Mesh(mesh_impl=mesh_impl)

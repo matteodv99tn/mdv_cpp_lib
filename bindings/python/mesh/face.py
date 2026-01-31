@@ -59,7 +59,7 @@ class Face:
         np.ndarray
             Normal vector ``[x, y, z]``.
         """
-        return self._face_impl.normal()
+        return np.asarray(self._face_impl.normal()).reshape(-1)
 
     def describe(self) -> str:
         """Get a string description of the face.

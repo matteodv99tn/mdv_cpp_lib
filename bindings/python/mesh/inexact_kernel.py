@@ -53,7 +53,7 @@ class InexactMeshKernel(MeshKernel):
         mesh : Mesh
             Mesh to operate on.
         """
-        self._kernel_impl = _InexactMeshKernelImpl(mesh._mesh_impl)
+        self._kernel_impl = _InexactMeshKernelImpl(mesh._mesh_impl)  # type: ignore[attr-defined]
 
     def distance_matrix(
         self,
@@ -74,12 +74,12 @@ class InexactMeshKernel(MeshKernel):
         np.ndarray
             Distance matrix of shape ``(len(points), len(points2))``.
         """
-        pts_impl = self._to_point_impl_list(points1)
+        pts_impl = self._to_point_impl_list(points1)  # type: ignore[attr-defined]
         if points2 is None:
-            return self._kernel_impl.distance_matrix(pts_impl)
+            return np.asarray(self._kernel_impl.distance_matrix(pts_impl))
 
-        pts2_impl = self._to_point_impl_list(points2)
-        return self._kernel_impl.distance_matrix(pts_impl, pts2_impl)
+        pts2_impl = self._to_point_impl_list(points2)  # type: ignore[attr-defined]
+        return np.asarray(self._kernel_impl.distance_matrix(pts_impl, pts2_impl))
 
     def set_points1(self, points1: Sequence[Point | Vertex]) -> None:
         """Set the first set of points for caching.
@@ -89,7 +89,7 @@ class InexactMeshKernel(MeshKernel):
         points1 : Sequence[Point | Vertex]
             First list of points to cache.
         """
-        pts1_impl = self._to_point_impl_list(points1)
+        pts1_impl = self._to_point_impl_list(points1)  # type: ignore[attr-defined]
         self._kernel_impl.set_points1(pts1_impl)
 
     def find_pointset_max_lengthscale(
@@ -112,7 +112,8 @@ class InexactMeshKernel(MeshKernel):
             Estimated maximum lengthscale.
         """
         return self._kernel_impl.find_pointset_max_lengthscale(
-            self._to_point_impl_list(points), num_steps
+            self._to_point_impl_list(points),  # type: ignore[attr-defined]
+            num_steps,
         )
 
     def __call__(
@@ -137,9 +138,9 @@ class InexactMeshKernel(MeshKernel):
         np.ndarray
             Kernel matrix of shape ``(len(points), len(points2))``.
         """
-        pts_impl = self._to_point_impl_list(points)
+        pts_impl = self._to_point_impl_list(points)  # type: ignore[attr-defined]
         if points2 is None:
-            return self._kernel_impl(pts_impl, lengthscale)
+            return np.asarray(self._kernel_impl(pts_impl, lengthscale))
 
-        pts2_impl = self._to_point_impl_list(points2)
-        return self._kernel_impl(pts_impl, pts2_impl, lengthscale)
+        pts2_impl = self._to_point_impl_list(points2)  # type: ignore[attr-defined]
+        return np.asarray(self._kernel_impl(pts_impl, pts2_impl, lengthscale))

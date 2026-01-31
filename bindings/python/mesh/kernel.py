@@ -74,10 +74,10 @@ class MeshKernel:
         """
         pts1_impl = self._to_point_impl_list(points1)
         if points2 is None:
-            return self._kernel_impl.distance_matrix(pts1_impl)
+            return np.asarray(self._kernel_impl.distance_matrix(pts1_impl))
 
         pts2_impl = self._to_point_impl_list(points2)
-        return self._kernel_impl.distance_matrix(pts1_impl, pts2_impl)
+        return np.asarray(self._kernel_impl.distance_matrix(pts1_impl, pts2_impl))
 
     def __call__(
         self,
@@ -103,7 +103,7 @@ class MeshKernel:
         """
         pts1_impl = self._to_point_impl_list(points1)
         pts2_impl = self._to_point_impl_list(points2)
-        return self._kernel_impl(pts1_impl, pts2_impl, lengthscale)
+        return np.asarray(self._kernel_impl(pts1_impl, pts2_impl, lengthscale))
 
     @staticmethod
     def evaluate_squared_exponential(
@@ -126,7 +126,9 @@ class MeshKernel:
         """
         from ._mesh_impl import evaluate_squared_exponential  # type: ignore[import-not-found]
 
-        return evaluate_squared_exponential(distance_matrix, float(lengthscale))
+        return np.asarray(
+            evaluate_squared_exponential(distance_matrix, float(lengthscale))
+        )
 
     def find_pointset_max_lengthscale(
         self,
@@ -182,7 +184,7 @@ class MeshKernel:
                 f"Don't know how to convert type {type(p)} to mdv.mesh.Point"
             )
 
-        res = [ensure_point(p)._point_impl for p in input]
+        res = [ensure_point(p)._point_impl for p in input]  # type: ignore[attr-defined]
         return PointVector(res)
 
     @staticmethod

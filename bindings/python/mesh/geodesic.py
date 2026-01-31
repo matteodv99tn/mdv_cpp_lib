@@ -45,5 +45,5 @@ class Geodesic:
         """
         result = []
         for i in range(len(self._geodesic_impl)):
-            result.append(self._geodesic_impl[i])
+            result.append(np.asarray(self._geodesic_impl[i]).reshape(-1))
         return result
