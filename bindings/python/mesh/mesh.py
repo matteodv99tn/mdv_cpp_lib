@@ -1,63 +1,115 @@
-from .vertex import Vertex
-from .face import Face
-from .point import Point
-from .geodesic import Geodesic
-from ._mesh_impl import Mesh as _MeshImpl, load_from_file, mesh_directory, extract_normal_bounded_surface
+from __future__ import annotations
+
+from typing import Optional
 
 import numpy as np
-import pymeshlab
-import pyvista
+import pymeshlab  # type: ignore[import-not-found]
+import pyvista  # type: ignore[import-not-found]
+from numpy.typing import ArrayLike, NDArray
+
+try:
+    from ._mesh_impl import (  # type: ignore[import-not-found]
+        Mesh as _MeshImpl,
+        extract_normal_bounded_surface,
+        load_from_file,
+        mesh_directory,
+    )
+except ImportError:  # pragma: no cover - generated at build time
+
+    class _MeshImpl:  # type: ignore[no-redef]
+        def __init__(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def name(self) -> str:
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def num_vertices(self) -> int:
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def num_faces(self) -> int:
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def vertex(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def face(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def build_geodesic(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def get_vertex_matrix(self) -> NDArray[np.float64]:
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def get_face_matrix_double(self) -> NDArray[np.float64]:
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def closest_vertex(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+    def load_from_file(*_args, **_kwargs):
+        raise RuntimeError("SWIG bindings are not built yet.")
+
+    def mesh_directory() -> str:
+        raise RuntimeError("SWIG bindings are not built yet.")
+
+    def extract_normal_bounded_surface(*_args, **_kwargs):
+        raise RuntimeError("SWIG bindings are not built yet.")
+
+
+from .face import Face
+from .geodesic import Geodesic
+from .point import Point
+from .vertex import Vertex
 
 
 class Mesh:
-    """
-    Python wrapper for mesh data structure.
-    
-    This class provides access to mesh data including vertices, faces,
-    and geometric operations like geodesic path computation.
-    
+    """Python wrapper for the mesh data structure.
+
+    This class provides access to mesh geometry, topological data, and
+    geodesic operations.
+
     Attributes
     ----------
     name : str
-        Name of the mesh
+        Name of the mesh.
     num_vertices : int
-        Number of vertices in the mesh
+        Number of vertices in the mesh.
     num_faces : int
-        Number of faces in the mesh
+        Number of faces in the mesh.
     """
 
     def __init__(
         self,
-        vertices: np.typing.ArrayLike | None = None,
-        faces: np.typing.ArrayLike | None = None,
-        mesh_impl: _MeshImpl | None = None,
+        vertices: Optional[ArrayLike] = None,
+        faces: Optional[ArrayLike] = None,
+        mesh_impl: Optional[_MeshImpl] = None,
     ):
-        """
-        Initialize a Mesh wrapper.
-        
+        """Initialize a Mesh wrapper.
+
         This constructor supports two initialization methods:
-        1. From vertices and faces arrays (using vertices and faces parameters)
-        2. From existing SWIG mesh object (using mesh_impl parameter)
-        
+
+        1) From vertices and faces arrays.
+        2) From an existing SWIG mesh object (``mesh_impl``).
+
         Parameters
         ----------
-        vertices : np.typing.ArrayLike, optional
-            Array of vertex coordinates with shape (nv, 3) where nv is number of vertices
-        faces : np.typing.ArrayLike, optional
-            Array of face indices with shape (nf, 3) where nf is number of faces
+        vertices : array_like, optional
+            Vertex coordinates with shape ``(nv, 3)``.
+        faces : array_like, optional
+            Face indices with shape ``(nf, 3)``.
         mesh_impl : _MeshImpl, optional
-            The underlying SWIG mesh object
-            
+            The underlying SWIG mesh object.
+
         Raises
         ------
         RuntimeError
-            If vertices and faces are not provided when creating from arrays
-            If mesh construction fails
-            
+            If ``vertices`` or ``faces`` are missing when constructing from arrays.
+
         Notes
         -----
-        When providing vertices and faces arrays, the mesh will be created using
-        pymeshlab for processing and then loaded from a temporary OFF file.
+        When providing vertices and faces arrays, the mesh is created using
+        ``pymeshlab`` and loaded from a temporary OFF file.
         """
         import tempfile
 
@@ -67,8 +119,8 @@ class Mesh:
 
         if (faces is None) or (vertices is None):
             raise RuntimeError(
-                "To construct a mesh, a nv x 3 matrix of vertices and"
-                "nf x 3 matrix of faces is required")
+                "To construct a mesh, provide (nv, 3) vertices and (nf, 3) faces."
+            )
 
         pymesh = pymeshlab.Mesh(vertex_matrix=vertices, face_matrix=faces)
         meshset = pymeshlab.MeshSet()
@@ -96,46 +148,43 @@ class Mesh:
         self._mesh_impl.scale(scaling)
 
     @staticmethod
-    def load_from_file(file_path: str) -> 'Mesh':
-        """
-        Load a mesh from a file.
-        
+    def load_from_file(file_path: str) -> "Mesh":
+        """Load a mesh from a file.
+
         Parameters
         ----------
         file_path : str
-            Path to the mesh file
-            
+            Path to the mesh file.
+
         Returns
         -------
         Mesh
-            Loaded mesh object
+            Loaded mesh object.
         """
         return Mesh(mesh_impl=load_from_file(file_path))
 
     @staticmethod
     def mesh_directory() -> str:
-        """
-        Get the directory where mesh files are stored.
-        
+        """Return the directory where mesh files are stored.
+
         Returns
         -------
         str
-            Path to the mesh directory
+            Path to the mesh directory.
         """
         return mesh_directory()
 
     @staticmethod
     def cube_angle() -> "Mesh":
-        """
-        Creates a mesh which represent 3 faces of a cube that are sharing the same 
-        vertex.
-        
-        The cube has unitary dimension, and the shared vertex is located at (1, 1, 1).
-        
+        """Create a unit cube corner mesh.
+
+        The mesh represents three faces of a unit cube sharing the vertex at
+        ``(1, 1, 1)``.
+
         Returns
         -------
         Mesh
-            A new Mesh object representing the cube
+            A new mesh representing the cube corner.
         """
         vertices = np.array(
             [
@@ -157,167 +206,150 @@ class Mesh:
 
     @property
     def name(self) -> str:
-        """
-        Yields the name of the given mesh
+        """Return the name of the mesh.
 
         Returns
         -------
         str
-            the name of the mesh
+            Name of the mesh.
         """
         return self._mesh_impl.name()
 
     @property
     def num_vertices(self) -> int:
-        """
-        Get the number of vertices in the mesh.
-        
+        """Return the number of vertices in the mesh.
+
         Returns
         -------
         int
-            Number of vertices
+            Number of vertices.
         """
         return self._mesh_impl.num_vertices()
 
     @property
     def num_faces(self) -> int:
-        """
-        Get the number of faces in the mesh.
-        
+        """Return the number of faces in the mesh.
+
         Returns
         -------
         int
-            Number of faces
+            Number of faces.
         """
         return self._mesh_impl.num_faces()
 
-    def get_vertex_matrix(self) -> np.typing.ArrayLike:
-        """
-        Get the vertex matrix of the mesh.
-        
+    def get_vertex_matrix(self) -> NDArray[np.float64]:
+        """Return the vertex matrix of the mesh.
+
         Returns
         -------
-        np.typing.ArrayLike
-            An Nx3 matrix where each row represents a vertex position [x, y, z]
+        np.ndarray
+            Matrix of shape ``(N, 3)`` with vertex positions.
         """
         return self._mesh_impl.get_vertex_matrix()
 
-    def get_face_matrix(self) -> np.typing.ArrayLike:
-        """
-        Get the face matrix of the mesh.
-        
+    def get_face_matrix(self) -> NDArray[np.int32]:
+        """Return the face index matrix of the mesh.
+
         Returns
         -------
-        np.typing.ArrayLike
-            An Nx3 matrix where each row represents face indices [v0, v1, v2]
-            
+        np.ndarray
+            Matrix of shape ``(N, 3)`` with face indices ``[v0, v1, v2]``.
+
         Notes
         -----
-        This method returns face indices as doubles for Python binding compatibility.
-        The underlying implementation uses get_face_matrix_double() which converts
-        the integer indices to double precision for proper Python binding handling.
+        The SWIG binding exposes faces as doubles; this wrapper converts them to
+        ``int32`` for typical Python usage.
         """
-        res: np.ndarray = self._mesh_impl.get_face_matrix_double()
-        res = res.astype(np.int32)
-        return res
+        res = self._mesh_impl.get_face_matrix_double()
+        return res.astype(np.int32)
 
     def vertex(self, id: int) -> Vertex:
-        """
-        Get a vertex by its identifier.
-        
+        """Return a vertex by its identifier.
+
         Parameters
         ----------
         id : int
-            Vertex identifier
-            
+            Vertex identifier.
+
         Returns
         -------
         Vertex
-            Vertex with the specified identifier
+            Vertex with the specified identifier.
         """
         return Vertex(self._mesh_impl.vertex(id))
 
     def face(self, id: int) -> Face:
-        """
-        Get a face by its identifier.
-        
+        """Return a face by its identifier.
+
         Parameters
         ----------
         id : int
-            Face identifier
-            
+            Face identifier.
+
         Returns
         -------
         Face
-            Face with the specified identifier
+            Face with the specified identifier.
         """
         return Face(self._mesh_impl.face(id))
 
     @property
     def faces(self) -> list[Face]:
-        """
-        Get all faces in the mesh.
-        
+        """Return all faces in the mesh.
+
         Returns
         -------
         list[Face]
-            List of all Face objects in the mesh
+            Face objects for the mesh.
         """
         return [self.face(i) for i in range(self.num_faces)]
 
     @property
     def vertices(self) -> list[Vertex]:
-        """
-        Get all vertices in the mesh.
-        
+        """Return all vertices in the mesh.
+
         Returns
         -------
         list[Vertex]
-            List of all Vertex objects in the mesh
+            Vertex objects for the mesh.
         """
         return [self.vertex(i) for i in range(self.num_vertices)]
 
     def build_geodesic(self, from_point: Point, to_point: Point) -> Geodesic:
-        """
-        Build a geodesic path between two points on the mesh.
-        
+        """Build a geodesic path between two mesh points.
+
         Parameters
         ----------
         from_point : Point
-            Starting point of the geodesic
+            Starting point of the geodesic.
         to_point : Point
-            Ending point of the geodesic
-            
+            Ending point of the geodesic.
+
         Returns
         -------
         Geodesic
-            Geodesic path between the two points
+            Geodesic path between the two points.
         """
         return Geodesic(
-            self._mesh_impl.build_geodesic(from_point._point_impl,
-                                           to_point._point_impl))
+            self._mesh_impl.build_geodesic(from_point._point_impl, to_point._point_impl)
+        )
 
-    def midpoint_subdivide(self, iterations: int = 1) -> 'Mesh':
-        """
-        Subdivide the mesh using midpoint subdivision.
-        
-        This method applies midpoint subdivision to the mesh, increasing the number
-        of faces and vertices by splitting each face into smaller faces.
-        
+    def midpoint_subdivide(self, iterations: int = 1) -> "Mesh":
+        """Subdivide the mesh using midpoint subdivision.
+
         Parameters
         ----------
         iterations : int, default=1
-            Number of subdivision iterations to perform
-            
+            Number of subdivision iterations to perform.
+
         Returns
         -------
         Mesh
-            A new mesh object with subdivided faces
-            
+            Subdivided mesh.
+
         Notes
         -----
-        Each subdivision iteration increases the number of faces approximately by a factor of 4.
-        The subdivision is performed using pymeshlab's midpoint subdivision algorithm.
+        Each iteration increases the number of faces approximately by a factor of 4.
         """
         import tempfile
 
@@ -336,26 +368,24 @@ class Mesh:
             return newmesh
 
     def to_pyvista(self) -> pyvista.PolyData:
-        fs = self.get_face_matrix()
-        vs = self.get_vertex_matrix()
-        return pyvista.make_tri_mesh(vs, fs)
+        """Convert the mesh to a PyVista PolyData object.
+
+        Returns
+        -------
+        pyvista.PolyData
+            Triangular mesh representation usable with PyVista.
+        """
+        faces = self.get_face_matrix()
+        vertices = self.get_vertex_matrix()
+        return pyvista.make_tri_mesh(vertices, faces)
 
     def _create_meshset(self) -> pymeshlab.MeshSet:
-        """
-        Create a pymeshlab MeshSet from this mesh.
-        
-        This private method converts the current mesh data into a pymeshlab MeshSet
-        which can be used for mesh processing operations.
-        
+        """Create a pymeshlab MeshSet from this mesh.
+
         Returns
         -------
         pymeshlab.MeshSet
-            A MeshSet containing this mesh
-            
-        Notes
-        -----
-        This method is used internally by subdivision and other mesh processing
-        operations that require pymeshlab's mesh processing capabilities.
+            MeshSet containing this mesh.
         """
         pymesh = pymeshlab.Mesh(
             vertex_matrix=self.get_vertex_matrix(),
@@ -365,64 +395,50 @@ class Mesh:
         meshset.add_mesh(pymesh)
         return meshset
 
-    def closest_vertex(self, point) -> Vertex:
-        """
-        Find the closest vertex to a given 3D point on the mesh.
-        
+    def closest_vertex(self, point: ArrayLike) -> Vertex:
+        """Find the closest vertex to a 3D point.
+
         Parameters
         ----------
-        point : np.ndarray or list
-            3D point coordinates [x, y, z] to find the closest vertex to
-            
+        point : array_like, shape (3,)
+            3D point coordinates ``[x, y, z]``.
+
         Returns
         -------
         Vertex
-            The vertex on the mesh that is closest to the given point
-            
-        Notes
-        -----
-        This method finds the vertex on the mesh that is closest to the given
-        3D point using Euclidean distance. The point is projected onto the mesh
-        surface to find the closest vertex.
+            Closest vertex on the mesh.
         """
-        # Convert point to numpy array if it's a list
-        if isinstance(point, (list, tuple)):
-            point = np.array(point, dtype=np.float64)
-        
-        # Call the underlying SWIG method
-        vertex_impl = self._mesh_impl.closest_vertex(point)
+        point_array = np.asarray(point, dtype=np.float64)
+        vertex_impl = self._mesh_impl.closest_vertex(point_array)
         return Vertex(vertex_impl)
 
     @staticmethod
-    def extract_normal_bounded_surface(mesh, point, max_normal_angle=90.0) -> 'Mesh':
-        """
-        Extract a connected submesh by bounding normal deviation.
-        
-        Starting from a seed point, this function propagates across adjacent faces and
-        keeps faces whose normals stay within the specified angle of the seed face
-        normal. This is useful to isolate locally smooth patches for learning or
-        analysis on surfaces.
-        
+    def extract_normal_bounded_surface(
+        mesh: "Mesh",
+        point: Point,
+        max_normal_angle: float = 90.0,
+    ) -> "Mesh":
+        """Extract a connected submesh by bounding normal deviation.
+
+        Starting from a seed point, this function propagates across adjacent faces
+        and keeps faces whose normals stay within the specified angle of the seed
+        face normal.
+
         Parameters
         ----------
         mesh : Mesh
-            Source mesh
+            Source mesh.
         point : Point
-            Seed point on the mesh
+            Seed point on the mesh.
         max_normal_angle : float, default=90.0
-            Maximum allowed normal deviation in degrees
-            
+            Maximum allowed normal deviation in degrees.
+
         Returns
         -------
         Mesh
-            Extracted submesh
-            
-        Notes
-        -----
-        This method extracts a connected submesh by propagating from a seed point
-        and keeping faces whose normals deviate by at most max_normal_angle from
-        the seed face normal. The result is a locally smooth patch of the original mesh.
+            Extracted submesh.
         """
         mesh_impl = extract_normal_bounded_surface(
-            mesh._mesh_impl, point._point_impl, max_normal_angle)
+            mesh._mesh_impl, point._point_impl, max_normal_angle
+        )
         return Mesh(mesh_impl=mesh_impl)

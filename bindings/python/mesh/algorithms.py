@@ -1,39 +1,81 @@
-import numpy as np
+from __future__ import annotations
 
-from . import _mesh_impl as _impl
+import numpy as np
+from numpy.typing import ArrayLike, NDArray
+
 from . import Geodesic, Mesh
+from . import _mesh_impl as _impl  # type: ignore[import-not-found,attr-defined]
 
 
 def length(geodesic: Geodesic) -> float:
+    """Return the length of a geodesic.
+
+    Parameters
+    ----------
+    geodesic : Geodesic
+        Geodesic to measure.
+
+    Returns
+    -------
+    float
+        Geodesic length.
+    """
     return _impl.length(geodesic._geodesic_impl)
 
 
-def solve_path(mesh: Mesh, x0: np.ndarray, x1: np.ndarray, t: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Inputs:
-        mesh: mesh on which doing computation
-        x0 : (N, 3) Tensors on the mesh. The starting point.
-        x1 : (N, 3) Tensors on the mesh. The end point.
-        t: (T,) Tensor of time values between 0 and 1 (inclusive).
-        projx: Bool. If true, projects x onto the mesh after every step.
-    Outputs:
-        xt : (T, N, 3) Tensors on the path.
-        ut : (T, N, 3) Tensors on the tangent plane of xt. The vector field at xt that transports from x0 to x1.
-    """
-    assert x0.shape == x1.shape
-    assert len(x0.shape) == 2
-    assert len(t.shape) == 1
-    N = x0.shape[0]
-    T = t.shape[0]
+def solve_path(
+    mesh: Mesh,
+    x0: ArrayLike,
+    x1: ArrayLike,
+    t: ArrayLike,
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Solve a geodesic transport path between point sets.
 
-    xt = np.zeros((T, N, 3))
-    ut = np.zeros((T, N, 3))
-    
+    Parameters
+    ----------
+    mesh : Mesh
+        Mesh on which the computation is performed.
+    x0 : array_like, shape (N, 3)
+        Starting points on the mesh.
+    x1 : array_like, shape (N, 3)
+        End points on the mesh.
+    t : array_like, shape (T,)
+        Time samples in ``[0, 1]``.
+
+    Returns
+    -------
+    xt : np.ndarray, shape (T, N, 3)
+        Points along the path.
+    ut : np.ndarray, shape (T, N, 3)
+        Tangent vectors along the path.
+
+    Notes
+    -----
+    The implementation is backed by the SWIG bindings and expects inputs
+    convertible to ``numpy.ndarray``.
+    """
+    x0 = np.asarray(x0, dtype=np.float64)
+    x1 = np.asarray(x1, dtype=np.float64)
+    t = np.asarray(t, dtype=np.float64)
+
+    if x0.shape != x1.shape:
+        raise ValueError("x0 and x1 must have the same shape.")
+    if x0.ndim != 2 or x0.shape[1] != 3:
+        raise ValueError("x0 and x1 must have shape (N, 3).")
+    if t.ndim != 1:
+        raise ValueError("t must have shape (T,).")
+
+    n_points = x0.shape[0]
+    n_times = t.shape[0]
+
+    xt = np.zeros((n_times, n_points, 3), dtype=np.float64)
+    ut = np.zeros((n_times, n_points, 3), dtype=np.float64)
+
     path_data = _impl.solve_path(mesh._mesh_impl, x0, x1, t)
 
-    for i in range(N):
+    for i in range(n_points):
         xt[:, i, :] = path_data[i][0]
-        ut[:, i, :] = path_data[i][0]
+        ut[:, i, :] = path_data[i][1]
 
     return xt, ut
 
