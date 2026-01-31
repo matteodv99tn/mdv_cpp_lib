@@ -1,121 +1,141 @@
-import numpy as np
+from __future__ import annotations
 
-from ._mesh_impl import InexactMeshKernel as _InexactMeshKernelImpl
-from ._mesh_impl import Point as _PointImpl
-from ._mesh_impl import PointVector
+from typing import Optional, Sequence
+
+import numpy as np
+from numpy.typing import NDArray
+
+try:
+    from ._mesh_impl import InexactMeshKernel as _InexactMeshKernelImpl  # type: ignore[import-not-found]
+except ImportError:  # pragma: no cover - generated at build time
+
+    class _InexactMeshKernelImpl:  # type: ignore[no-redef]
+        def __init__(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def distance_matrix(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def set_points1(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def find_pointset_max_lengthscale(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def __call__(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+
+from .kernel import MeshKernel
 from .point import Point
 from .vertex import Vertex
-from .kernel import MeshKernel
-from typing import Optional
 
 
 class InexactMeshKernel(MeshKernel):
-    """
-    Python wrapper for inexact mesh kernel operations.
-    
+    """Python wrapper for inexact mesh kernel operations.
+
     This class provides kernel-based operations on meshes with caching support
     for improved performance when computing distance matrices multiple times.
     It inherits from MeshKernel and adds additional functionality for caching
     and inexact computations.
-    
+
     Parameters
     ----------
     mesh : Mesh
-        The mesh object to perform kernel operations on
+        Mesh to operate on.
     """
 
     def __init__(self, mesh):
-        """
-        Initialize an InexactMeshKernel wrapper.
-        
+        """Initialize an InexactMeshKernel wrapper.
+
         Parameters
         ----------
         mesh : Mesh
-            The mesh object to perform kernel operations on
-            
-        Notes
-        -----
-        Creates an inexact kernel object that operates on the given mesh,
-        enabling distance and kernel computations with caching support.
+            Mesh to operate on.
         """
         self._kernel_impl = _InexactMeshKernelImpl(mesh._mesh_impl)
 
-    def distance_matrix(self,
-                        points: list[Point],
-                        points2: list[Point] | None = None) -> np.ndarray:
-        """
-        Compute the geodesic distance matrix for a list of points.
-        
+    def distance_matrix(
+        self,
+        points1: Sequence[Point | Vertex],
+        points2: Sequence[Point | Vertex] | None = None,
+    ) -> NDArray[np.float64]:
+        """Compute the geodesic distance matrix for a list of points.
+
         Parameters
         ----------
-        points : list[Point]
-            List of points to compute distances between
-            
+        points1 : Sequence[Point | Vertex]
+            Points to compute distances between.
+        points2 : Sequence[Point | Vertex], optional
+            Second list of points. If None, uses ``points1``.
+
         Returns
         -------
         np.ndarray
-            Distance matrix of shape (len(points), len(points))
-            
-        Notes
-        -----
-        This method computes the geodesic distances between all pairs of points
-        on the mesh surface. The computation is cached for performance when
-        the same set of points is used multiple times.
+            Distance matrix of shape ``(len(points), len(points2))``.
         """
-        pts_impl = self._to_point_impl_list(points)
+        pts_impl = self._to_point_impl_list(points1)
         if points2 is None:
             return self._kernel_impl.distance_matrix(pts_impl)
 
         pts2_impl = self._to_point_impl_list(points2)
         return self._kernel_impl.distance_matrix(pts_impl, pts2_impl)
 
-    def set_points1(self, points1: list[Point]) -> None:
-        """
-        Set the first set of points for caching.
-        
+    def set_points1(self, points1: Sequence[Point | Vertex]) -> None:
+        """Set the first set of points for caching.
+
         Parameters
         ----------
-        points1 : list[Point]
-            First list of points to cache
-            
-        Notes
-        -----
-        This method sets the first set of points for caching. When this is called,
-        subsequent distance matrix computations can use cached results for improved
-        performance.
+        points1 : Sequence[Point | Vertex]
+            First list of points to cache.
         """
         pts1_impl = self._to_point_impl_list(points1)
         self._kernel_impl.set_points1(pts1_impl)
 
-    def find_pointset_max_lengthscale(self,
-                                      points: list[Point],
-                                      num_steps: int = 30):
-        return self._kernel_impl.find_pointset_max_lengthscale(
-            self._to_point_impl_list(points), num_steps)
+    def find_pointset_max_lengthscale(
+        self,
+        points: Sequence[Point | Vertex],
+        num_steps: int = 30,
+    ) -> float:
+        """Find a heuristic lengthscale upper bound for a point set.
 
-    def __call__(self,
-                 points: list[Point],
-                 points2: list[Point] | None = None,
-                 lengthscale: float = 1.0) -> np.ndarray:
-        """
-        Evaluate the squared exponential (RBF) kernel for cached points.
-        
         Parameters
         ----------
-        points : list[Point]
-            List of points to compute kernel for
+        points : Sequence[Point | Vertex]
+            Points on the mesh.
+        num_steps : int, default=30
+            Number of steps for the internal search.
+
+        Returns
+        -------
+        float
+            Estimated maximum lengthscale.
+        """
+        return self._kernel_impl.find_pointset_max_lengthscale(
+            self._to_point_impl_list(points), num_steps
+        )
+
+    def __call__(
+        self,
+        points: Sequence[Point | Vertex],
+        points2: Sequence[Point | Vertex] | None = None,
+        lengthscale: float = 1.0,
+    ) -> NDArray[np.float64]:
+        """Evaluate the squared exponential (RBF) kernel for cached points.
+
+        Parameters
+        ----------
+        points : Sequence[Point | Vertex]
+            Points to compute the kernel for.
+        points2 : Sequence[Point | Vertex], optional
+            Second list of points. If None, uses ``points``.
         lengthscale : float, default=1.0
-            Length scale parameter for the RBF kernel
-            
+            Length scale parameter.
+
         Returns
         -------
         np.ndarray
-            Kernel matrix of shape (len(points), len(points))
-            
-        Notes
-        -----
-        This method applies the squared exponential (RBF) kernel to pre-computed
-        distances using cached computations for improved performance.
+            Kernel matrix of shape ``(len(points), len(points2))``.
         """
         pts_impl = self._to_point_impl_list(points)
         if points2 is None:
