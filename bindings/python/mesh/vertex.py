@@ -61,7 +61,7 @@ class Vertex:
         np.ndarray
             3D position vector ``[x, y, z]``.
         """
-        return self._vertex_impl.position()
+        return np.asarray(self._vertex_impl.position()).reshape(-1)
 
     @property
     def normal(self) -> NDArray[np.float64]:
@@ -72,7 +72,7 @@ class Vertex:
         np.ndarray
             Normal vector ``[x, y, z]``.
         """
-        return self._vertex_impl.normal()
+        return np.asarray(self._vertex_impl.normal()).reshape(-1)
 
     @property
     def id(self) -> int:

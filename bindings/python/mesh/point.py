@@ -32,6 +32,7 @@ except ImportError:  # pragma: no cover - generated at build time
 
 
 from .vertex import Vertex
+from ._validation import as_vector
 
 if TYPE_CHECKING:
     from .face import Face
@@ -105,7 +106,7 @@ class Point:
         np.ndarray
             3D position vector ``[x, y, z]``.
         """
-        return self._point_impl.position()
+        return np.asarray(self._point_impl.position()).reshape(-1)
 
     @property
     def face(self) -> "Face":
@@ -146,7 +147,8 @@ class Point:
         Point
             New point created from cartesian coordinates.
         """
-        return Point(_PointImpl.from_cartesian(mesh._mesh_impl, position))
+        position_vec = as_vector(position, size=3, name="position")
+        return Point(_PointImpl.from_cartesian(mesh._mesh_impl, position_vec))
 
     @staticmethod
     def random(mesh: "Mesh") -> "Point":

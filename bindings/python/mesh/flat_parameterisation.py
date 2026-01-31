@@ -32,6 +32,7 @@ except ImportError:  # pragma: no cover - generated at build time
 
 from .mesh import Mesh
 from .point import Point
+from ._validation import as_vector
 
 
 class FlatParameterisation:
@@ -101,7 +102,9 @@ class FlatParameterisation:
         in the parameterized domain. The UV coordinates represent the planar
         projection of the surface point.
         """
-        return self._parameterisation_impl.project(point._point_impl).reshape(-1)
+        return np.asarray(
+            self._parameterisation_impl.project(point._point_impl)
+        ).reshape(-1)
 
     def retrieve(self, uv: ArrayLike) -> Point:
         """
@@ -122,7 +125,8 @@ class FlatParameterisation:
         This method transforms 2D UV coordinates back to a 3D point on the mesh
         surface. This is the inverse operation of the project method.
         """
-        point_impl = self._parameterisation_impl.retrieve(uv)
+        uv_vec = as_vector(uv, size=2, name="uv")
+        point_impl = self._parameterisation_impl.retrieve(uv_vec)
         return Point(point_impl)
 
     def is_inside_mesh(self, uv: ArrayLike) -> bool:
@@ -145,7 +149,8 @@ class FlatParameterisation:
         valid parameterization domain of the mesh. Points outside this domain
         may not have meaningful mappings back to the mesh surface.
         """
-        return self._parameterisation_impl.is_inside_mesh(uv)
+        uv_vec = as_vector(uv, size=2, name="uv")
+        return self._parameterisation_impl.is_inside_mesh(uv_vec)
 
     def min_uv(self) -> NDArray[np.float64]:
         """
@@ -161,7 +166,7 @@ class FlatParameterisation:
         Returns the lower bounds of the UV parameterization domain. These values
         define the extent of the 2D parameterization space.
         """
-        return self._parameterisation_impl.min_uv().reshape(-1)
+        return np.asarray(self._parameterisation_impl.min_uv()).reshape(-1)
 
     def max_uv(self) -> NDArray[np.float64]:
         """
@@ -177,4 +182,4 @@ class FlatParameterisation:
         Returns the upper bounds of the UV parameterization domain. These values
         define the extent of the 2D parameterization space.
         """
-        return self._parameterisation_impl.max_uv().reshape(-1)
+        return np.asarray(self._parameterisation_impl.max_uv()).reshape(-1)
