@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-from . import Geodesic, Mesh
 from . import _mesh_impl as _impl  # type: ignore[import-not-found,attr-defined]
 
+if TYPE_CHECKING:
+    from .geodesic import Geodesic
+    from .mesh import Mesh
 
-def length(geodesic: Geodesic) -> float:
+
+def length(geodesic: "Geodesic") -> float:
     """Return the length of a geodesic.
 
     Parameters
@@ -20,11 +25,11 @@ def length(geodesic: Geodesic) -> float:
     float
         Geodesic length.
     """
-    return _impl.length(geodesic._geodesic_impl)
+    return _impl.length(geodesic._geodesic_impl)  # type: ignore[attr-defined]
 
 
 def solve_path(
-    mesh: Mesh,
+    mesh: "Mesh",
     x0: ArrayLike,
     x1: ArrayLike,
     t: ArrayLike,
@@ -71,7 +76,7 @@ def solve_path(
     xt = np.zeros((n_times, n_points, 3), dtype=np.float64)
     ut = np.zeros((n_times, n_points, 3), dtype=np.float64)
 
-    path_data = _impl.solve_path(mesh._mesh_impl, x0, x1, t)
+    path_data = _impl.solve_path(mesh._mesh_impl, x0, x1, t)  # type: ignore[attr-defined]
 
     for i in range(n_points):
         xt[:, i, :] = path_data[i][0]

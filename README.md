@@ -80,7 +80,9 @@ On a machine with ROS2 installed, you may simply:
 You can build and install python bindings through `pip`. From the repository root:
 
 ```
-pip install -e .
+uv venv .venv -p 3.12
+uv pip install -e .
+uv pip install pytest
 ```
 
 ### Development
@@ -108,6 +110,12 @@ Install:
 
 ```
 CMAKE_INSTALL_MODE=ABS_SYMLINK cmake --install build
+```
+
+Run the bindings tests:
+
+```
+uv run pytest bindings/tests
 ```
 
 **Note**: setting [`CMAKE_INSTALL_MODE=ABS_SYMLINK`](https://cmake.org/cmake/help/latest/envvar/CMAKE_INSTALL_MODE.html)
