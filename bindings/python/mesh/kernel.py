@@ -74,9 +74,10 @@ class MeshKernel:
         """
         pts1_impl = self._to_point_impl_list(points1)
         if points2 is None:
-            return np.asarray(self._kernel_impl.distance_matrix(pts1_impl))
+            pts2_impl = pts1_impl
+        else:
+            pts2_impl = self._to_point_impl_list(points2)
 
-        pts2_impl = self._to_point_impl_list(points2)
         return np.asarray(self._kernel_impl.distance_matrix(pts1_impl, pts2_impl))
 
     def __call__(

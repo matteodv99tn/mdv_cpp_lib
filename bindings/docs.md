@@ -16,7 +16,9 @@ Quick path for developers (recommended):
 
 ```bash
 # one-time editable install
-pip install -e .
+uv venv .venv -p 3.12
+uv pip install -e .
+uv pip install pytest
 
 # configure a bindings-only build and install into your active python site-packages
 CMAKE_INSTALL_MODE=ABS_SYMLINK \
@@ -27,6 +29,9 @@ CMAKE_INSTALL_MODE=ABS_SYMLINK \
 # build + install
 CMAKE_INSTALL_MODE=ABS_SYMLINK cmake --build build --parallel
 CMAKE_INSTALL_MODE=ABS_SYMLINK cmake --install build
+
+# run bindings tests
+uv run pytest bindings/tests
 ```
 
 Notes:

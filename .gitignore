@@ -1,6 +1,7 @@
 .cache/
 .idea/
 .vscode/
+__pycache__/
 
 build/
 install/
