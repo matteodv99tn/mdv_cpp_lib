@@ -163,6 +163,16 @@ Eigen::MatrixXd multithreaded_exponential_map(
         const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
 );
 
+Eigen::MatrixXd projx(const Mesh& mesh, const Eigen::MatrixXd& xs);
+
+Eigen::MatrixXd proju(
+        const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
+);
+
+std::pair<Eigen::MatrixXd, Eigen::MatrixXd> closest_face_normal_and_vertex(
+        const Mesh& mesh, const Eigen::MatrixXd& xs
+);
+
 }  // namespace mdv::mesh
 
 
