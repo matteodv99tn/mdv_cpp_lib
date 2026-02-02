@@ -6,10 +6,13 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from . import _mesh_impl as _impl  # type: ignore[import-not-found,attr-defined]
+from ._validation import as_vector
 
 if TYPE_CHECKING:
     from .geodesic import Geodesic
     from .mesh import Mesh
+    from .point import Point
+    from .tangent_vector import TangentVector
 
 
 def length(geodesic: "Geodesic") -> float:
@@ -26,6 +29,125 @@ def length(geodesic: "Geodesic") -> float:
         Geodesic length.
     """
     return _impl.length(geodesic._geodesic_impl)  # type: ignore[attr-defined]
+
+
+def point_from_geodesic(geodesic: "Geodesic", s: float) -> NDArray[np.float64]:
+    """Return a point on a geodesic at a normalized curvilinear coordinate.
+
+    Parameters
+    ----------
+    geodesic : Geodesic
+        Geodesic polyline.
+    s : float
+        Normalized coordinate in ``[0, 1]``.
+
+    Returns
+    -------
+    np.ndarray
+        Point on the geodesic as a 1D vector of shape (3,).
+    """
+    return np.asarray(
+        _impl.point_from_geodesic(geodesic._geodesic_impl, float(s))  # type: ignore[attr-defined]
+    ).reshape(-1)  # type: ignore[attr-defined]
+
+
+def geodesic_resample(
+    geodesic: "Geodesic",
+    coordinates: ArrayLike,
+) -> NDArray[np.float64]:
+    """Resample a geodesic at normalized coordinates.
+
+    Parameters
+    ----------
+    geodesic : Geodesic
+        Geodesic polyline.
+    coordinates : array_like
+        1D array of normalized coordinates in ``[0, 1]``.
+
+    Returns
+    -------
+    np.ndarray
+        Resampled points of shape ``(T, 3)``.
+    """
+    coords = np.asarray(coordinates, dtype=np.float64)
+    if coords.ndim != 1:
+        raise ValueError("coordinates must be a 1D array.")
+    return np.asarray(
+        _impl.geodesic_resample_matrix(  # type: ignore[attr-defined]
+            geodesic._geodesic_impl,  # type: ignore[attr-defined]
+            coords,
+        )
+    )
+
+
+def parallel_transport(
+    tangent_vector: "TangentVector",
+    point: "Point",
+) -> "TangentVector":
+    """Parallel transport a tangent vector to a destination point.
+
+    Parameters
+    ----------
+    tangent_vector : TangentVector
+        Tangent vector to transport.
+    point : Point
+        Destination point.
+
+    Returns
+    -------
+    TangentVector
+        Transported tangent vector.
+    """
+    from .tangent_vector import TangentVector
+
+    tv_impl = _impl.parallel_transport(
+        tangent_vector._tv_impl,  # type: ignore[attr-defined]
+        point._point_impl,  # type: ignore[attr-defined]
+    )
+    return TangentVector.from_impl(tv_impl)  # type: ignore[attr-defined]
+
+
+def logarithmic_map(point: "Point", target: "Point") -> "TangentVector":
+    """Compute the logarithmic map of ``target`` at ``point``.
+
+    Parameters
+    ----------
+    point : Point
+        Base point on the mesh.
+    target : Point
+        Target point on the mesh.
+
+    Returns
+    -------
+    TangentVector
+        Tangent vector at ``point`` pointing toward ``target``.
+    """
+    from .tangent_vector import TangentVector
+
+    tv_impl = _impl.logarithmic_map(
+        point._point_impl,  # type: ignore[attr-defined]
+        target._point_impl,  # type: ignore[attr-defined]
+    )
+    return TangentVector.from_impl(tv_impl)  # type: ignore[attr-defined]
+
+
+def exponential_map(tangent_vector: "TangentVector") -> "Point":
+    """Apply the exponential map of a tangent vector.
+
+    Parameters
+    ----------
+    tangent_vector : TangentVector
+        Tangent vector to apply.
+
+    Returns
+    -------
+    Point
+        Point reached by the exponential map.
+    """
+    from .point import Point
+
+    pt_impl = _impl.exponential_map(tangent_vector._tv_impl)  # type: ignore[attr-defined]
+    return Point(pt_impl)
 
 
 def solve_path(

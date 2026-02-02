@@ -61,6 +61,13 @@ class Face:
         """
         return np.asarray(self._face_impl.normal()).reshape(-1)
 
+    @property
+    def mesh(self):
+        """Return the parent mesh."""
+        from .mesh import Mesh
+
+        return Mesh(mesh_impl=self._face_impl.mesh())  # type: ignore[attr-defined]
+
     def describe(self) -> str:
         """Get a string description of the face.
 

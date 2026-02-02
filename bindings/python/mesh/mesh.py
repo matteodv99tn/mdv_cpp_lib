@@ -61,6 +61,7 @@ from .face import Face
 from .geodesic import Geodesic
 from .point import Point
 from .vertex import Vertex
+from . import _mesh_impl as _impl  # type: ignore[import-not-found]
 from ._validation import as_matrix, as_vector
 
 
@@ -130,8 +131,11 @@ class Mesh:
         if not np.issubdtype(face_matrix.dtype, np.integer):
             face_matrix = face_matrix.astype(np.int32)
 
-        pymesh = pymeshlab.Mesh(vertex_matrix=vertex_matrix, face_matrix=face_matrix)
-        meshset = pymeshlab.MeshSet()
+        pymesh = pymeshlab.Mesh(  # type: ignore[attr-defined]
+            vertex_matrix=vertex_matrix,
+            face_matrix=face_matrix,
+        )
+        meshset = pymeshlab.MeshSet()  # type: ignore[attr-defined]
         meshset.add_mesh(pymesh)
 
         with tempfile.NamedTemporaryFile(suffix=".off", delete=False) as tmp:
@@ -181,6 +185,21 @@ class Mesh:
             Path to the mesh directory.
         """
         return mesh_directory()
+
+    def transform(self, matrix: ArrayLike) -> None:
+        """Apply an affine transform to the mesh.
+
+        Parameters
+        ----------
+        matrix : array_like, shape (4, 4)
+            Homogeneous transform matrix.
+        """
+        transform = np.asarray(matrix, dtype=np.float64)
+        if transform.shape != (4, 4):
+            raise ValueError("matrix must have shape (4, 4).")
+        from . import _mesh_impl as _impl  # type: ignore[import-not-found]
+
+        _impl.apply_transform(self._mesh_impl, transform)  # type: ignore[attr-defined]
 
     @staticmethod
     def cube_angle() -> "Mesh":
@@ -301,6 +320,10 @@ class Mesh:
         """
         return Face(self._mesh_impl.face(id))
 
+    def random_face(self) -> Face:
+        """Return a random face from the mesh."""
+        return Face(self._mesh_impl.random_face())  # type: ignore[attr-defined]
+
     @property
     def faces(self) -> list[Face]:
         """Return all faces in the mesh.
@@ -390,19 +413,19 @@ class Mesh:
         vertices = self.get_vertex_matrix()
         return pyvista.make_tri_mesh(vertices, faces)
 
-    def _create_meshset(self) -> pymeshlab.MeshSet:
+    def _create_meshset(self) -> "pymeshlab.MeshSet":  # type: ignore[attr-defined]
         """Create a pymeshlab MeshSet from this mesh.
 
         Returns
         -------
-        pymeshlab.MeshSet
+        MeshSet
             MeshSet containing this mesh.
         """
-        pymesh = pymeshlab.Mesh(
+        pymesh = pymeshlab.Mesh(  # type: ignore[attr-defined]
             vertex_matrix=self.get_vertex_matrix(),
             face_matrix=self.get_face_matrix(),
         )
-        meshset = pymeshlab.MeshSet()
+        meshset = pymeshlab.MeshSet()  # type: ignore[attr-defined]
         meshset.add_mesh(pymesh)
         return meshset
 
