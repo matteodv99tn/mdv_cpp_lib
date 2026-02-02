@@ -105,6 +105,22 @@ namespace mdv::mesh {
             const Eigen::MatrixXd& vs
     );
 
+    Eigen::MatrixXd projx(
+            const mdv::mesh::Mesh& mesh,
+            const Eigen::MatrixXd& xs
+    );
+
+    Eigen::MatrixXd proju(
+            const mdv::mesh::Mesh& mesh,
+            const Eigen::MatrixXd& xs,
+            const Eigen::MatrixXd& vs
+    );
+
+    std::pair<Eigen::MatrixXd, Eigen::MatrixXd> closest_face_normal_and_vertex(
+        const mdv::mesh::Mesh&, 
+        const Eigen::MatrixXd&
+    );
+
     class MeshKernel {
     public:
         MeshKernel(const mdv::mesh::Mesh&);

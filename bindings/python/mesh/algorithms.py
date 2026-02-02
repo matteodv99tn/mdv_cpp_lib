@@ -50,3 +50,38 @@ def multithreaded_exponential_map(
         ys : (N, 3) Tensors of the exponential map
     """
     return _impl.multithreaded_exponential_map(mesh._mesh_impl, xs, vs)
+
+
+def projx(mesh: Mesh, xs: np.ndarray) -> np.ndarray:
+    """
+    Inputs:
+        mesh: mesh on which doing computation
+        xs : (N, 3) Tensors on the mesh. Points to be projected on the mesh
+    Outputs:
+        ys : (N, 3) Points projected on the mesh
+    """
+    return _impl.projx(mesh._mesh_impl, xs)
+
+
+def proju(mesh: Mesh, xs: np.ndarray, vs: np.ndarray) -> np.ndarray:
+    """
+    Inputs:
+        mesh: mesh on which vectors shall be projected
+        xs : (N, 3) Tensors on the mesh. Application points of the tangent vector
+        vs : (N, 3) Tensors on the mesh. The tangent vector at each xs.
+    Outputs:
+        ys : (N, 3) Vectors projected in the tangent space
+    """
+    return _impl.proj(mesh._mesh_impl, xs, vs)
+
+
+def closest_face_normal_and_vertex(
+    mesh: Mesh, xs: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Inputs:
+        mesh: mesh on which vectors shall be projected
+        xs : (N, 3) Tensors on the mesh. Application points of the tangent vector
+    """
+    res = _impl.closest_face_normal_and_vertex(mesh._mesh_impl, xs)
+    return np.array(res[0]), np.array(res[1])

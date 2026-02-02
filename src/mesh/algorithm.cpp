@@ -356,7 +356,53 @@ mdv::mesh::multithreaded_exponential_map(
     // for (long i = 0; i < xs.rows(); ++i) threads.emplace_back(process_row, i);
     for (long i = 0; i < xs.rows(); ++i) process_row(i);
 
-    if (n_zeroed > 0)
-        std::cout << "Zeroed " << n_zeroed << " vectors\n";
+    if (n_zeroed > 0) std::cout << "Zeroed " << n_zeroed << " vectors\n";
+    return res;
+}
+
+Eigen::MatrixXd
+mdv::mesh::projx(const Mesh& mesh, const Eigen::MatrixXd& xs) {
+    if (xs.cols() != 3) throw std::runtime_error("projx require xs to have 3 columns");
+    Eigen::MatrixXd res(xs.rows(), xs.cols());
+    for (long i = 0; i < xs.rows(); ++i)
+        res.row(i) = Point::from_cartesian(mesh, xs.row(i)).position();
+    return res;
+}
+
+Eigen::MatrixXd
+mdv::mesh::proju(
+        const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
+) {
+    if (xs.cols() != 3) throw std::runtime_error("projx require xs to have 3 columns");
+    Eigen::MatrixXd res(xs.rows(), xs.cols());
+    for (long i = 0; i < xs.rows(); ++i) {
+        const auto pt = Point::from_cartesian(mesh, xs.row(i));
+        res.row(i) =
+                TangentVector::from_ambient_vector(pt, vs.row(i)).cartesian_vector();
+    }
+    return res;
+}
+
+std::pair<Eigen::MatrixXd, Eigen::MatrixXd>
+mdv::mesh::closest_face_normal_and_vertex(const Mesh& mesh, const Eigen::MatrixXd& xs) {
+    if (xs.cols() != 3) throw std::runtime_error("projx require xs to have 3 columns");
+
+    std::pair<Eigen::MatrixXd, Eigen::MatrixXd> res = std::make_pair(
+            Eigen::MatrixXd(xs.rows(), xs.cols()), Eigen::MatrixXd(xs.rows(),
+            xs.cols())
+    );
+    Eigen::MatrixXd& ns = res.first;
+    Eigen::MatrixXd& vs = res.second;
+
+    long n_singular = 0;
+    for (long i = 0; i < xs.rows(); ++i) {
+        const auto pt = Point::from_cartesian(mesh, xs.row(i));
+        ns.row(i)     = pt.face().normal();
+        const auto v  = mesh.vertex(pt.face().vertices_ids()[0]);
+        vs.row(i)     = v.position();
+        if (location_type(pt) != LocationType::INSIDE_FACE) ++n_singular;
+    }
+    // if (n_singular > 0)
+    //     std::cout << "Number of singular points: " << n_singular << "\n";
     return res;
 }
