@@ -131,6 +131,24 @@ class MeshKernel:
             evaluate_squared_exponential(distance_matrix, float(lengthscale))
         )
 
+    @staticmethod
+    def is_positive_definite(matrix: ArrayLike) -> bool:
+        """Return True if a matrix is positive definite.
+
+        Parameters
+        ----------
+        matrix : array_like
+            Matrix to test.
+
+        Returns
+        -------
+        bool
+            True if positive definite.
+        """
+        from ._mesh_impl import is_positive_definite  # type: ignore[import-not-found]
+
+        return bool(is_positive_definite(matrix))
+
     def find_pointset_max_lengthscale(
         self,
         points: Sequence[Point | Vertex],

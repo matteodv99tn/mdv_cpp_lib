@@ -26,6 +26,8 @@ class MeshKernel:
         distance_matrix: ArrayLike,
         lengthscale: float = ...,
     ) -> NDArray[np.float64]: ...
+    @staticmethod
+    def is_positive_definite(matrix: ArrayLike) -> bool: ...
     def find_pointset_max_lengthscale(
         self,
         points: Sequence[Point | Vertex],

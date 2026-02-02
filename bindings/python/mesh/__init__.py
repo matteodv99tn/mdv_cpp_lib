@@ -3,10 +3,20 @@
 Public, typed wrappers around the SWIG-generated mesh bindings.
 """
 
-from .algorithms import length, solve_path
+from .algorithms import (  # type: ignore[attr-defined]
+    exponential_map,
+    geodesic_resample,
+    length,
+    logarithmic_map,
+    parallel_transport,
+    point_from_geodesic,
+    solve_path,
+)
+from .tangent_vector import TangentVector
 from .face import Face
 from .flat_parameterisation import FlatParameterisation
 from .geodesic import Geodesic
+from .gaussian_process import InexactGaussianProcess
 from .inexact_kernel import InexactMeshKernel
 from .kernel import MeshKernel
 from .mesh import Mesh
@@ -17,12 +27,19 @@ __all__ = [
     "Face",
     "FlatParameterisation",
     "Geodesic",
+    "InexactGaussianProcess",
     "InexactMeshKernel",
     "Mesh",
     "MeshKernel",
     "Point",
+    "TangentVector",
     "Vertex",
     "length",
+    "logarithmic_map",
+    "parallel_transport",
+    "point_from_geodesic",
+    "geodesic_resample",
+    "exponential_map",
     "mesh_directory",
     "solve_path",
 ]
