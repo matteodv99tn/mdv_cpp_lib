@@ -1,6 +1,7 @@
 #include "mdv/mesh/algorithm.hpp"
 
 #include <atomic>
+#include <map>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/all.hpp>
 
@@ -16,6 +17,13 @@
 #include "mdv/utils/logging_extras.hpp"
 
 #include "BS_thread_pool.hpp"
+
+// #define RERUN_DEBUG
+
+#ifdef RERUN_DEBUG
+#include <rerun.hpp>
+#include "mdv/rerun.hpp"
+#endif
 
 // \cond DOXYGEN_IGNORE
 using mdv::mesh::Geodesic;
@@ -285,6 +293,75 @@ mdv::mesh::location_type(const TangentVector& tv) {
 
 BS::thread_pool th_pool;
 
+#ifdef RERUN_DEBUG
+
+rerun::RecordingStream& rec() {
+    static constexpr std::string_view url = "rerun+http://10.236.248.135:9876/proxy";
+    static rerun::RecordingStream _rec("flow_matching");
+    static bool rec_init = [](rerun::RecordingStream& stream) {
+        fmt::print("\rConnecting to rerun with URL {}", url);
+        stream.connect_grpc(url).exit_on_failure();
+        return true;
+    }(_rec);
+    return _rec;
+}
+
+void step_timetick(std::string_view time_axis) {
+    static std::map<std::string_view, long> data;
+
+    long& k = data[time_axis];
+    ++k;
+    rec().set_time_sequence(time_axis, k);
+    fmt::print("\rSetting tick {} for time axis {}\n", k, time_axis);
+};
+
+void log_mesh(const Mesh& m) {
+    static bool logged = false;
+
+    if (logged) return;
+
+    rec().log_static("mesh", mdv::RerunConverter{}(m));
+    logged = true;
+}
+
+void log_points(const Eigen::MatrixXd& pts, std::string_view path) {
+    const long N = pts.rows();
+    std::vector<rerun::components::Position3D> pos;
+    pos.reserve(N);
+    for (long i = 0; i < N; ++i) {
+        const double x = pts(i, 0);
+        const double y = pts(i, 1);
+        const double z = pts(i, 2);
+        pos.emplace_back(x, y, z);
+    }
+    rec().log(path, rerun::archetypes::Points3D{std::move(pos)});
+}
+
+void log_vectorfield(
+        const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs, std::string_view path
+        ) {
+    std::vector<rerun::components::Position3D> origins;
+    std::vector<rerun::components::Vector3D> directions;
+    const long N = xs.rows();
+    origins.reserve(N);
+    directions.reserve(N);
+    for (long i = 0; i < N; ++i) {
+        const double px = xs(i, 0);
+        const double py = xs(i, 1);
+        const double pz = xs(i, 2);
+        origins.emplace_back(px, py, pz);
+
+        const double vx = vs(i, 0);
+        const double vy = vs(i, 1);
+        const double vz = vs(i, 2);
+        directions.emplace_back(vx, vy, vz);
+    }
+    
+    rec().log(path, rerun::archetypes::Arrows3D::from_vectors(std::move(directions)).with_origins(std::move(origins)));
+}
+
+#endif
+
 std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>>
 mdv::mesh::solve_path(
         const Mesh&            mesh,
@@ -321,6 +398,15 @@ mdv::mesh::solve_path(
         pair.first       = geodesic_resample(geod, t);
         pair.second      = Eigen::MatrixXd(T, 3);
 
+#ifdef RERUN_DEBUG
+        if (i == 0)
+            rec().log("solve_path/geod1", mdv::RerunConverter{}(geod));
+        if (i == 1)
+            rec().log("solve_path/geod2", mdv::RerunConverter{}(geod));
+        if (i == 2)
+            rec().log("solve_path/geod3", mdv::RerunConverter{}(geod));
+#endif
+
         for (long j = 0; j < T - 1; ++j) {
             pair.second.row(j) =
                     len * (pair.first.row(j + 1) - pair.first.row(j)).normalized();
@@ -336,6 +422,14 @@ mdv::mesh::solve_path(
         std::cout << "Number of trivial paths: " << n_trivials << " / " << N << "\n"
                   << std::flush;
     }
+
+#ifdef RERUN_DEBUG
+    log_mesh(mesh);
+    step_timetick("solve_path");
+    log_vectorfield(res[0].first, res[0].second, "solve_path/in1");
+    log_vectorfield(res[1].first, res[1].second, "solve_path/in2");
+    log_vectorfield(res[2].first, res[2].second, "solve_path/in3");
+#endif
     return res;
 }
 
@@ -390,6 +484,12 @@ mdv::mesh::multithreaded_exponential_map(
     if (n_changed > 2)
         fmt::print("\rExp Map | changed / num vs (after) / total : {} / {} ({}) / {}\n", n_changed, n_vertices, n_vertices_after, xs.rows());
 
+#ifdef RERUN_DEBUG
+    log_mesh(mesh);
+    step_timetick("exp_map");
+    log_vectorfield(xs, vs, "expmap/input");
+    log_points(res, "expmap/output");
+#endif
     return res;
 }
 
@@ -430,6 +530,16 @@ mdv::mesh::projx(const Mesh& mesh, const Eigen::MatrixXd& xs) {
         if (location_type(pt) == ON_VERTEX) ++on_v;
     }
 
+#ifdef RERUN_DEBUG
+    log_mesh(mesh);
+    step_timetick("projx");
+    log_points(xs, "projx/input");
+    log_points(res, "projx/output");
+#endif
+    // fmt::print("\rC++ projx validation -- {} on vertex\n", on_v);
+    // validate_projx(mesh, xs, res);
+    // validate_projx(mesh, res, res);
+    // fmt::print("\rC++ projx validation -- Done\n");
     return res;
 }
 
@@ -460,6 +570,9 @@ mdv::mesh::proj_transformation(
     constexpr long batch_size = 16;
     const long N = xs.rows();
     std::vector<Mat3> res(N);
+#ifdef RERUN_DEBUG
+    Eigen::MatrixXd vp(N, 3);  // projected vectors -- for visualisation
+#endif
 
     const auto process_row = [&](const long i) {
         const Vec3 pos{xs.row(i)};
@@ -477,6 +590,9 @@ mdv::mesh::proj_transformation(
         if ((v3-v2).norm() > 1e-9) 
             throw std::runtime_error("Computed wrong transformation matrix");
 #endif
+#ifdef RERUN_DEBUG
+        vp.row(i) = tv.cartesian_vector();
+#endif
     };
 
     const auto process_rows_batched = [&process_row, N](const long start) {
@@ -489,6 +605,12 @@ mdv::mesh::proj_transformation(
         th_pool.detach_task([&process_rows_batched, i] { process_rows_batched(i); });
     th_pool.wait();
 
+#ifdef RERUN_DEBUG
+    log_mesh(mesh);
+    step_timetick("proju_transform");
+    log_vectorfield(xs, vs, "proju/input");
+    log_vectorfield(xs, vp, "proju/output");
+#endif
 
     return res;
 }
