@@ -165,7 +165,16 @@ Eigen::MatrixXd multithreaded_exponential_map(
 
 Eigen::MatrixXd projx(const Mesh& mesh, const Eigen::MatrixXd& xs);
 
+long num_points_on_mesh(const Mesh& mesh, const Eigen::MatrixXd& xs);
+
+void 
+validate_projx(const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& xs_proj);
+
 Eigen::MatrixXd proju(
+        const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
+);
+
+std::vector<Eigen::Matrix3d> proj_transformation(
         const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
 );
 

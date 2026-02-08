@@ -17,6 +17,7 @@
 %eigen_typemaps(Eigen::Vector2d)
 %eigen_typemaps(Eigen::Vector3d)
 %eigen_typemaps(Eigen::VectorXd)
+%eigen_typemaps(Eigen::Matrix3d)
 %eigen_typemaps(Eigen::Matrix4d)
 %eigen_typemaps(Eigen::MatrixXd)
 %eigen_typemaps(Eigen::MatrixXi)
@@ -186,7 +187,24 @@ namespace mdv::mesh {
             const Eigen::MatrixXd& xs
     );
 
+    void validate_projx(
+            const mdv::mesh::Mesh& mesh,
+            const Eigen::MatrixXd&,
+            const Eigen::MatrixXd&
+    );
+
+    long num_points_on_mesh(
+            const mdv::mesh::Mesh& mesh,
+            const Eigen::MatrixXd&
+    );
+
     Eigen::MatrixXd proju(
+            const mdv::mesh::Mesh& mesh,
+            const Eigen::MatrixXd& xs,
+            const Eigen::MatrixXd& vs
+    );
+
+    std::vector<Eigen::Matrix3d> proj_transformation(
             const mdv::mesh::Mesh& mesh,
             const Eigen::MatrixXd& xs,
             const Eigen::MatrixXd& vs
@@ -352,5 +370,6 @@ namespace std {
 
 %template(MatrixPair) std::pair<Eigen::MatrixXd, Eigen::MatrixXd>;
 %template(Geodesic) std::vector<Eigen::Vector3d>;
+%template(Mat3Vector) std::vector<Eigen::Matrix3d>;
 %template(PointVector) std::vector<mdv::mesh::Point>;
 %template(VectorMatrixPairs) std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>>;

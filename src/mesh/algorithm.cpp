@@ -1,5 +1,6 @@
 #include "mdv/mesh/algorithm.hpp"
 
+#include <atomic>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/all.hpp>
 
@@ -13,6 +14,8 @@
 #include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
+
+#include "BS_thread_pool.hpp"
 
 // \cond DOXYGEN_IGNORE
 using mdv::mesh::Geodesic;
@@ -279,6 +282,9 @@ mdv::mesh::location_type(const TangentVector& tv) {
     return location_type(tv.application_point());
 }
 
+
+BS::thread_pool th_pool;
+
 std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>>
 mdv::mesh::solve_path(
         const Mesh&            mesh,
@@ -293,7 +299,7 @@ mdv::mesh::solve_path(
     const long N = x0.rows();
     const long T = t.rows();
 
-    long n_trivials = 0;
+    std::atomic_long n_trivials = 0;
 
     std::vector<MatPair> res(N);
 
@@ -322,10 +328,10 @@ mdv::mesh::solve_path(
         pair.second.row(T - 1) = pair.second.row(T - 2);
     };
 
-    std::vector<std::thread> threads;
-    threads.reserve(N);
-    for (long i = 0; i < N; ++i) threads.emplace_back(solve_path_index, i);
-    for (long i = 0; i < N; ++i) threads[i].join();
+    for (long i = 0; i < N; ++i) 
+        th_pool.detach_task([&solve_path_index, i]() { solve_path_index(i); });
+    th_pool.wait();
+
     if (n_trivials > 2) {
         std::cout << "Number of trivial paths: " << n_trivials << " / " << N << "\n"
                   << std::flush;
@@ -337,35 +343,93 @@ Eigen::MatrixXd
 mdv::mesh::multithreaded_exponential_map(
         const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
 ) {
+    using Vec3 = Eigen::Vector3d;
+
     if (xs.rows() != vs.rows() || xs.cols() != vs.cols())
         throw std::runtime_error("multithreaded exponential map with different sizes!");
 
     Eigen::MatrixXd res(xs.rows(), xs.cols());
-    long n_zeroed = 0;
 
-    auto process_row = [&res, &mesh, &xs, &vs, &n_zeroed](const long i) {
-        const auto pt = Point::from_cartesian(mesh, xs.row(i));
-        const auto tv = TangentVector::from_ambient_vector(pt, vs.row(i));
-        if (!mdv::condition::is_zero_norm(vs.row(i)) && tv.cartesian_vector().isZero())
+    std::atomic_long n_zeroed = 0;
+    std::atomic_long n_changed = 0;
+    std::atomic_long n_vertices = 0;
+    std::atomic_long n_vertices_after = 0;
+    constexpr long batch_size = 16;
+
+    auto process_row = [&res, &mesh, &xs, &vs, &n_zeroed, &n_changed, &n_vertices, &n_vertices_after](const long i) {
+        const Vec3 pos{xs.row(i)};
+        const Vec3 vec{vs.row(i)};
+        const auto pt = Point::from_cartesian(mesh, pos);
+        const auto tv = TangentVector::from_ambient_vector(pt, vec);
+
+        if (!mdv::condition::is_zero_norm(vec) && tv.cartesian_vector().isZero())
             ++n_zeroed;
-        res.row(i)    = exponential_map(tv).position();
+
+        if ((tv.cartesian_vector() - vec).norm() > 1e-6)
+            ++n_changed;
+
+        if (pt.get_as<Point::PointOnVertexDescriptor>() != nullptr)
+            ++n_vertices;
+
+        const auto exp = exponential_map(tv);
+        res.row(i)     = exp.position();
+        if(location_type(exp) == ON_VERTEX) ++n_vertices_after;
     };
 
-    // std::vector<std::jthread> threads;
-    // threads.reserve(xs.rows());
-    // for (long i = 0; i < xs.rows(); ++i) threads.emplace_back(process_row, i);
-    for (long i = 0; i < xs.rows(); ++i) process_row(i);
+    auto process_rows_batched = [&process_row, &xs](const long start) {
+        const long end = std::min(start + batch_size, xs.rows());
+        for (long i = start; i < end; ++i)
+            process_row(i);
+    };
+
+    for (long i = 0; i < xs.rows(); i += batch_size) 
+        th_pool.detach_task([&process_rows_batched, i] { process_rows_batched(i); });
+    th_pool.wait();
 
     if (n_zeroed > 0) std::cout << "Zeroed " << n_zeroed << " vectors\n";
+    if (n_changed > 2)
+        fmt::print("\rExp Map | changed / num vs (after) / total : {} / {} ({}) / {}\n", n_changed, n_vertices, n_vertices_after, xs.rows());
+
     return res;
+}
+
+long
+mdv::mesh::num_points_on_mesh(const Mesh& mesh, const Eigen::MatrixXd& xs) {
+    using Vec3 = Eigen::Vector3d;
+
+    const long N = xs.rows();
+    long on_mesh = 0;
+    for (long i = 0; i < N; ++i) {
+        const Vec3 pos{xs.row(i)};
+        const auto pt = Point::from_cartesian(mesh, pos);
+        if ((pt.position() - pos).norm() < 1e-6)
+            ++on_mesh;
+    }
+    return on_mesh;
 }
 
 Eigen::MatrixXd
 mdv::mesh::projx(const Mesh& mesh, const Eigen::MatrixXd& xs) {
+    using Vec3 = Eigen::Vector3d;
     if (xs.cols() != 3) throw std::runtime_error("projx require xs to have 3 columns");
-    Eigen::MatrixXd res(xs.rows(), xs.cols());
-    for (long i = 0; i < xs.rows(); ++i)
-        res.row(i) = Point::from_cartesian(mesh, xs.row(i)).position();
+    const long N = xs.rows();
+    long on_v = 0;
+    Eigen::MatrixXd res(N, 3);
+    for (long i = 0; i < N; ++i) {
+        const Vec3 xo{xs.row(i)};
+        const auto cv = mesh.closest_vertex(xo);
+
+        if ( (cv.position() - xo).norm() < 1e-6) {
+            ++on_v;
+            res.row(i) = xo;
+            continue;
+        }
+        
+        const auto pt = Point::from_cartesian(mesh, xo);
+        res.row(i) = pt.position();
+        if (location_type(pt) == ON_VERTEX) ++on_v;
+    }
+
     return res;
 }
 
@@ -380,6 +444,52 @@ mdv::mesh::proju(
         res.row(i) =
                 TangentVector::from_ambient_vector(pt, vs.row(i)).cartesian_vector();
     }
+    return res;
+}
+
+std::vector<Eigen::Matrix3d>
+mdv::mesh::proj_transformation(
+        const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
+) {
+    using Vec3 = Eigen::Vector3d;
+    using Mat3 = Eigen::Matrix3d;
+    using Quat = Eigen::Quaterniond;
+
+    if (xs.cols() != 3) throw std::runtime_error("projx require xs to have 3 columns");
+
+    constexpr long batch_size = 16;
+    const long N = xs.rows();
+    std::vector<Mat3> res(N);
+
+    const auto process_row = [&](const long i) {
+        const Vec3 pos{xs.row(i)};
+        const Vec3 vec{vs.row(i)};
+        const auto pt = Point::from_cartesian(mesh, pos);
+        const auto tv = TangentVector::from_ambient_vector(pt, vec);
+
+        Mat3& tf = res[i];
+        const Vec3& v1 = vec;
+        const Vec3  v2 = tv.cartesian_vector();
+        const Quat  q  = Quat::FromTwoVectors(v1, v2);
+        tf = Mat3{q} * v2.norm() / v1.norm();
+#if 1
+        const Vec3 v3 = tf * v1;
+        if ((v3-v2).norm() > 1e-9) 
+            throw std::runtime_error("Computed wrong transformation matrix");
+#endif
+    };
+
+    const auto process_rows_batched = [&process_row, N](const long start) {
+        const long end = std::min(start + batch_size, N);
+        for (long i = start; i < end; ++i)
+            process_row(i);
+    };
+
+    for (long i = 0; i < xs.rows(); i += batch_size) 
+        th_pool.detach_task([&process_rows_batched, i] { process_rows_batched(i); });
+    th_pool.wait();
+
+
     return res;
 }
 
@@ -405,4 +515,32 @@ mdv::mesh::closest_face_normal_and_vertex(const Mesh& mesh, const Eigen::MatrixX
     // if (n_singular > 0)
     //     std::cout << "Number of singular points: " << n_singular << "\n";
     return res;
+}
+
+void 
+mdv::mesh::validate_projx(
+        const Mesh& mesh, 
+        const Eigen::MatrixXd& xs, 
+        const Eigen::MatrixXd& xs_proj
+        ) {
+    using Vec3 = Eigen::Vector3d;
+
+    const long N = xs.rows();
+    long n_vertices = 0;
+    long n_changed = 0;
+    long n_good_proj = 0;
+    
+    for (long i = 0; i < N; ++i) {
+        const Vec3 pos{xs.row(i)};
+        const auto pt = Point::from_cartesian(mesh, pos);
+        const Vec3 proj{xs_proj.row(i)};
+
+        if ((pt.position() - proj).norm() > 1e-6) ++n_changed;
+        if (pt.get_as<Point::PointOnVertexDescriptor>() != nullptr) ++n_vertices;
+
+        const auto pp = Point::from_cartesian(mesh, proj);
+        if ((pp.position() - proj).norm() < 1e-6) ++n_good_proj;
+    }
+
+    fmt::print("\rProjx | changed / valid / n. verts / tot : {} / {} / {} / {}\n", n_changed, n_good_proj, n_vertices, N);
 }

@@ -48,7 +48,9 @@ def point_from_geodesic(geodesic: "Geodesic", s: float) -> NDArray[np.float64]:
     """
     return np.asarray(
         _impl.point_from_geodesic(geodesic._geodesic_impl, float(s))  # type: ignore[attr-defined]
-    ).reshape(-1)  # type: ignore[attr-defined]
+    ).reshape(
+        -1
+    )  # type: ignore[attr-defined]
 
 
 def geodesic_resample(
@@ -231,6 +233,12 @@ def projx(mesh: Mesh, xs: np.ndarray) -> np.ndarray:
     """
     return _impl.projx(mesh._mesh_impl, xs)
 
+def validate_projx(mesh: Mesh, xs: np.ndarray, ps: np.ndarray):
+    _impl.validate_projx(mesh._mesh_impl, xs, ps)
+
+def num_points_on_mesh(mesh: Mesh, xs: np.ndarray) -> int:
+    return _impl.num_points_on_mesh(mesh._mesh_impl, xs)
+
 
 def proju(mesh: Mesh, xs: np.ndarray, vs: np.ndarray) -> np.ndarray:
     """
@@ -242,6 +250,23 @@ def proju(mesh: Mesh, xs: np.ndarray, vs: np.ndarray) -> np.ndarray:
         ys : (N, 3) Vectors projected in the tangent space
     """
     return _impl.proj(mesh._mesh_impl, xs, vs)
+
+
+def proj_transformation(mesh: Mesh, xs: np.ndarray, vs: np.ndarray) -> np.ndarray:
+    """
+    Inputs:
+        mesh: mesh on which vectors shall be projected
+        xs : (N, 3) Tensors on the mesh. Application points of the tangent vector
+        vs : (N, 3) Tensors on the mesh. The tangent vector at each xs.
+    Outputs:
+        tf : (N, 3, 3) Vectors projected in the tangent space
+    """
+    N = xs.shape[0]
+    impl_res = _impl.proj_transformation(mesh._mesh_impl, xs, vs)
+    res = np.zeros((N, 3, 3))
+    for i in range(N):
+        res[i, :, :] = impl_res[i]
+    return res
 
 
 def closest_face_normal_and_vertex(
