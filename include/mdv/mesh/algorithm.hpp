@@ -178,6 +178,10 @@ std::vector<Eigen::Matrix3d> proj_transformation(
         const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
 );
 
+std::pair<Eigen::MatrixXd, Eigen::MatrixXd> proj_transformation_directions(
+        const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
+);
+
 std::pair<Eigen::MatrixXd, Eigen::MatrixXd> closest_face_normal_and_vertex(
         const Mesh& mesh, const Eigen::MatrixXd& xs
 );

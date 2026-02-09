@@ -369,6 +369,7 @@ mdv::mesh::solve_path(
         const Eigen::MatrixXd& x1,
         const Eigen::VectorXd& t
 ) {
+    using Vec3          = Eigen::Vector3d;
     using MatPair       = std::pair<Eigen::MatrixXd, Eigen::MatrixXd>;
     using MatPairVector = std::vector<MatPair>;
 
@@ -481,7 +482,7 @@ mdv::mesh::multithreaded_exponential_map(
     th_pool.wait();
 
     if (n_zeroed > 0) std::cout << "Zeroed " << n_zeroed << " vectors\n";
-    if (n_changed > 2)
+    if (n_changed > 20)
         fmt::print("\rExp Map | changed / num vs (after) / total : {} / {} ({}) / {}\n", n_changed, n_vertices, n_vertices_after, xs.rows());
 
 #ifdef RERUN_DEBUG
@@ -613,6 +614,52 @@ mdv::mesh::proj_transformation(
 #endif
 
     return res;
+}
+
+std::pair<Eigen::MatrixXd, Eigen::MatrixXd> 
+mdv::mesh::proj_transformation_directions(
+        const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
+) {
+    using Mat = Eigen::MatrixXd;
+    using Vec3 = Eigen::Vector3d;
+
+    static constexpr long batch_size = 32;
+    const long N = xs.rows();
+    Mat d1_mat = Mat::Zero(N, 3);
+    Mat d2_mat = Mat::Zero(N, 3);
+
+    auto process_row = [&](const long i) {
+        const Vec3 pos{xs.row(i)};
+        const Vec3 vec{vs.row(i)};
+        const auto pt = Point::from_cartesian(mesh, pos);
+        const auto tv = TangentVector::from_ambient_vector(pt, vec);
+
+        const Vec3 n = tv.application_point().face().normal();
+        Vec3 d1 = Vec3::Zero();
+        d1_mat.row(i) = n;
+        if (tv.type() == TangentVector::ALONG_EDGE) {
+            const Vec3 e = tv.halfedge().direction();
+            d1 = e.cross(n).normalized();
+            d2_mat.row(i) = d1;
+        }
+#if 1
+        const Vec3 proj{tv.cartesian_vector()};
+        const Vec3 tmp = vec - vec.dot(n) * n - vec.dot(d1) * d1;
+        if ((proj - tmp).norm() > 1e-6)
+            throw std::runtime_error("Invalid projection");
+#endif
+    };
+    const auto process_batched = [&](const long start) {
+        const long end = std::min(start + batch_size, N);
+        for (long i = start; i < end; ++i) process_row(i);
+    };
+
+    // BS::thread_pool pool;
+    for (long i = 0; i < N; i += batch_size)
+        th_pool.detach_task([&process_batched, i]() { process_batched(i); });
+    th_pool.wait();
+
+    return std::make_pair(d1_mat, d2_mat);
 }
 
 std::pair<Eigen::MatrixXd, Eigen::MatrixXd>

@@ -268,6 +268,10 @@ def proj_transformation(mesh: Mesh, xs: np.ndarray, vs: np.ndarray) -> np.ndarra
         res[i, :, :] = impl_res[i]
     return res
 
+def proj_transformation_directions(mesh: Mesh, xs: np.ndarray, vs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    impl_res = _impl.proj_transformation_directions(mesh._mesh_impl, xs, vs)
+    return np.asarray(impl_res[0]), np.asarray(impl_res[1])
+
 
 def closest_face_normal_and_vertex(
     mesh: Mesh, xs: np.ndarray
