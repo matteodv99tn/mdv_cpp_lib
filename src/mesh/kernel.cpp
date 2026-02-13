@@ -3,9 +3,9 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <stdexcept>
-#include <thread>
 #include <utility>
 
+#include "BS_thread_pool.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_geodesic.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
@@ -13,6 +13,11 @@
 #include "mdv/mesh/point.hpp"
 
 namespace mdv::mesh {
+
+
+namespace {
+    BS::thread_pool th_pool;
+}  // namespace
 
 class DistanceEvaluator {
 public:
@@ -22,23 +27,32 @@ public:
 
     Eigen::MatrixXd
     operator()(const InputVector& pts1, const InputVector& pts2) const {
-        Eigen::MatrixXd   res(pts1.size(), pts2.size());
-        const std::size_t n_threads = 30;
-        const long batch_size       = std::max(std::size_t{2}, pts1.size() / n_threads);
-
-        auto thread_evaluator = [this, &res, &pts1, &pts2, &batch_size](const long i) {
-            evaluate_rows_batched(res, pts1, pts2, i, batch_size);
-        };
-        std::vector<std::thread> threads;
-        threads.reserve(n_threads + 1);
-
-        for (long i = 0; i < res.rows(); i += batch_size)
-            threads.emplace_back(thread_evaluator, i);
-        for (auto& th : threads) th.join();
+        Eigen::MatrixXd res(pts1.size(), pts2.size());
+        th_pool.detach_loop(0, res.rows(), [&](const long i) {
+            evaluate_row(i, res, pts1, pts2);
+        });
+        th_pool.wait();
         return res;
     }
 
 private:
+    static void
+    evaluate_row(
+            const long         i,
+            Eigen::MatrixXd&   res,
+            const InputVector& pts1,
+            const InputVector& pts2
+    ) {
+        ShortestPath shpath(internal::get_mesh_impl(pts1.front().mesh()));
+        CgalGeodesicConstructor::set_source(shpath, pts1[i]);
+
+        for (long j = 0; j < res.cols(); ++j) {
+            const auto geod =
+                    CgalGeodesicConstructor::construct_geodesic(shpath, pts2[j]);
+            res(i, j) = length(geod);
+        }
+    }
+
     static void
     evaluate_rows_batched(
             Eigen::MatrixXd&   res,
@@ -47,17 +61,9 @@ private:
             const long         row_start_id,
             const long         n_rows
     ) {
-        for (long i = row_start_id; i < std::min(row_start_id + n_rows, res.rows());
-             ++i) {
-            ShortestPath shpath(internal::get_mesh_impl(pts1.front().mesh()));
-            CgalGeodesicConstructor::set_source(shpath, pts1[i]);
-
-            for (long j = 0; j < res.cols(); ++j) {
-                const auto geod =
-                        CgalGeodesicConstructor::construct_geodesic(shpath, pts2[j]);
-                res(i, j) = length(geod);
-            }
-        }
+        const long& start = row_start_id;
+        const long  end   = std::min(row_start_id + n_rows, res.rows());
+        for (long i = start; i < end; ++i) evaluate_row(i, res, pts1, pts2);
     }
 };
 
@@ -76,10 +82,16 @@ namespace internal {
             const auto& m    = internal::get_mesh_impl(pts1[0].mesh());
 
             shpath_objs.reserve(pts1.size());
-            for (const auto& pt : pts1) {
-                shpath_objs.emplace_back(m);
-                CgalGeodesicConstructor::set_source(shpath_objs.back(), pt);
-            }
+            for (const auto& pt : pts1) shpath_objs.emplace_back(m);
+
+            const auto process_i = [&](const long i) {
+                CgalGeodesicConstructor::set_source(shpath_objs[i], pts1[i]);
+                CgalGeodesicConstructor::construct_geodesic(
+                        shpath_objs[i], mesh.vertex(0)
+                );
+            };
+            th_pool.detach_loop(0, pts1.size(), process_i);
+            th_pool.wait();
         }
     };
 
@@ -90,6 +102,14 @@ namespace internal {
             return std::exp(-lambda * x * x);
         });
         return res;
+    }
+
+    void
+    eval_sek_inplace(Eigen::MatrixXd& distance_matrix, const double ls) {
+        const double lambda = 0.5 / (ls * ls);
+        distance_matrix     = distance_matrix.unaryExpr([lambda](const double x) {
+            return std::exp(-lambda * x * x);
+        });
     }
 
     bool
@@ -115,9 +135,6 @@ namespace {
     ) {
         using internal::CgalGeodesicConstructor;
 
-        std::vector<std::thread> threads;
-        threads.reserve(res.rows());
-
         auto row_processor = [&data, &res, &pts2](const long i) {
             for (long j = 0; j < res.cols(); ++j) {
                 const auto path = CgalGeodesicConstructor::construct_geodesic(
@@ -127,8 +144,8 @@ namespace {
             }
         };
 
-        for (long i = 0; i < res.rows(); ++i) threads.emplace_back(row_processor, i);
-        for (auto& th : threads) th.join();
+        th_pool.detach_loop(0, res.rows(), row_processor);
+        th_pool.wait();
     }
 }  // namespace
 
@@ -230,6 +247,16 @@ InexactMeshKernel::distance_matrix(const InputVector& pts2) {
     assert(_data->shpath_objs.size() == _data->pts1.size());
     Eigen::MatrixXd distances(_data->pts1.size(), pts2.size());
     process_distance_matrix(*_data, pts2, distances);
+    return distances;
+}
+
+Eigen::MatrixXd
+InexactMeshKernel::evaluate_single(const InputVector& pts2, const double ls) {
+    if (_data == nullptr)
+        throw std::runtime_error("InexactMeshKernel: cache not properly initialised!");
+
+    Eigen::MatrixXd distances = distance_matrix(pts2);
+    internal::eval_sek_inplace(distances, ls);
     return distances;
 }
 
