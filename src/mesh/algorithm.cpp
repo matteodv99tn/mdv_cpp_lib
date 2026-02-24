@@ -482,8 +482,6 @@ mdv::mesh::multithreaded_exponential_map(
     th_pool.wait();
 
     if (n_zeroed > 0) std::cout << "Zeroed " << n_zeroed << " vectors\n";
-    if (n_changed > 20)
-        fmt::print("\rExp Map | changed / num vs (after) / total : {} / {} ({}) / {}\n", n_changed, n_vertices, n_vertices_after, xs.rows());
 
 #ifdef RERUN_DEBUG
     log_mesh(mesh);

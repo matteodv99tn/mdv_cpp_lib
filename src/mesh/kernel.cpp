@@ -1,19 +1,71 @@
 #include "mdv/mesh/kernel.hpp"
 
+#include <chrono>
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <stdexcept>
 #include <utility>
 
+#include <range/v3/all.hpp>
+
 #include "BS_thread_pool.hpp"
+#include "mdv/macros.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_geodesic.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/point.hpp"
 
+namespace rs = ::ranges;
+
 namespace mdv::mesh {
 
+struct TimeBenchmarker {
+    using Time            = decltype(std::chrono::high_resolution_clock::now());
+    using TimeDurationVec = std::vector<std::size_t>;
+
+    static Time
+    now() {
+        return std::chrono::high_resolution_clock::now();
+    };
+
+    struct TimeSample {
+        ~TimeSample() {
+            const Time end_time = now();
+            const auto delta    = end_time - start_time;
+            dest_vector->emplace_back(delta.count());
+        }
+
+        Time             start_time;
+        TimeDurationVec* dest_vector;
+    };
+
+    MDV_NODISCARD TimeSample
+    operator()(const long rows, const long cols) {
+        TimeDurationVec& vec = times[std::make_pair(rows, cols)];
+        return TimeSample{.start_time = now(), .dest_vector = &vec};
+    }
+
+    std::map<std::pair<long, long>, TimeDurationVec> times;
+
+    static std::size_t
+    mean(const TimeDurationVec& ts) {
+        return rs::accumulate(ts, std::size_t{0}) / ts.size();
+    }
+
+    ~TimeBenchmarker() {
+        // Display mean / median / other data when destroying
+        fmt::println("Showing logged data");
+        for(const auto& [dims, ts]: times){
+            const auto& [rows, cols] = dims;
+            const double time_ms = double(mean(ts)) * 1e-6;
+            fmt::println("{} x {} -> {:.4}ms", rows, cols, time_ms);
+        }
+        fmt::println("Showing logged data --- Done");
+    }
+};
+
+static TimeBenchmarker benchmarker;
 
 namespace {
     BS::thread_pool th_pool;
@@ -134,6 +186,7 @@ namespace {
             Eigen::MatrixXd&                   res
     ) {
         using internal::CgalGeodesicConstructor;
+        auto time_eval = benchmarker(data.pts1.size(), pts2.size());
 
         auto row_processor = [&data, &res, &pts2](const long i) {
             for (long j = 0; j < res.cols(); ++j) {
@@ -235,6 +288,7 @@ Eigen::MatrixXd
 InexactMeshKernel::distance_matrix(
         const InputVector& pts1, const InputVector& pts2
 ) const {
+    auto time_eval = benchmarker(pts1.size(), pts2.size());
     if (pts1.size() < pts2.size()) return DistanceEvaluator{}(pts1, pts2);
     return DistanceEvaluator{}(pts2, pts1).transpose();
 }

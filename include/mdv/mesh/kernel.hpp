@@ -250,6 +250,8 @@ public:
      */
     void set_points1(const InputVector& pts1) override;
 
+    Eigen::MatrixXd evaluate_single(const InputVector& pts2, double ls);
+
 private:
     using Data = internal::Data;
 

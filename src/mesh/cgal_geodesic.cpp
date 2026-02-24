@@ -22,6 +22,7 @@ CgalGeodesicConstructor::set_source(
     } else {
         shpath.add_source_point(location_from_mesh_point(source_point));
     }
+    shpath.build_sequence_tree();
 }
 
 Geodesic
