@@ -11,6 +11,7 @@ try:
     from ._mesh_impl import (  # type: ignore[import-not-found]
         Mesh as _MeshImpl,
         extract_normal_bounded_surface,
+        fill_holes,
         load_from_file,
         mesh_directory,
     )
@@ -54,6 +55,9 @@ except ImportError:  # pragma: no cover - generated at build time
         raise RuntimeError("SWIG bindings are not built yet.")
 
     def extract_normal_bounded_surface(*_args, **_kwargs):
+        raise RuntimeError("SWIG bindings are not built yet.")
+
+    def fill_holes(*_args, **_kwargs):
         raise RuntimeError("SWIG bindings are not built yet.")
 
 
@@ -476,5 +480,24 @@ class Mesh:
             mesh._mesh_impl,  # type: ignore[attr-defined]
             point._point_impl,  # type: ignore[attr-defined]
             max_normal_angle,
+        )
+        return Mesh(mesh_impl=mesh_impl)
+
+    @staticmethod
+    def fill_holes(mesh: "Mesh") -> "Mesh":
+        """Returns a new mesh which fills all internal holes of the provided mesh
+
+        Parameters
+        ----------
+        mesh : Mesh
+            Source mesh.
+
+        Returns
+        -------
+        Mesh
+            Extracted submesh.
+        """
+        mesh_impl = fill_holes(
+            mesh._mesh_impl,  # type: ignore[attr-defined]
         )
         return Mesh(mesh_impl=mesh_impl)

@@ -117,6 +117,7 @@ add_library(
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh_manager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh_utilities.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/flat_parameterisation.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/fill_holes.cpp
 
     # Riemann geometry
     ${CMAKE_CURRENT_LIST_DIR}/src/riemann_geometry/s3.cpp

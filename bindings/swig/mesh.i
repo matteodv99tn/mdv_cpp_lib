@@ -309,6 +309,10 @@ namespace mdv::mesh {
        return new mdv::mesh::Mesh(mdv::mesh::Mesh::extract_normal_bounded_surface(mesh, pt, a));
    }
 
+    mdv::mesh::Mesh* fill_holes(const mdv::mesh::Mesh& mesh){
+        return new mdv::mesh::Mesh(mdv::mesh::Mesh::fill_holes(mesh));
+    }
+
     std::string mesh_directory() {
         return mdv::config::meshes_directory();
     }
@@ -345,6 +349,7 @@ namespace mdv::mesh {
 
 %newobject mdv::mesh::extract_normal_bounded_surface;
 %newobject mdv::mesh::load_from_file;
+%newobject mdv::mesh::fill_holes;
 %newobject mdv::mesh::exponential_map;
 %newobject mdv::mesh::geodesic_resample;
 %newobject mdv::mesh::geodesic_resample_matrix;

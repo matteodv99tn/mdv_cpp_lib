@@ -31,6 +31,11 @@ print("Normal-bounded mesh:", mesh.name)
 print("Normal-bounded mesh vertices:", mesh.num_vertices)
 print("Normal-bounded mesh faces:", mesh.num_faces)
 
+filled_mesh = Mesh.fill_holes(mesh)
+print("Normal-bounded mesh:", filled_mesh.name)
+print("Normal-bounded mesh vertices:", filled_mesh.num_vertices)
+print("Normal-bounded mesh faces:", filled_mesh.num_faces)
+
 if VISUALISE_MESH:
     import pyvista
 

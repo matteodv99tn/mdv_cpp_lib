@@ -1,11 +1,13 @@
 #include <fmt/base.h>
 #include <fmt/os.h>
 #include <limits>
+#include <stdexcept>
 #include <string>
 
 #include "mdv/config.hpp"
 #include "mdv/mesh/flat_parameterisation.hpp"
 #include "mdv/mesh/mesh.hpp"
+#include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 #include "mdv/utils/spdlog.hpp"
 
@@ -34,10 +36,11 @@ main(int argc, char* argv[]) {
     const std::string mesh_path = mdv::config::meshes_directory() / "bunny_simple.off";
     auto              mesh      = Mesh::from_file(mesh_path);
     const Point       p0        = mesh.vertex(0);  // NOLINT: extracted from meshlab
-    auto              sub_mesh  = Mesh::extract_normal_bounded_surface(mesh, p0, 90.0);
+    auto              sub_mesh  = Mesh::extract_normal_bounded_surface(mesh, p0, 50.0);
+    auto              filled_mesh = Mesh::fill_holes(sub_mesh);
 
 
-    FlatParameterisation param(sub_mesh);
+    FlatParameterisation param(filled_mesh);
 
     std::vector<Eigen::Vector2d> projs;
     projs.reserve(sub_mesh.num_vertices());
@@ -56,6 +59,7 @@ main(int argc, char* argv[]) {
 
     rec.log_static("mesh", to_rerun(mesh));
     rec.log_static("sub_mesh", to_rerun(sub_mesh));
+    rec.log_static("filled_mesh", to_rerun(filled_mesh));
 
 
     std::vector<rerun::components::Position3D> planar_pos;
@@ -118,6 +122,35 @@ main(int argc, char* argv[]) {
         if (e > 1e-6) { fmt::println("Err at face {} = {}", i, e); }
     }
     fmt::println("Maximum reconstruction error: {}", max_err);
+
+
+    fmt::println("Checking hole filling algorithm result");
+    if (filled_mesh.num_faces() < sub_mesh.num_faces())
+        throw std::runtime_error("Filled mesh has less face than starting input!");
+
+    if (filled_mesh.num_vertices() != sub_mesh.num_vertices()) {
+        throw std::runtime_error(
+                "Filled mesh has a different number of vertices then  starting input!"
+        );
+    }
+
+    for (long i = 0; i < sub_mesh.num_vertices(); ++i) {
+        using mdv::condition::are_equal;
+        if (!are_equal(sub_mesh.vertex(i).position(), filled_mesh.vertex(i).position()))
+            throw std::runtime_error("Vertices have been moved");
+    }
+
+    for (long i = 0; i < sub_mesh.num_faces(); ++i) {
+        const auto f1  = sub_mesh.face(i);
+        const auto f2  = filled_mesh.face(i);
+        const auto v1s = f1.vertices_ids();
+        const auto v2s = f2.vertices_ids();
+
+        if ((v1s[0] != v2s[0]) || (v1s[1] != v2s[1]) || (v1s[2] != v2s[2])) {
+            throw std::runtime_error("Faces have been changed");
+        }
+    }
+    fmt::println("Checking hole filling algorithm result -- Passed!");
 
     return 0;
 }

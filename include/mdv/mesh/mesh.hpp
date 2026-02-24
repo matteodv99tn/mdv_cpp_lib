@@ -65,6 +65,8 @@ public:
             const Mesh& mesh, const Point& pt, double max_normal_angle = 90.0
     );
 
+    static Mesh fill_holes(const Mesh& mesh);
+
     // Copy and move constructors/assignment operators are deleted
     /**
      * @brief Mesh is non-copyable.
