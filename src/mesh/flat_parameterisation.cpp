@@ -10,8 +10,8 @@
 #include <CGAL/AABB_face_graph_triangle_primitive.h>
 #include <CGAL/Polygon_mesh_processing/measure.h>
 #include <CGAL/Simple_cartesian.h>
+#include <CGAL/Surface_mesh_parameterization/ARAP_parameterizer_3.h>
 #include <CGAL/Surface_mesh_parameterization/Error_code.h>
-#include <CGAL/Surface_mesh_parameterization/LSCM_parameterizer_3.h>
 #include <CGAL/Surface_mesh_parameterization/parameterize.h>
 #include <CGAL/Surface_mesh_parameterization/Two_vertices_parameterizer_3.h>
 #include <Eigen/Core>
@@ -41,7 +41,7 @@ struct FlatParameterisation::FlatParameterisationImpl {
     // Parameterisation types
     using UvMap               = Mesh3::Property_map<VertexIndex, K3::Point_2>;
     using BorderParameteriser = smp::Two_vertices_parameterizer_3<Mesh3>;
-    using Parameteriser       = smp::LSCM_parameterizer_3<Mesh3>;
+    using Parameteriser       = smp::ARAP_parameterizer_3<Mesh3>;
 
     // AabbTree
 #if MDV_CGAL_VERSION == 5
