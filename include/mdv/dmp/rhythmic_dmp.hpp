@@ -31,7 +31,7 @@ public:
      */
     double
     step(const double current_state, const double tau, const double dt) const {
-        return std::fmod( current_state + 2.0 * M_PI * dt / tau, 2.0 * M_PI);
+        return std::fmod(current_state + 2.0 * M_PI * dt / tau, 2.0 * M_PI);
     }
 };
 
@@ -85,15 +85,17 @@ struct RhytmicDmp {
 
     template <typename Demo>
     Point
-    compute_average(const Demo& demo
-    ) const requires std::same_as<Manifold, riemann::MeshManifold> {
+    compute_average(const Demo& demo) const
+        requires std::same_as<Manifold, riemann::MeshManifold>
+    {
         return demo.front().y();
     }
 
     template <typename Demo>
     Point
-    compute_average(const Demo& demo
-    ) const requires std::same_as<Manifold, riemann::SE3> {
+    compute_average(const Demo& demo) const
+        requires std::same_as<Manifold, riemann::SE3>
+    {
         using Quat      = Eigen::Quaterniond;
         using Vec7      = Eigen::Vector<double, 7>;
         Vec7       zero = Vec7::Zero();
@@ -149,9 +151,9 @@ struct RhytmicDmp {
     construct_default_r(
             const Demonstration& demo, const std::optional<Point> goal = std::nullopt
     ) const {
-        const Point g                = goal.value_or(compute_average(demo));
-        const auto  compute_distance = [this, g](const Demonstration::Sample& sample
-                                      ) -> double {
+        const Point g = goal.value_or(compute_average(demo));
+        const auto  compute_distance =
+                [this, g](const Demonstration::Sample& sample) -> double {
             return tv_norm(m().logarithmic_map(sample.y(), g));
         };
 
@@ -179,7 +181,10 @@ struct RhytmicDmp {
         assert(g != demo.front().y());
         const Eigen::MatrixXd f_des = evaluate_desired_forcing_term(demo, g);
 
-        const double r = r_value.value_or(construct_default_r(demo));
+        const double r = [&r_value, &demo, this]() -> double {
+            if (r_value.has_value()) return r_value.value();
+            return construct_default_r(demo);
+        }();
 
         logger().trace("Evaluating matrix Phi");
         Eigen::MatrixXd phi(demo.size(), n_basis());
@@ -225,6 +230,35 @@ struct RhytmicDmp {
             ts().step(res[i], goal, f_tv, tau, dts, res[i + 1]);
         }
         return res;
+    }
+
+    std::pair<Point, TangentVector>
+    integrate_once(
+            const Point&                 y0,
+            const TangentVector&         v0,
+            const Point&                 g,
+            const double                 r,
+            const Demonstration<M>::Time dt,
+            const Demonstration<M>::Time t
+    ) const {
+        using mdv::condition::are_orthogonal;
+        using mdv::convert::seconds;
+
+        typename Demonstration<M>::Sample goal;
+        goal.y() = g;
+
+        typename Demonstration<M>::Sample y0_sample;
+        y0_sample.y()  = y0;
+        y0_sample.yd() = v0;
+
+        typename Demonstration<M>::Sample res;
+
+        const double                     s    = time_to_s(seconds(t));
+        const typename Embedding::Output f    = fun()(s, r);
+        const TangentVector              f_tv = emb().decode(f, y0_sample, goal);
+        ts().step(y0_sample, goal, f_tv, tau, seconds(dt), res);
+
+        return std::make_pair(res.y(), res.yd());
     }
 
     MDV_NODISCARD double

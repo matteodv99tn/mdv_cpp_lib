@@ -126,6 +126,7 @@ add_library(
 
     # DMP
     ${CMAKE_CURRENT_LIST_DIR}/src/dmp/dmp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dmp/moving_dmp.cpp
 
     # Dataset
     ${CMAKE_CURRENT_LIST_DIR}/src/dataset/handwritten_dataset.cpp

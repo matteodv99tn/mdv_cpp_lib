@@ -1,8 +1,8 @@
 #include "mdv/mesh/mesh.hpp"
 
-#include <CGAL/Polygon_mesh_processing/repair_degeneracies.h>
 #include <CGAL/boost/graph/Euler_operations.h>
 #include <CGAL/Polygon_mesh_processing/repair.h>
+#include <CGAL/Polygon_mesh_processing/repair_degeneracies.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <cstdint>
 #include <Eigen/Geometry>
@@ -91,8 +91,8 @@ Mesh::operator=(Mesh&& other) noexcept {
 // |_|  |_|\___|_| |_| |_|_.__/ \___|_|  |___/
 //
 
-void 
-Mesh::scale(const double factor){
+void
+Mesh::scale(const double factor) {
     logger().info("Scaling mesh by factor {}", factor);
     cgal().scale(factor);
 }
@@ -164,6 +164,13 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
 
     assert(mdv::condition::are_equal(res.front(), from.position())
            && mdv::condition::are_equal(res.back(), to.position()));
+
+    if (res.size() >= 2 && (res[0] - res[1]).norm() < 1e-12) res.erase(res.begin());
+    const auto end = res.size() - 1;
+    if (res.size() >= 2 && (res[end] - res[end - 1]).norm() < 1e-12)
+        res.erase(res.end() - 1);
+
+
     return res;
 }
 
@@ -260,9 +267,9 @@ Mesh::extract_normal_bounded_surface(
     const auto propagate = [&](const auto& self, const Index& id) -> void {
         if (face_class[id] != VisitState::UNVISITED) return;
 
-        const auto f                     = mesh.face(id);
-        face_class[id]                   = classify(f);
-        if(face_class[id] == VisitState::INVALID_FACE) return;
+        const auto f   = mesh.face(id);
+        face_class[id] = classify(f);
+        if (face_class[id] == VisitState::INVALID_FACE) return;
 
         const auto [f_id1, f_id2, f_id3] = f.neighbour_ids();
         self(self, f_id1);

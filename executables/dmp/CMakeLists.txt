@@ -72,3 +72,13 @@ target_link_libraries(
     mdvcpplib
     range-v3
 )
+
+add_executable(
+    moving_mesh_dmp
+    ${CMAKE_CURRENT_LIST_DIR}/moving_mesh_dmp.cpp
+)
+target_link_libraries(
+    moving_mesh_dmp
+    mdvcpplib
+    range-v3::range-v3
+)

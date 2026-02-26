@@ -46,13 +46,14 @@ struct MeshEmbedder {
 
         const auto normal_projection = [](const Vec3& normal, const Vec3 v) {
             assert(is_unit_norm(normal));
-            return (Mat3::Identity() - normal * normal.transpose()) * v;
+            return Vec3{(Mat3::Identity() - normal * normal.transpose()) * v};
         };
 
         const Vec3 vz = g.face().normal();
         assert(!are_parallel(vz, dir));
-        const Vec3 vx = normal_projection(vz, dir).normalized();
-        const Vec3 vy = vz.cross(vx);
+        const Vec3 vx_unnorm = normal_projection(vz, dir);
+        const Vec3 vx        = vx_unnorm.normalized();
+        const Vec3 vy        = vz.cross(vx);
 
         _base.col(0) = vx;
         _base.col(1) = vy;

@@ -226,7 +226,8 @@ TangentVector::from_ambient_vector_on_edge(
         return project_along_direction(vec, he.direction());
     };
     const auto project_on_face = [&vec, &mesh, &m](const HeIndex he_id) -> Vec3d {
-        const Face     f{mesh, face(he_id, m)};
+        const Face f{mesh, face(he_id, m)};
+        if (!f.is_valid()) return Vec3d::Zero();
         const HalfEdge he{mesh, he_id};
         const auto     proj = normal_projection(vec, f.normal());
         if (proj.dot(he.inbound_direction()) <= 0.0) return Vec3d::Zero();
@@ -318,7 +319,7 @@ TangentVector::from_ambient_vector_on_vertex(
     // Candidates inside faces
     const auto project_on_halfedge = [&vec, &v](const HeIndex he_id) -> Vec3d {
         const HalfEdge he{v.mesh(), he_id};
-        const Vec3d proj = project_along_direction(vec, he.direction());
+        const Vec3d    proj = project_along_direction(vec, he.direction());
         if (proj.dot(vec) <= 0.0) return Vec3d::Zero();
         return proj;
     };

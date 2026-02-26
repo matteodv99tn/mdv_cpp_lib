@@ -1,0 +1,196 @@
+#include "mdv/dmp/moving_dmp.hpp"
+
+#include <range/v3/all.hpp>
+
+#include "mdv/containers/demonstration.hpp"
+#include "mdv/dmp/rhythmic_dmp.hpp"
+#include "mdv/mesh/algorithm.hpp"
+#include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/mesh_utilities.hpp"
+#include "mdv/mesh/tangent_vector.hpp"
+#include "mdv/riemann_geometry/mesh.hpp"
+#include "mdv/utils/logging.hpp"
+
+
+namespace rs = ::ranges;
+namespace rv = ::ranges::views;
+
+namespace mdv {
+using mesh::Geodesic;
+using mesh::Mesh;
+using mesh::Point;
+using mesh::TangentVector;
+
+using Vec3 = Eigen::Vector3d;
+
+// Dmp typedefs
+using M        = riemann::MeshManifold;
+using Emb      = riemann::MeshEmbedder;
+using MeshDmp  = mdv::RhytmicDmp<M, Emb>;
+using MeshDemo = mdv::Demonstration<M>;
+
+namespace {
+    std::vector<Point>
+    eigen_to_meshpt(const Mesh& mesh, const Geodesic& geod) {
+        return geod | rv::transform([&mesh](const Vec3 pt) {
+                   return Point::from_cartesian(mesh, pt);
+               })
+               | rs::to_vector;
+    }
+
+    Geodesic
+    meshpt_to_eigen(const std::vector<Point>& geod) {
+        return geod | rv::transform([](const Point& pt) { return pt.position(); })
+               | rs::to_vector;
+    }
+
+    std::vector<double>
+    create_equispaced(
+            const int    n_samples,
+            const double min,
+            const double max,
+            const bool   half_open_set
+    ) {
+        const double den  = half_open_set ? double(n_samples) : double(n_samples - 1);
+        const double step = (max - min) / den;
+
+        return rv::iota(0, n_samples) | rv::transform([step](const int i) -> double {
+                   return step * double(i);
+               })
+               | rs::to_vector;
+    }
+
+    Vec3
+    normal_projection(const Vec3& v, const Vec3& n) {
+        return v - v.dot(n) * n;
+    }
+
+
+}  // namespace
+
+std::vector<Point>
+generate_trajectory(
+        const MovingDmpParameters params, Mesh& mesh, const Geodesic& centroid_path
+) {
+    const auto& logger = *get_default_logger();
+
+    logger.info("Generating and learning simple circular demonstration");
+    const auto flat_mesh = Mesh::from_file(mesh::create_flat(5.0));
+
+    const auto generate_pos = [&flat_mesh](const double theta) -> Point {
+        Vec3 pos{-std::sin(theta), std::cos(theta), 0.0};
+        return Point::from_cartesian(flat_mesh, pos);
+    };
+
+    const auto thetas = create_equispaced(100, 0.0, 2 * M_PI, true);
+    const auto path   = thetas | rv::transform(generate_pos) | rs::to_vector;
+    const auto demo   = MeshDemo::builder(path.size())
+                              .assign_position(path)
+                              .velocity_automatic_differentiation()
+                              .acceleration_automatic_differentiation()
+                              .set_sampling_period(std::chrono::milliseconds(10))
+                              .create();
+    logger.debug("Demonstration created");
+
+    MeshDmp dmp;
+    dmp.tau     = 1.0;
+    auto origin = Point::from_cartesian(flat_mesh, Vec3::Zero());
+    dmp.embedding().setup_from_point_and_direction(origin, Vec3::UnitY());
+    logger.debug("Embedding setup");
+
+    dmp.learn(demo, 1.0, origin);
+    logger.info("Dmp on plane learned");
+
+
+    const double len        = mesh::length(centroid_path);
+    const double trav_time  = len / params.linear_speed;
+    const long   geod_steps = std::ceil(trav_time / (1e-3 * double(params.dt_ms)));
+    logger.info(
+            "Path length/speed {:3f}/{:3f} -> Travel time: {:3f}s ({} samples at {}ms)",
+            len,
+            params.linear_speed,
+            trav_time,
+            geod_steps,
+            params.dt_ms
+    );
+
+    const auto ss     = create_equispaced(params.num_centroid_steps, 0.0, 1.0, false);
+    const auto g_path = mesh::geodesic_resample(centroid_path, ss);
+    const auto g_pt_path = eigen_to_meshpt(mesh, g_path);
+
+    // Notation:
+    //  i time index for simulation
+    //  k time index for stepping of the geodesic path
+
+    const long embedding_update_steps = (geod_steps / params.num_centroid_steps) + 1;
+    const auto get_k = [&embedding_update_steps](const long i) -> std::size_t {
+        return i / embedding_update_steps;
+    };
+
+    const auto get_direction = [g_path](std::size_t k) -> Vec3 {
+        assert(k < g_path.size());
+
+        // Lonely exception -- Query on last point
+        const std::size_t end = g_path.size() - 1;
+        if (k == end) return (g_path[end] - g_path[end - 1]).normalized();
+
+        return (g_path[k + 1] - g_path[k]).normalized();
+    };
+
+
+    Vec3d      dir              = get_direction(0).normalized();
+    const auto update_embedding = [&](const std::size_t i) -> std::size_t {
+        auto k = get_k(i);
+        dir += 1.1 * params.dt_ms * 1e-3 * (get_direction(k) - dir);
+        dir.normalize();
+        if (i % embedding_update_steps != 0) return k;
+        ;
+        assert(k < g_pt_path.size());
+        const auto& gk = g_pt_path[k];
+        dmp.embedding().setup_from_point_and_direction(gk, dir);
+
+
+        if (mesh::location_type(gk) == mesh::ON_EDGE)
+            logger.warn("Center #{} is on edge", k);
+        if (mesh::location_type(gk) == mesh::ON_VERTEX)
+            logger.warn("Center #{} is on vertex", k);
+        return k;
+    };
+
+    logger.debug(
+            "Finding initial position for integration - Radius: {}",
+            params.circle_radius
+    );
+    const auto& g0 = g_pt_path.front();
+    const Vec3  n0 = g0.face().normal();
+    const Vec3  v0 = normal_projection(get_direction(0), n0);
+    const Vec3  d0 = n0.cross(v0).normalized() * params.circle_radius;
+
+    auto y = mesh::exponential_map(TangentVector::from_ambient_vector(g0, d0));
+    M::TangentVector v = Vec3::Zero();
+    update_embedding(0);
+
+
+    std::size_t        k_g = 0;
+    std::vector<Point> res;
+    res.reserve(geod_steps);
+    dmp.tau = params.dmp_tau;
+    std::chrono::milliseconds dt(params.dt_ms);
+    for (std::size_t i = 0; i < geod_steps; ++i) {
+        res.emplace_back(y);
+        if (i % params.print_every == 0) logger.debug("i = {}", i);
+
+        k_g = update_embedding(i);
+
+        const auto [ynew, vnew] = dmp.integrate_once(
+                y, v, g_pt_path[k_g], params.circle_radius, dt, i * dt
+        );
+        y = ynew;
+        v = vnew;
+    }
+
+
+    return res;
+}
+
+}  // namespace mdv
