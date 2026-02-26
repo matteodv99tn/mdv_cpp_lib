@@ -1,3 +1,4 @@
+#include <chrono>
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
@@ -52,14 +53,22 @@ main() {
     rec.log_static("path", rr_converter(geod));
     fmt::println("Geodesic path computed");
 
-    mdv::MovingDmpParameters params{.dt_ms = 5, .circle_radius = 0.1};
-    const auto               traj = mdv::generate_trajectory(params, mesh, geod);
+    mdv::MovingDmpParameters params{
+            .dt_ms = 5, .circle_radius = 0.1, .num_centroid_steps = 30
+    };
+    const auto traj = mdv::generate_trajectory(params, mesh, geod);
 
     const Geodesic path = traj
                           | rv::transform([](const Point& pt) { return pt.position(); })
                           | rs::to_vector;
-
     rec.log_static("planned_path", rr_converter(path));
+
+    const auto     upsampled_traj = mdv::upsample_to_1khz(mesh, traj, params);
+    const Geodesic upsampled_path =
+            upsampled_traj
+            | rv::transform([](const Point& pt) { return pt.position(); })
+            | rs::to_vector;
+    rec.log_static("upsampled_path", rr_converter(upsampled_path));
 
     for (long i = 0; i < traj.size(); ++i) {
         rec.set_time_sequence("step", i);

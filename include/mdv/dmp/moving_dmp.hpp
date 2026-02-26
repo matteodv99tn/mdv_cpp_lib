@@ -16,8 +16,14 @@ struct MovingDmpParameters {
 
 std::vector<mdv::mesh::Point> generate_trajectory(
         MovingDmpParameters   params,
-        mesh::Mesh&      mesh,
+        mesh::Mesh&           mesh,
         const mesh::Geodesic& centroid_path
+);
+
+std::vector<mdv::mesh::Point> upsample_to_1khz(
+        const mesh::Mesh&               mesh,
+        const std::vector<mesh::Point>& in_path,
+        MovingDmpParameters             params
 );
 
 

@@ -5,6 +5,7 @@
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/rhythmic_dmp.hpp"
 #include "mdv/mesh/algorithm.hpp"
+#include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/mesh_utilities.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
@@ -191,6 +192,54 @@ generate_trajectory(
 
 
     return res;
+}
+
+std::vector<mdv::mesh::Point>
+upsample_to_1khz(
+        const Mesh& mesh, const std::vector<Point>& in_path, MovingDmpParameters params
+) {
+    if (params.dt_ms == 1) return in_path;
+
+    const auto& logger = *get_default_logger();
+
+    const long samples_to_add = params.dt_ms - 1;
+    assert(samples_to_add > 1);
+
+    logger.info("Upsampling factor: {}", samples_to_add);
+
+    const std::vector<double> interp_coords =
+            rv::iota(0, samples_to_add)
+            | rv::transform([&samples_to_add](const long i) -> double {
+                  return i / double(samples_to_add);
+              })
+            | rs::to_vector;
+    assert(interp_coords.size() == samples_to_add);
+
+    const auto upsample_segment =
+            [&interp_coords](const Vec3 p0, const Vec3 p1) -> Geodesic {
+        const Vec3 delta = p1 - p0;
+        return interp_coords | rv::transform([&p0, &delta](const double s) -> Vec3 {
+                   return p0 + s * delta;
+               })
+               | rs::to_vector;
+    };
+
+    const Geodesic downsampled_path =
+            in_path
+            | rv::transform([](const auto& pt) -> Vec3 { return pt.position(); })
+            | rs::to_vector;
+
+    const Geodesic upsampled_path =
+            downsampled_path | rv::sliding(2)
+            | rv::transform([&upsample_segment](const auto& rng) -> Geodesic {
+                  return upsample_segment(rng[0], rng[1]);
+              })
+            | rv::join | rs::to_vector;
+
+    return upsampled_path | rv::transform([&mesh](const Vec3& pos) -> Point {
+               return Point::from_cartesian(mesh, pos);
+           })
+           | rs::to_vector;
 }
 
 }  // namespace mdv
