@@ -43,12 +43,13 @@ main() {
     rec.log_static("mesh", rr_converter(mesh));
     fmt::println("Mesh loaded");
 
-    const auto p1   = Point::from_cartesian(mesh, {-1.0, -2.1, 3.0});
-    const auto p2   = Point::from_cartesian(mesh, {0.0, -0.6, 3.0});
-    const auto p3   = Point::from_cartesian(mesh, {1.0, -2.1, 3.0});
-    const auto g1   = mesh.build_geodesic(p1, p2);
-    const auto g2   = mesh.build_geodesic(p2, p3);
-    const auto geod = rv::concat(g1, g2 | rv::drop(1)) | rs::to_vector;
+    const auto p1 = Point::from_cartesian(mesh, {-1.0, -2.1, 3.0});
+    const auto p2 = Point::from_cartesian(mesh, {0.0, -0.6, 3.0});
+    const auto p3 = Point::from_cartesian(mesh, {1.0, -2.1, 3.0});
+    const auto g1 = mesh.build_geodesic(p1, p2);
+    // const auto g2   = mesh.build_geodesic(p2, p3);
+    // const auto geod = rv::concat(g1, g2 | rv::drop(1)) | rs::to_vector;
+    const auto& geod = g1;
 
     rec.log_static("path", rr_converter(geod));
     fmt::println("Geodesic path computed");
@@ -70,9 +71,12 @@ main() {
             | rs::to_vector;
     rec.log_static("upsampled_path", rr_converter(upsampled_path));
 
-    for (long i = 0; i < traj.size(); ++i) {
+    const auto ori =
+            mdv::filter_orientation(mdv::encode_orientation(upsampled_traj), 100);
+
+    for (long i = 0; i < upsampled_traj.size(); ++i) {
         rec.set_time_sequence("step", i);
-        rec.log("position", rr_converter.as_points({path[i]}));
+        rec.log("tcp", rr_converter(upsampled_path[i], ori[i]));
     }
 
 

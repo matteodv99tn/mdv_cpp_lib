@@ -4,6 +4,7 @@
 
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/rhythmic_dmp.hpp"
+#include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh.hpp"
@@ -23,6 +24,7 @@ using mesh::Point;
 using mesh::TangentVector;
 
 using Vec3 = Eigen::Vector3d;
+using Quat = Eigen::Quaterniond;
 
 // Dmp typedefs
 using M        = riemann::MeshManifold;
@@ -229,17 +231,58 @@ upsample_to_1khz(
             | rv::transform([](const auto& pt) -> Vec3 { return pt.position(); })
             | rs::to_vector;
 
-    const Geodesic upsampled_path =
+    const auto upsampled_path =
             downsampled_path | rv::sliding(2)
             | rv::transform([&upsample_segment](const auto& rng) -> Geodesic {
                   return upsample_segment(rng[0], rng[1]);
-              })
-            | rv::join | rs::to_vector;
+              }) | rs::to<std::vector<Geodesic>>;
+    const Geodesic vec = rv::join(upsampled_path) | rs::to_vector;
 
-    return upsampled_path | rv::transform([&mesh](const Vec3& pos) -> Point {
+    return vec | rv::transform([&mesh](const Vec3& pos) -> Point {
                return Point::from_cartesian(mesh, pos);
            })
            | rs::to_vector;
+}
+
+std::vector<Quat>
+encode_orientation(const std::vector<Point>& in_path, const bool flip_orientation) {
+    const double z_mult = flip_orientation ? -1.0 : 1.0;
+    const auto compute_quaternion = [z_mult](const Point& pt) -> Quat {
+        const Vec3 dx = Vec3::UnitX();
+        const Vec3 vz = z_mult * pt.face().normal();
+        const Vec3 vx = (dx - dx.dot(vz) * vz).normalized();
+        const Vec3 vy = vz.cross(vx);
+        Mat3d      rot;
+        rot.col(0) = vx;
+        rot.col(1) = vy;
+        rot.col(2) = vz;
+        assert(condition::is_zero(rot.determinant() - 1.0));
+        return Quat{rot};
+    };
+    std::vector<Quat> res = in_path | rv::transform(compute_quaternion) | rs::to_vector;
+
+    for (std::size_t i = 0; i < res.size() - 1; ++i)
+        if (res[i].coeffs().dot(res[i + 1].coeffs()) < 0.0) res[i + 1].coeffs() *= -1.0;
+    return res;
+}
+
+std::vector<Quat>
+filter_orientation(const std::vector<Quat>& qin, const std::size_t window_size) {
+    using Vec4 = Eigen::Vector4d;
+
+    std::vector<Quat> res;
+    res.reserve(qin.size());
+
+    for (std::size_t i = 0; i < qin.size(); ++i) {
+        const std::size_t ws = std::min({window_size, i, qin.size() - i - 1});
+        assert(ws <= window_size);
+
+        Vec4 sum = Vec4::Zero();
+        for (std::size_t j = i - ws; j < i + ws + 1; ++j) sum += qin[j].coeffs();
+        res.emplace_back(sum.normalized());
+    }
+    assert(res.size() == qin.size());
+    return res;
 }
 
 }  // namespace mdv

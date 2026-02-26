@@ -26,6 +26,14 @@ std::vector<mdv::mesh::Point> upsample_to_1khz(
         MovingDmpParameters             params
 );
 
+std::vector<Eigen::Quaterniond> encode_orientation(
+        const std::vector<mesh::Point>& in_path, bool flip_orientation = false
+);
+
+std::vector<Eigen::Quaterniond> filter_orientation(
+        const std::vector<Eigen::Quaterniond>& qin, std::size_t window_size
+);
+
 
 }  // namespace mdv
 
