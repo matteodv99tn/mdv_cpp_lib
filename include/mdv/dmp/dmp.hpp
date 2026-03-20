@@ -2,6 +2,7 @@
 #define MDV_DMP_HPP
 
 #include <gsl/assert>
+#include <type_traits>
 
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/concepts.hpp"
@@ -21,17 +22,19 @@
 
 namespace mdv {
 
-template <typename T>
-static T
-cwise_dot(const T& x1, const T& x2) {
+template <typename T, typename U>
+static T cwidse_dot(const T& x1, const U& x2){
+    if constexpr(std::is_same_v<U, double>) {
+        return x1 *x2;
+    }
     return x1.cwiseProduct(x2);
 }
 
-template <>
-double
-cwise_dot<double>(const double& x1, const double& x2) {
-    return x1 * x2;
-}
+// template <>
+// double
+// cwise_dot<double>(const double& x1, const double& x2) {
+//     return x1 * x2;
+// }
 
 template <concepts::trivially_embeddable_manifold M>
 struct DefaultManifoldEmbedding {
@@ -183,12 +186,13 @@ public:
             phi.row(i) =
                     fun().eval_basis(time_to_s(demo[i].t())) * time_to_s(demo[i].t());
 
-        const auto scale = embedding().embed_scale(
-                manifold().logarithmic_map(demo.front().y(), demo.back().y()),
-                demo.front(),
-                demo.back()
-        );
+        // const auto scale = embedding().embed_scale(
+        //         manifold().logarithmic_map(demo.front().y(), demo.back().y()),
+        //         demo.front(),
+        //         demo.back()
+        // );
 
+        const auto scale = 1.0;
         assert(phi.rows() == demo.size());
         assert(phi.cols() == n_basis());
         assert(f_des.rows() == demo.size());
@@ -214,9 +218,10 @@ public:
         y0_sample.y() = y0;
         g_sample.y()  = g;
 
-        const auto scale = embedding().embed_scale(
-                manifold().logarithmic_map(y0, g), y0_sample, g_sample
-        );
+        //const auto scale = embedding().embed_scale(
+        //         manifold().logarithmic_map(y0, g), y0_sample, g_sample
+        // );  
+        const auto scale = 1.0;
 
         Demonstration<M> res =
                 Demonstration<M>::builder(n_steps).set_sampling_period(dt).create();
@@ -229,7 +234,7 @@ public:
         const auto dts = seconds(dt);
         for (auto i = 0; i < n_steps - 1; ++i) {
             const double                     s    = time_to_s(i * dt);
-            const typename Embedding::Output f    = cwise_dot(fun()(s, s), scale);
+            const typename Embedding::Output f    = fun()(s, s);
             const TangentVector              f_tv = embedding().decode(f, res[i], goal);
             transf_sys().step(res[i], goal, f_tv, tau, dts, res[i + 1]);
         }

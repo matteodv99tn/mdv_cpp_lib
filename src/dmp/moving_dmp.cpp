@@ -117,8 +117,11 @@ generate_trajectory(
             params.dt_ms
     );
 
+    logger.debug("Creating equispaced");
     const auto ss     = create_equispaced(params.num_centroid_steps, 0.0, 1.0, false);
+    logger.debug("Resamling");
     const auto g_path = mesh::geodesic_resample(centroid_path, ss);
+    logger.debug("To point");
     const auto g_pt_path = eigen_to_meshpt(mesh, g_path);
 
     // Notation:
@@ -176,9 +179,23 @@ generate_trajectory(
 
     std::size_t        k_g = 0;
     std::vector<Point> res;
-    res.reserve(geod_steps);
+    res.reserve(geod_steps*2);
     dmp.tau = params.dmp_tau;
     std::chrono::milliseconds dt(params.dt_ms);
+
+    // for (std::size_t i = 0; i < params.dmp_tau * 1e-2; ++i){
+    v.setZero();
+    for (std::size_t i = 0; i < std::size_t(params.dmp_tau / 1e-2); ++i){
+        res.emplace_back(y);
+        k_g = update_embedding(0);
+
+        const auto [ynew, vnew] = dmp.integrate_once(
+                y, v, g_pt_path[k_g], params.circle_radius, dt, i * dt
+        );
+        y = ynew;
+        v = vnew;
+    }
+
     for (std::size_t i = 0; i < geod_steps; ++i) {
         res.emplace_back(y);
         if (i % params.print_every == 0) logger.debug("i = {}", i);
@@ -187,6 +204,17 @@ generate_trajectory(
 
         const auto [ynew, vnew] = dmp.integrate_once(
                 y, v, g_pt_path[k_g], params.circle_radius, dt, i * dt
+        );
+        y = ynew;
+        v = vnew;
+    }
+
+    for (std::size_t i = 0; i < std::size_t(params.dmp_tau / 1e-2); ++i){
+        res.emplace_back(y);
+        k_g = update_embedding(geod_steps- 1);
+
+        const auto [ynew, vnew] = dmp.integrate_once(
+                y, v, g_pt_path[k_g], params.circle_radius, dt, (geod_steps + i) * dt
         );
         y = ynew;
         v = vnew;
@@ -248,7 +276,7 @@ std::vector<Quat>
 encode_orientation(const std::vector<Point>& in_path, const bool flip_orientation) {
     const double z_mult = flip_orientation ? -1.0 : 1.0;
     const auto compute_quaternion = [z_mult](const Point& pt) -> Quat {
-        const Vec3 dx = Vec3::UnitX();
+        const Vec3 dx = -Vec3::UnitX();
         const Vec3 vz = z_mult * pt.face().normal();
         const Vec3 vx = (dx - dx.dot(vz) * vz).normalized();
         const Vec3 vy = vz.cross(vx);

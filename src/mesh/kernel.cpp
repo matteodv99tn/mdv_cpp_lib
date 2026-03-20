@@ -55,13 +55,13 @@ struct TimeBenchmarker {
 
     ~TimeBenchmarker() {
         // Display mean / median / other data when destroying
-        fmt::println("Showing logged data");
-        for(const auto& [dims, ts]: times){
-            const auto& [rows, cols] = dims;
-            const double time_ms = double(mean(ts)) * 1e-6;
-            fmt::println("{} x {} -> {:.4}ms", rows, cols, time_ms);
-        }
-        fmt::println("Showing logged data --- Done");
+        // fmt::println("Showing logged data");
+        // for(const auto& [dims, ts]: times){
+        //     const auto& [rows, cols] = dims;
+        //     const double time_ms = double(mean(ts)) * 1e-6;
+        //     fmt::println("{} x {} -> {:.4}ms", rows, cols, time_ms);
+        // }
+        // fmt::println("Showing logged data --- Done");
     }
 };
 
