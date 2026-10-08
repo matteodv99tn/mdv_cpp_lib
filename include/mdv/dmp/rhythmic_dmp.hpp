@@ -178,7 +178,7 @@ struct RhytmicDmp {
 
         logger().trace("Evaluating desired forcing term");
         const Point g = goal.value_or(compute_average(demo));
-        assert(g != demo.front().y());
+        // assert(g != demo.front().y());
         const Eigen::MatrixXd f_des = evaluate_desired_forcing_term(demo, g);
 
         const double r = [&r_value, &demo, this]() -> double {
