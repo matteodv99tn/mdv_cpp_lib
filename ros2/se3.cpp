@@ -8,7 +8,7 @@ namespace mdv::ros2 {
 std::string
 describe(const SE3& pose) {
     return fmt::format(
-            "position ({}, {}, {}), orientation {} + ({}, {}, {})",
+            "position ({:.3f}, {:.3f}, {:.3f}), orientation {:.3f} + ({:.3f}, {:.3f}, {:.3f})",
             pose.pos(0),
             pose.pos(1),
             pose.pos(2),
