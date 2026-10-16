@@ -2,8 +2,6 @@
 Checks: "
         modernize-*,
         cppcoreguidelines-*,
-        header-filter=.*,
-        readibility-*,
         bugprone-*,
         clang-analyzer-*,
         readability-*,
@@ -20,8 +18,8 @@ Checks: "
         -readability-function-cognitive-complexity,
         -cppcoreguidelines-pro-bounds-array-to-pointer-decay
         "
-# WarningsAsErrors: '*'
-HeaderFilterRegex: './include/'
+WarningsAsErrors: '*'
+HeaderFilterRegex: '(^|/)include/'
 CheckOptions:
   - { key: readability-braces-around-statements.ShortStatementLines,  value: 2                }
   - { key: readability-identifier-naming.NamespaceCase,               value: lower_case       }
