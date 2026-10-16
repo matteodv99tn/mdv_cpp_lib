@@ -17,7 +17,7 @@ TEST(MdvMesh, FlatParameterisation) {
     const path mesh_path = mdv::config::meshes_directory() / "bunny.off";
     const auto full_mesh = Mesh::from_file(mesh_path);
     auto       mesh =
-            Mesh::extract_normal_bounded_surface(full_mesh, full_mesh.vertex(0), 90.0);
+            Mesh::extract_normal_bounded_surface(full_mesh, full_mesh.vertex(0), 30.0);
     FlatParameterisation map(mesh);
 
     ASSERT_TRUE(map.is_one_to_one_mapping());
