@@ -184,7 +184,7 @@ CgalImpl::FaceLocation location_from_mesh_point(const ::mdv::mesh::Point& pt) no
  * @return Eigen vector.
  */
 MDV_INLINE Eigen::Vector3d
-           convert(const CgalImpl::Vec3& x) {
+convert(const CgalImpl::Vec3& x) {
     return {x.x(), x.y(), x.z()};
 }
 
@@ -195,7 +195,7 @@ MDV_INLINE Eigen::Vector3d
  * @return Eigen vector.
  */
 MDV_INLINE Eigen::Vector3d
-           convert(const CgalImpl::Point3& x) {
+convert(const CgalImpl::Point3& x) {
     return {x.x(), x.y(), x.z()};
 }
 
@@ -206,7 +206,7 @@ MDV_INLINE Eigen::Vector3d
  * @return CGAL point.
  */
 MDV_INLINE CgalImpl::Kernel::Point_3
-           point3_from_eigen(const Vec3d& vec) {
+point3_from_eigen(const Vec3d& vec) {
     return {vec(0), vec(1), vec(2)};
 };
 
@@ -217,7 +217,7 @@ MDV_INLINE CgalImpl::Kernel::Point_3
  * @return CGAL direction.
  */
 MDV_INLINE CgalImpl::Kernel::Direction_3
-           direction3_from_eigen(const Vec3d& vec) {
+direction3_from_eigen(const Vec3d& vec) {
     return {vec(0), vec(1), vec(2)};
 };
 
@@ -228,7 +228,7 @@ MDV_INLINE CgalImpl::Kernel::Direction_3
  * @return CGAL vector.
  */
 MDV_INLINE CgalImpl::Kernel::Vector_3
-           vector3_from_eigen(const Vec3d& vec) {
+vector3_from_eigen(const Vec3d& vec) {
     return {vec(0), vec(1), vec(2)};
 };
 
@@ -239,7 +239,7 @@ MDV_INLINE CgalImpl::Kernel::Vector_3
  * @return CGAL mesh reference.
  */
 MDV_INLINE const CgalImpl::Mesh&
-                 get_mesh_impl(const MeshElement& elem) {
+get_mesh_impl(const MeshElement& elem) {
     return elem.mesh().cgal()._mesh;
 };
 
@@ -250,7 +250,7 @@ MDV_INLINE const CgalImpl::Mesh&
  * @return CGAL mesh reference.
  */
 MDV_INLINE const CgalImpl::Mesh&
-                 get_mesh_impl(const Mesh& mesh) {
+get_mesh_impl(const Mesh& mesh) {
     return mesh.cgal()._mesh;
 };
 
@@ -261,7 +261,7 @@ MDV_INLINE const CgalImpl::Mesh&
  * @return CGAL point.
  */
 MDV_INLINE CgalImpl::Point3
-           to_vertex_impl(const Vertex& v) {
+to_vertex_impl(const Vertex& v) {
     CgalImpl::CgalVertexIndex id(v.id());
     return v.mesh().cgal()._mesh.point(id);
 }
@@ -273,7 +273,7 @@ MDV_INLINE CgalImpl::Point3
  * @return CGAL face index.
  */
 MDV_INLINE CgalImpl::CgalFaceIndex
-           to_face_impl(const Face& f) {
+to_face_impl(const Face& f) {
     return CgalImpl::CgalFaceIndex{f.id()};
 }
 
@@ -284,7 +284,7 @@ MDV_INLINE CgalImpl::CgalFaceIndex
  * @return CGAL half-edge index.
  */
 MDV_INLINE CgalImpl::CgalHalfEdgeIndex
-           to_halfedge_impl(const HalfEdge& he) {
+to_halfedge_impl(const HalfEdge& he) {
     return CgalImpl::CgalHalfEdgeIndex{he.id()};
 }
 
@@ -295,7 +295,7 @@ MDV_INLINE CgalImpl::CgalHalfEdgeIndex
  * @return CGAL point.
  */
 MDV_INLINE CgalImpl::Kernel::Point_3
-           point3_from_point(const Point& pt) {
+point3_from_point(const Point& pt) {
     return point3_from_eigen(pt.position());
 }
 
@@ -306,9 +306,9 @@ MDV_INLINE CgalImpl::Kernel::Point_3
  * @return CGAL ray.
  */
 MDV_INLINE CgalImpl::Kernel::Ray_3
-           ray3_from_tangent_vector(const TangentVector& tv) {
+ray3_from_tangent_vector(const TangentVector& tv) {
     return {point3_from_point(tv.application_point()),
-                       direction3_from_eigen(tv.cartesian_vector())};
+            direction3_from_eigen(tv.cartesian_vector())};
 }
 
 /**
@@ -318,7 +318,7 @@ MDV_INLINE CgalImpl::Kernel::Ray_3
  * @return CGAL triangle.
  */
 MDV_INLINE CgalImpl::Kernel::Triangle_3
-           triangle3_from_face(const Face& f) {
+triangle3_from_face(const Face& f) {
     const auto& m   = get_mesh_impl(f);
     const auto  he0 = m.halfedge(to_face_impl(f));
     const auto  he1 = next(he0, m);
@@ -343,12 +343,12 @@ MDV_INLINE std::optional<CgalImpl::CgalHalfEdgeIndex>
                    const CgalImpl::CgalFaceIndex& target_face,
                    const CgalImpl::Mesh&          mesh
            ) {
-    const auto source_he = halfedge(source_face, mesh);
-    for (const auto he : CGAL::halfedges_around_face(source_he, mesh))
-        if (face(opposite(he, mesh), mesh) == target_face) return he;
+               const auto source_he = halfedge(source_face, mesh);
+               for (const auto he : CGAL::halfedges_around_face(source_he, mesh))
+                   if (face(opposite(he, mesh), mesh) == target_face) return he;
 
-    return std::nullopt;
-}
+               return std::nullopt;
+           }
 
 /**
  * @brief Rotation aligning the normal frames of two adjacent faces.

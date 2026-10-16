@@ -191,8 +191,7 @@ main() {
             | rs::to_vector;
 
     write_matrix(
-            file,
-            "OLD_MESHDMP_PATH",
+            file, "OLD_MESHDMP_PATH",
             move_outward(target_mesh, get_integrated_position())
     );
     write_matrix(file, "NEW_MESHDMP_PATH", move_outward(target_mesh, new_position));

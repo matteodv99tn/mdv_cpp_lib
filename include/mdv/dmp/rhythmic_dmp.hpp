@@ -5,14 +5,13 @@
 #include <numeric>
 #include <optional>
 
-#include <mdv/riemann_geometry/se3.hpp>
-
 #include "mdv/dmp/concepts.hpp"
 #include "mdv/dmp/dmp.hpp"
 #include "mdv/dmp/learnable_function.hpp"
 #include "mdv/riemann_geometry/concepts.hpp"
 #include "mdv/riemann_geometry/fwd.hpp"
 #include "mdv/riemann_geometry/mesh.hpp"
+#include "mdv/riemann_geometry/se3.hpp"
 #include "mdv/riemann_geometry/utils.hpp"
 
 namespace mdv {
@@ -158,11 +157,8 @@ struct RhytmicDmp {
         };
 
         return std::transform_reduce(
-                demo.begin(),
-                demo.end(),
-                -std::numeric_limits<double>::infinity(),
-                std::less<double>{},
-                compute_distance
+                demo.begin(), demo.end(), -std::numeric_limits<double>::infinity(),
+                std::less<double>{}, compute_distance
         );
     }
 
@@ -337,8 +333,7 @@ public:
         _dmp = std::move(dmp);
         if (_dmp.tau <= min_tau) {
             _dmp.logger().debug(
-                    "Current dmp object has tau = {}, setting to default {}",
-                    _dmp.tau,
+                    "Current dmp object has tau = {}, setting to default {}", _dmp.tau,
                     min_tau
             );
             _dmp.tau = min_tau;

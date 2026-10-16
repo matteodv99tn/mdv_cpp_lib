@@ -49,8 +49,8 @@ public:
 
     /**
      * @brief Computes a geodesic in a local shortest path object.
-     * 
-     * This makes the function call thread-safe when called in multi-threaded 
+     *
+     * This makes the function call thread-safe when called in multi-threaded
      * environment
      *
      * @param from source point of the geodesic

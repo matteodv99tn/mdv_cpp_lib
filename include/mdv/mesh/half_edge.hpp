@@ -18,7 +18,7 @@ namespace mdv::mesh {
  * traverse the mesh, compute local frames, and propagate tangent directions
  * across faces, which are central operations for geodesic-based learning on
  * surfaces.
- * 
+ *
  * Half-edges are view-types on a Mesh object.
  */
 struct HalfEdge : internal::IndexedMeshElement {

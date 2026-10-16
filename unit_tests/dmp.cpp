@@ -223,11 +223,9 @@ TEST(Dmp, R2MeshDmpComparison) {
     using MeshDemo = mdv::Demonstration<MeshMan>;
     using R2Dmp    = mdv::Dmp<R2>;
     using MeshDmp  = mdv::Dmp<
-             MeshMan,
-             mdv::dmp::TransformationSystem<MeshMan>,
-             mdv::dmp::ExponentialCoordinateSystem,
-             mdv::DefaultFunction,
-             mdv::riemann::MeshEmbedder>;
+            MeshMan, mdv::dmp::TransformationSystem<MeshMan>,
+            mdv::dmp::ExponentialCoordinateSystem, mdv::DefaultFunction,
+            mdv::riemann::MeshEmbedder>;
 
     const auto fun       = [](const double x, const double y) -> double { return 0.0; };
     const auto file_path = mdv::mesh::create_from_function(fun);
@@ -252,12 +250,12 @@ TEST(Dmp, R2MeshDmpComparison) {
     }
 
 
-    const R2Demo r2_demo = R2Demo::builder(r2_positions.size())
-                                   .set_sampling_period(5ms)
-                                   .assign_position(r2_positions)
-                                   .velocity_automatic_differentiation()
-                                   .acceleration_automatic_differentiation()
-                                   .create();
+    const R2Demo   r2_demo   = R2Demo::builder(r2_positions.size())
+                                       .set_sampling_period(5ms)
+                                       .assign_position(r2_positions)
+                                       .velocity_automatic_differentiation()
+                                       .acceleration_automatic_differentiation()
+                                       .create();
     const MeshDemo mesh_demo = MeshDemo::builder(mesh_positions.size())
                                        .set_sampling_period(5ms)
                                        .assign_position(mesh_positions)
@@ -281,9 +279,7 @@ TEST(Dmp, R2MeshDmpComparison) {
             r2_demo.front().y(), r2_demo.back().y(), r2_demo.size(), r2_demo[1].t()
     );
     const auto mesh_res = mesh_dmp.integrate(
-            mesh_demo.front().y(),
-            mesh_demo.back().y(),
-            mesh_demo.size(),
+            mesh_demo.front().y(), mesh_demo.back().y(), mesh_demo.size(),
             mesh_demo[1].t()
     );
 

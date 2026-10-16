@@ -110,10 +110,10 @@ Point::PointOnEdgeDescriptor::PointOnEdgeDescriptor(
 
     const double squared_d = CGAL::squared_distance(he_origin, pt)
                              / CGAL::squared_distance(he_origin, he_end);
-    _c = std::sqrt(squared_d);
+    _c                     = std::sqrt(squared_d);
     assert((_c >= 0.0) && (_c <= 1.0));
     assert(mdv::condition::are_equal(position, this->position()));
-    if (_c <= 0.0 || _c >= 1.0) 
+    if (_c <= 0.0 || _c >= 1.0)
         throw std::runtime_error("Point falls outside the edge!");
 }
 
@@ -124,14 +124,13 @@ Point::PointOnEdgeDescriptor::from_face(const Face& f, const CartesianPoint& pos
     using Line    = internal::CgalImpl::Kernel::Line_3;
     using HeIndex = internal::CgalImpl::CgalHalfEdgeIndex;
 
-    const auto& m   = internal::get_mesh_impl(f);
-    const auto f_id = internal::to_face_impl(f);
-    const auto he_f = CGAL::halfedge(f_id, m);
-    const auto p    = internal::point3_from_eigen(position);
+    const auto& m    = internal::get_mesh_impl(f);
+    const auto  f_id = internal::to_face_impl(f);
+    const auto  he_f = CGAL::halfedge(f_id, m);
+    const auto  p    = internal::point3_from_eigen(position);
 
     std::vector<HeIndex> hes;
-    for(const auto he: CGAL::halfedges_around_face(he_f, m)) 
-        hes.push_back(he);
+    for (const auto he : CGAL::halfedges_around_face(he_f, m)) hes.push_back(he);
 
     const auto build_edge = [&](const HeIndex& he) -> Segment {
         const auto v0 = m.point(source(he, m));
@@ -146,8 +145,8 @@ Point::PointOnEdgeDescriptor::from_face(const Face& f, const CartesianPoint& pos
     // Retrieve closest edge -> project on closest edge -> construct point descriptor
     const HeIndex he = rs::min(hes, std::less{}, edge_distance);
     const Segment ed = build_edge(he);
-    const Line line{ed};
-    const Point proj_pt = line.projection(p);
+    const Line    line{ed};
+    const Point   proj_pt = line.projection(p);
 
     return {HalfEdge(f.mesh(), he), internal::convert(proj_pt)};
 }
@@ -281,9 +280,7 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
     const auto&            m_impl = mesh.cgal()._mesh;
     const CgalImpl::Point3 point{cartesian_pt(0), cartesian_pt(1), cartesian_pt(2)};
     const auto [face_id, coords] = CgalImpl::ShortestPath::locate(
-            point,
-            mesh.cgal()._aabb_tree,
-            m_impl,
+            point, mesh.cgal()._aabb_tree, m_impl,
             get(CGAL::vertex_point, internal::get_mesh_impl(mesh))
     );
     const Face& face = mesh.face(static_cast<Index>(face_id.idx()));
@@ -299,8 +296,7 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
     if (n_zero_coords == 2)
         return PointOnVertexDescriptor{mesh.closest_vertex(cartesian_pt)};
 
-    if (n_zero_coords == 1)
-        return PointOnEdgeDescriptor::from_face(face, cartesian_pt);
+    if (n_zero_coords == 1) return PointOnEdgeDescriptor::from_face(face, cartesian_pt);
 
     for (const auto v_id : CGAL::vertices_around_face(f_he, m_impl)) {
         if (CGAL::squared_distance(point, m_impl.point(v_id)) < 1e-15)

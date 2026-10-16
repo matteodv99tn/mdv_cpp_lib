@@ -36,8 +36,7 @@ HalfEdge::HalfEdge(const Vertex& v, const Face& f) :
         const std::string msg = fmt::format(
                 "Face #{} does not contain vertex #{}; cannot initialise proper "
                 "halfedge",
-                f_id.idx(),
-                v_id.idx()
+                f_id.idx(), v_id.idx()
         );
         throw std::runtime_error(msg.c_str());
     };

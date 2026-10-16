@@ -286,8 +286,7 @@ mdv::mesh::logarithmic_map(const Point& p, const Point& y) {
     mdv::Logger& logger = *Mesh::default_logger.get();
     logger.debug(
             "Computing logarithmic map of point {} w.r.t. point {}",
-            eigen_to_str(y.position()),
-            eigen_to_str(p.position())
+            eigen_to_str(y.position()), eigen_to_str(p.position())
     );
 
     if (are_equal(p.position(), y.position())) return {p, Eigen::Vector3d::Zero()};
@@ -412,9 +411,8 @@ log_vectorfield(
     }
 
     rec().log(
-            path,
-            rerun::archetypes::Arrows3D::from_vectors(std::move(directions))
-                    .with_origins(std::move(origins))
+            path, rerun::archetypes::Arrows3D::from_vectors(std::move(directions))
+                          .with_origins(std::move(origins))
     );
 }
 
@@ -506,13 +504,7 @@ mdv::mesh::multithreaded_exponential_map(
     std::atomic_long n_vertices_after = 0;
     constexpr long   batch_size       = 16;
 
-    auto process_row = [&res,
-                        &mesh,
-                        &xs,
-                        &vs,
-                        &n_zeroed,
-                        &n_changed,
-                        &n_vertices,
+    auto process_row = [&res, &mesh, &xs, &vs, &n_zeroed, &n_changed, &n_vertices,
                         &n_vertices_after](const long i) {
         const Vec3 pos{xs.row(i)};
         const Vec3 vec{vs.row(i)};
@@ -764,9 +756,6 @@ mdv::mesh::validate_projx(
 
     fmt::print(
             "\rProjx | changed / valid / n. verts / tot : {} / {} / {} / {}\n",
-            n_changed,
-            n_good_proj,
-            n_vertices,
-            N
+            n_changed, n_good_proj, n_vertices, N
     );
 }

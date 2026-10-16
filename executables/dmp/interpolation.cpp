@@ -45,12 +45,12 @@ main() {
     for (std::size_t i = 0; i < 5; ++i) pos_data.emplace_back(1.0);
 
 
-    const Demo dem = Demo::builder(pos_data.size())
-                             .set_sampling_period(std::chrono::milliseconds(500))
-                             .assign_position(pos_data)
-                             .velocity_automatic_differentiation()
-                             .acceleration_automatic_differentiation()
-                             .create();
+    const Demo        dem = Demo::builder(pos_data.size())
+                                    .set_sampling_period(std::chrono::milliseconds(500))
+                                    .assign_position(pos_data)
+                                    .velocity_automatic_differentiation()
+                                    .acceleration_automatic_differentiation()
+                                    .create();
     const auto        integration_dt    = std::chrono::milliseconds(2);
     const std::size_t integration_steps = dem.back().t() / integration_dt;
     const double      alpha             = 48.0;

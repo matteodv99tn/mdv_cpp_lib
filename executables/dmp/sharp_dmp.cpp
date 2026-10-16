@@ -50,11 +50,8 @@ main() {
     using Se3Dmp  = mdv::Dmp<mdv::riemann::SE3>;
     using Demo    = mdv::Demonstration<mdv::riemann::SE3>;
     using MeshDmp = mdv::Dmp<
-            M,
-            mdv::dmp::TransformationSystem<M>,
-            mdv::dmp::ExponentialCoordinateSystem,
-            mdv::DefaultFunction,
-            mdv::riemann::MeshEmbedder>;
+            M, mdv::dmp::TransformationSystem<M>, mdv::dmp::ExponentialCoordinateSystem,
+            mdv::DefaultFunction, mdv::riemann::MeshEmbedder>;
     using Mesh = mdv::mesh::Mesh;
 
     const long ns_demo  = 101;  // Demonstration samples
@@ -192,7 +189,7 @@ main() {
                                   .acceleration_automatic_differentiation()
                                   .set_sampling_period(1ms)
                                   .create();
-    Se3Dmp se3_dmp(50);
+    Se3Dmp     se3_dmp(50);
     se3_dmp.learn(se3_demo);
     se3_dmp.tau = 0.5;
 

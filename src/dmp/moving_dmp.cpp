@@ -88,11 +88,11 @@ generate_trajectory(
     const auto thetas = create_equispaced(100, 0.0, 2 * M_PI, true);
     const auto path   = thetas | rv::transform(generate_pos) | rs::to_vector;
     const auto demo   = MeshDemo::builder(path.size())
-                              .assign_position(path)
-                              .velocity_automatic_differentiation()
-                              .acceleration_automatic_differentiation()
-                              .set_sampling_period(std::chrono::milliseconds(10))
-                              .create();
+                                .assign_position(path)
+                                .velocity_automatic_differentiation()
+                                .acceleration_automatic_differentiation()
+                                .set_sampling_period(std::chrono::milliseconds(10))
+                                .create();
     logger.debug("Demonstration created");
 
     MeshDmp dmp;
@@ -110,11 +110,7 @@ generate_trajectory(
     const long   geod_steps = std::ceil(trav_time / (1e-3 * double(params.dt_ms)));
     logger.info(
             "Path length/speed {:3f}/{:3f} -> Travel time: {:3f}s ({} samples at {}ms)",
-            len,
-            params.linear_speed,
-            trav_time,
-            geod_steps,
-            params.dt_ms
+            len, params.linear_speed, trav_time, geod_steps, params.dt_ms
     );
 
     const auto ss     = create_equispaced(params.num_centroid_steps, 0.0, 1.0, false);
@@ -235,7 +231,8 @@ upsample_to_1khz(
             downsampled_path | rv::sliding(2)
             | rv::transform([&upsample_segment](const auto& rng) -> Geodesic {
                   return upsample_segment(rng[0], rng[1]);
-              }) | rs::to<std::vector<Geodesic>>;
+              })
+            | rs::to<std::vector<Geodesic>>;
     const Geodesic vec = rv::join(upsampled_path) | rs::to_vector;
 
     return vec | rv::transform([&mesh](const Vec3& pos) -> Point {
@@ -246,8 +243,8 @@ upsample_to_1khz(
 
 std::vector<Quat>
 encode_orientation(const std::vector<Point>& in_path, const bool flip_orientation) {
-    const double z_mult = flip_orientation ? -1.0 : 1.0;
-    const auto compute_quaternion = [z_mult](const Point& pt) -> Quat {
+    const double z_mult             = flip_orientation ? -1.0 : 1.0;
+    const auto   compute_quaternion = [z_mult](const Point& pt) -> Quat {
         const Vec3 dx = Vec3::UnitX();
         const Vec3 vz = z_mult * pt.face().normal();
         const Vec3 vx = (dx - dx.dot(vz) * vz).normalized();

@@ -45,12 +45,8 @@ main() {
 
     // Execute demonstration
     const Demo res = dmp.integrate(
-            demo.front().y(),
-            demo.front().yd() / dmp.tau,
-            dmp.compute_average(demo),
-            .5,
-            3 * 5 * n_samples,
-            1ms
+            demo.front().y(), demo.front().yd() / dmp.tau, dmp.compute_average(demo),
+            .5, 3 * 5 * n_samples, 1ms
     );
 
 

@@ -167,8 +167,9 @@ Eigen::MatrixXd projx(const Mesh& mesh, const Eigen::MatrixXd& xs);
 
 long num_points_on_mesh(const Mesh& mesh, const Eigen::MatrixXd& xs);
 
-void 
-validate_projx(const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& xs_proj);
+void validate_projx(
+        const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& xs_proj
+);
 
 Eigen::MatrixXd proju(
         const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs

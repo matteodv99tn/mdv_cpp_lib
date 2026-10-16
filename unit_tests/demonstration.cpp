@@ -16,9 +16,7 @@ static_assert(mdv::concepts::manifold<S3>);
 
 TEST(Demonstration2Assertions, Demonstration) {
     using row = std::tuple<
-            std::chrono::steady_clock::duration,
-            Eigen::Quaterniond,
-            Eigen::Vector4d,
+            std::chrono::steady_clock::duration, Eigen::Quaterniond, Eigen::Vector4d,
             Eigen::Vector4d>;
     static_assert(std::is_same_v<row, Demonstration<S3>::BaseTuple>);
 
@@ -74,9 +72,7 @@ TEST(Demonstration, PositionRetriever) {
     const auto      demonstration = mdv::build_exact_scalar_demonstration();
     Eigen::VectorXd ts(demonstration.size());
     std::transform(
-            demonstration.begin(),
-            demonstration.end(),
-            ts.begin(),
+            demonstration.begin(), demonstration.end(), ts.begin(),
             [](const auto& sample) -> double {
                 return mdv::convert::seconds(sample.t());
             }

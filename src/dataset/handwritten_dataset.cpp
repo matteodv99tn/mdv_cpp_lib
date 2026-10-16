@@ -25,13 +25,12 @@ namespace {
                 vel_data.colwise().begin(), vel_data.colwise().end(), exceeds_threshold
         );
         auto end_iter = std::find_if(
-                vel_data.colwise().rbegin(),
-                vel_data.colwise().rend(),
+                vel_data.colwise().rbegin(), vel_data.colwise().rend(),
                 exceeds_threshold
         );
 
         const long start_id = std::distance(vel_data.colwise().begin(), start_iter);
-        const long end_id   = vel_data.cols()
+        const long end_id = vel_data.cols()
                             - std::distance(vel_data.colwise().rbegin(), end_iter) - 1;
 
         return {start_id, end_id};

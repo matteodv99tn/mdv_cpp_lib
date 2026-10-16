@@ -65,12 +65,7 @@ build_surface(
     logger->debug(
             "Generating surface - low corner: {:.2f}, {:.2f} - top corner: {:.2f}, "
             "{:.2f} - dimension: {}x{} vertices",
-            x_min,
-            y_min,
-            x_max,
-            y_max,
-            nx,
-            ny
+            x_min, y_min, x_max, y_max, nx, ny
     );
 
     VertexData vertices;

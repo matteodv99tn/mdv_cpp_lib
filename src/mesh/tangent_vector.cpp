@@ -285,8 +285,8 @@ TangentVector::from_ambient_vector_on_vertex(
         return normal_projection(vec, HalfEdge{v.mesh(), he_id}.face().normal());
     };
 
-    const auto retrieve_vectors =
-            [&vec, &m, &v](const HeIndex& he_id) -> std::array<Vec3d, 3> {
+    const auto retrieve_vectors = [&vec, &m,
+                                   &v](const HeIndex& he_id) -> std::array<Vec3d, 3> {
         const auto     opposite_he_id = opposite(prev(he_id, m), m);
         const HalfEdge he1{v.mesh(), he_id};
         const HalfEdge he2{v.mesh(), opposite_he_id};
@@ -364,8 +364,7 @@ TangentVector::unit_random(const Point& application_point) {
                 "which is not inside the face"
         );
     }
-    return {application_point,
-            normal_projection(Vec3d::Random(), n).normalized(),
+    return {application_point, normal_projection(Vec3d::Random(), n).normalized(),
             INSIDE_FACE};
 }
 

@@ -54,7 +54,6 @@ to_demonstration_data(
 
 int
 main(int argc, char* argv[]) {
-
     const double ls    = 0.05;
     const double noise = 1.0;
 

@@ -72,7 +72,7 @@ struct DefaultManifoldEmbedding {
     embed_scale(const Input& in, const StateType& x, const GoalType& g) const
         requires std::same_as<M, riemann::SE3>
     {
-        Output res = embed(in, x, g);
+        Output res             = embed(in, x, g);
         res.template tail<4>() = Eigen::Vector4d::Ones();
         return res;
     }
@@ -185,8 +185,7 @@ public:
 
         const auto scale = embedding().embed_scale(
                 manifold().logarithmic_map(demo.front().y(), demo.back().y()),
-                demo.front(),
-                demo.back()
+                demo.front(), demo.back()
         );
 
         assert(phi.rows() == demo.size());
@@ -304,8 +303,7 @@ public:
         _dmp = std::move(dmp);
         if (_dmp.tau <= min_tau) {
             _dmp.logger().debug(
-                    "Current dmp object has tau = {}, setting to default {}",
-                    _dmp.tau,
+                    "Current dmp object has tau = {}, setting to default {}", _dmp.tau,
                     min_tau
             );
             _dmp.tau = min_tau;

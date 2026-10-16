@@ -63,8 +63,7 @@ CgalImpl::CgalImpl(CgalImpl&& other) noexcept :
         _current_shortpath_source(other._current_shortpath_source) {
     other._current_shortpath_source = nullptr;
     logger().trace(
-            "Moved CgalImpl from {} to {}",
-            static_cast<void*>(&other),
+            "Moved CgalImpl from {} to {}", static_cast<void*>(&other),
             static_cast<void*>(this)
     );
 }
@@ -112,23 +111,21 @@ mdv::mesh::internal::location_from_mesh_point(
         const auto& aabb_tree = pt.mesh().cgal()._aabb_tree;
         const auto& m_impl    = internal::get_mesh_impl(pt.mesh());
         return CgalImpl::ShortestPath::locate(
-                internal::point3_from_point(pt),
-                aabb_tree,
-                m_impl,
+                internal::point3_from_point(pt), aabb_tree, m_impl,
                 get(CGAL::vertex_point, m_impl)
         );
     };
     return std::visit(
             overload{
-                    std::move(vertex_descriptor),
-                    std::move(face_descriptor),
+                    std::move(vertex_descriptor), std::move(face_descriptor),
                     std::move(edge_descriptor)
             },
             point.descriptor()
     );
 }
 
-void CgalImpl::scale(const double factor) {
+void
+CgalImpl::scale(const double factor) {
     const Transform transform(CGAL::Scaling{}, factor);
     CGAL::Polygon_mesh_processing::transform(transform, _mesh);
     // Need to rebuild AABB tree!
@@ -157,7 +154,6 @@ CgalImpl::transform(const Eigen::Affine3d& transformation) {
     // Need to rebuild AABB tree!
     _shortest_path->build_aabb_tree(_aabb_tree);
 }
-
 
 void
 CgalImpl::build_vertex_normals_map() noexcept {
@@ -269,8 +265,8 @@ mdv::mesh::internal::edge_ray_intersection(
 
     if (are_parallel(dir_r, dir_e) && dist > 1e-18) return std::nullopt;
     if (are_parallel(dir_r, dir_e) && dist <= 1e-18) {
-        if ( dir_r.dot(or_e - or_r) > 0.0) 
-            return internal::point3_from_eigen(or_e);;
+        if (dir_r.dot(or_e - or_r) > 0.0) return internal::point3_from_eigen(or_e);
+        ;
         return edge.target();
     }
 

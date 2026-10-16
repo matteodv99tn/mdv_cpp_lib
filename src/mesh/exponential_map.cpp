@@ -55,15 +55,13 @@ namespace {
 
     ::rerun::components::Position3D
     to_rr_pos(const Kernel::Point_3& in) {
-        return {static_cast<float>(in.x()),
-                static_cast<float>(in.y()),
+        return {static_cast<float>(in.x()), static_cast<float>(in.y()),
                 static_cast<float>(in.z())};
     }
 
     ::rerun::components::Vector3D
     to_rr_vec(const Kernel::Vector_3& in) {
-        return {static_cast<float>(in.x()),
-                static_cast<float>(in.y()),
+        return {static_cast<float>(in.x()), static_cast<float>(in.y()),
                 static_cast<float>(in.z())};
     }
 
@@ -387,8 +385,7 @@ namespace {
         assert(are_orthogonal(n, d));
         assert(are_orthogonal(vec_dir, n));
         assert(vector_inside_triangle(
-                convert(he_to_vec3(*he_circ)),
-                vec_dir,
+                convert(he_to_vec3(*he_circ)), vec_dir,
                 convert(he_to_vec3(*(he_circ--)))
         ));
         return {
