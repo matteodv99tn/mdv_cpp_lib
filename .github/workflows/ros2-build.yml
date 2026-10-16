@@ -5,6 +5,12 @@ on:
     branches:
       - main
       - devel
+      - devel-v2
+  pull_request:
+    branches:
+      - main
+      - devel
+      - devel-v2
           
 jobs:
   humble_source:

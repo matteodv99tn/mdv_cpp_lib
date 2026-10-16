@@ -40,7 +40,11 @@ find_and_log_required(CGAL)
 find_and_log_required(fmt)
 find_and_log_required(range-v3)
 find_and_log_required(Microsoft.GSL)
-find_and_log(rerun_sdk)
+if(USE_RERUN)
+    find_and_log_required(rerun_sdk)
+else()
+    find_and_log(rerun_sdk)
+endif()
 
 # Build libmatioCpp
 include(ExternalProject)
@@ -224,6 +228,9 @@ endif()
 # |_____/_/\_\___|\___|\__,_|\__\__,_|_.__/|_|\___||___/
 #                                                       
 if(BUILD_EXECUTABLES)
+    if(NOT USE_RERUN)
+        message(FATAL_ERROR "BUILD_EXECUTABLES requires USE_RERUN=ON")
+    endif()
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/mesh)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/dmp)
 endif()

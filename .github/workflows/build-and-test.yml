@@ -2,87 +2,68 @@ name: C++ Build and Test
 
 on:
   push:
-    branches:
-      - main
-      - devel
+    branches: [main, devel, devel-v2]
   pull_request:
-    branches:
-      - main
-      - devel
+    branches: [main, devel, devel-v2]
 
 jobs:
-  build-dependencies:
-    runs-on: ubuntu-22.04
-    permissions:
-      id-token: write
-
+  formatting:
+    runs-on: ubuntu-latest
+    env:
+      MDVCPPLIB_LLVM_CACHE_DIR: ${{ github.workspace }}/.llvm-cache
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
-
-    - name: Install dependencies
-      run: sudo ./cmake/install_dependencies.sh
-
-    - name: Build external dependencies
-      run: |
-        mkdir -p cmake/build
-        cmake -S cmake -B cmake/build
-        cmake --build cmake/build/
-        cmake --install cmake/build/
-
-    - name: Upload compiled libraries
-      uses: actions/upload-artifact@v4
-      with:
-        name: "libraries"
-        path: cmake/install
-
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.MDVCPPLIB_LLVM_CACHE_DIR }}
+          key: llvm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get_llvm.sh') }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python -m pip install pre-commit
+      - name: Check formatting
+        run: pre-commit run --all-files --hook-stage pre-commit
 
   build-and-test:
-    needs: build-dependencies
-    name: Build and Test on ${{ matrix.os }} with ${{ matrix.compiler }} (${{ matrix.build_type }})
+    name: ${{ matrix.os }} / ${{ matrix.compiler.name }} / ${{ matrix.build_type }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        # os: [ubuntu-22.04, ubuntu-latest, archlinux]
         os: [ubuntu-22.04, ubuntu-latest]
-        compiler: [gcc, clang]
+        compiler:
+          - {name: GCC, cc: gcc, cxx: g++}
+          - {name: Clang, cc: clang, cxx: clang++}
         build_type: [Debug, Release]
+    env:
+      CC: ${{ matrix.compiler.cc }}
+      CXX: ${{ matrix.compiler.cxx }}
+      MDVCPPLIB_LLVM_CACHE_DIR: ${{ github.workspace }}/.llvm-cache
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
-
-    - name: Install Build Dependencies
-      run: sudo ./cmake/install_dependencies.sh
-
-    - name: Fetch external libraries
-      uses: actions/download-artifact@v4
-      with:
-        name: "libraries"
-        path: cmake/install
-
-    - name: Set Up Compiler
-      run: |
-        if [[ "${{ matrix.compiler }}" == "gcc" ]]; then
-          export CC=gcc
-          export CXX=g++
-        else
-          export CC=clang
-          export CXX=clang++
-        fi
-
-    - name: Create Build Directory
-      run: mkdir -p build && cd build
-
-    - name: Configure with CMake
-      working-directory: build
-      run: |
-        cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-
-    - name: Build with CMake
-      working-directory: build
-      run: cmake --build . -- -j$(nproc)
-
-    - name: Run Unit Tests
-      working-directory: build
-      run: ctest --output-on-failure
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo ./cmake/install_dependencies.sh
+          sudo apt-get install -y clang curl
+      # Build on each runner/compiler to avoid sharing ABI-sensitive Rerun binaries.
+      - name: Build external dependencies
+        run: |
+          cmake -S cmake -B cmake/build
+          cmake --build cmake/build --parallel 2
+      - name: Configure tests and Rerun executables
+        run: >-
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DBUILD_TESTING=ON -DBUILD_EXECUTABLES=ON -DUSE_RERUN=ON
+      - name: Build
+        run: cmake --build build --parallel 2
+      - name: Test
+        run: ctest --test-dir build --output-on-failure --no-tests=error
+      - uses: actions/cache@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.compiler.name == 'Clang' && matrix.build_type == 'Debug'
+        with:
+          path: ${{ env.MDVCPPLIB_LLVM_CACHE_DIR }}
+          key: llvm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get_llvm.sh') }}
+      - name: Run clang-tidy
+        if: matrix.os == 'ubuntu-latest' && matrix.compiler.name == 'Clang' && matrix.build_type == 'Debug'
+        run: ./scripts/run_clang_tidy.sh
