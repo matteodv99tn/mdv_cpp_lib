@@ -7,6 +7,7 @@
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <CGAL/Surface_mesh_shortest_path/barycentric.h>
 #include <filesystem>
+#include <optional>
 #include <stdexcept>
 
 #include <range/v3/algorithm/transform.hpp>
@@ -246,42 +247,41 @@ mdv::mesh::internal::edge_ray_intersection(
 ) {
     using namespace mdv::condition;
 
+    constexpr double tol = 1e-9;
+
     /* or(.) = origin of .
      * dir(.) = direction of .
      *
      * or(e) + t*dir(e) = or(ray) + s*dir(ray)   <-- solve for t, s
-     * or(e) - or(ray) = -t*dir(e) + s*dir(ray)
+     *
+     * Solved in closed form using cross product
      */
     using Mat32 = Eigen::Matrix<double, 3, 2>;
     using Vec2  = Eigen::Vector2d;
     using Vec3  = Eigen::Vector3d;
 
-    const Vec3 or_e  = internal::convert(edge.source());
-    const Vec3 or_r  = internal::convert(ray.source());
-    const Vec3 dir_e = internal::convert(edge.target() - edge.source());
-    const Vec3 dir_r = internal::convert(ray.to_vector());
+    const Vec3   or_e  = internal::convert(edge.source());
+    const Vec3   or_r  = internal::convert(ray.source());
+    const Vec3   dir_e = internal::convert(edge.target() - edge.source());
+    const Vec3   dir_r = internal::convert(ray.to_vector());
+    const Vec3   n     = dir_e.cross(dir_r);  // binormal vector
+    const double n2    = n.squaredNorm();
 
     const auto dist = CGAL::squared_distance(edge, ray.source());
 
-    if (are_parallel(dir_r, dir_e) && dist > 1e-18) return std::nullopt;
-    if (are_parallel(dir_r, dir_e) && dist <= 1e-18) {
-        if (dir_r.dot(or_e - or_r) > 0.0) return internal::point3_from_eigen(or_e);
-        ;
-        return edge.target();
+    // Check for parallelism using edge length invariant formula
+    if (n2 <= 1e-24 * dir_e.squaredNorm() * dir_r.squaredNorm()) {
+        return std::nullopt;
     }
 
-    Mat32 A;
-    A.col(0)       = -dir_e;
-    A.col(1)       = dir_r;
-    const Vec3   b = or_e - or_r;
-    const Vec2   x = A.colPivHouseholderQr().solve(b);
-    const double t = x(0);
-    const double s = x(1);
-
+    const Vec3   w = or_r - or_e;
+    const double t = w.cross(dir_r).dot(n) / n2;
+    const double s = w.cross(dir_e).dot(n) / n2;
     assert(are_equal(or_e + t * dir_e, or_r + s * dir_r));
 
-    if ((t >= 0.0) && (t <= 1.0 + 1e-9) && (s > 1e-9))
-        return internal::point3_from_eigen(or_e + t * dir_e);
+    if ((t >= -tol) && (t <= 1.0 + tol) && (s > tol)) {
+        return internal::point3_from_eigen(or_e + std::clamp(t, 0.0, 1.0) * dir_e);
+    }
 
     return std::nullopt;
 }
