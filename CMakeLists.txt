@@ -165,6 +165,11 @@ target_include_directories(
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+target_include_directories(
+    mdvcpplib
+    SYSTEM PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/third_party/bshoshany-thread-pool
+)
 target_link_libraries(
     mdvcpplib
     PUBLIC 

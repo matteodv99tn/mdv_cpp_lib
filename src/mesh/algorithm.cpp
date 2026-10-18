@@ -5,10 +5,10 @@
 #include <Eigen/Geometry>
 #include <map>
 
+#include <BS_thread_pool.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/all.hpp>
 
-#include "BS_thread_pool.hpp"
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/cgal_geodesic.hpp"
 #include "mdv/mesh/cgal_impl.hpp"

@@ -6,9 +6,9 @@
 #include <stdexcept>
 #include <utility>
 
+#include <BS_thread_pool.hpp>
 #include <range/v3/all.hpp>
 
-#include "BS_thread_pool.hpp"
 #include "mdv/macros.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_geodesic.hpp"
