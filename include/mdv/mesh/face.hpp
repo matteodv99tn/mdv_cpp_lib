@@ -18,7 +18,7 @@ namespace mdv::mesh {
  *
  * Faces are view-types on a Mesh object.
  */
-class Face : public internal::IndexedMeshElement {
+class Face final : public internal::IndexedMeshElement {
 public:
     using Vector        = std::vector<Face>;
     using Iterator      = Vector::iterator;

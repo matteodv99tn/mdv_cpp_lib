@@ -340,7 +340,11 @@ mdv::mesh::location_type(const TangentVector& tv) {
 }
 
 namespace {
-BS::thread_pool th_pool;
+BS::thread_pool<>&
+thread_pool() {
+    static BS::thread_pool<> pool;
+    return pool;
+}
 }  // namespace
 
 #ifdef RERUN_DEBUG
@@ -472,8 +476,8 @@ mdv::mesh::solve_path(
     };
 
     for (long i = 0; i < N; ++i)
-        th_pool.detach_task([&solve_path_index, i]() { solve_path_index(i); });
-    th_pool.wait();
+        thread_pool().detach_task([&solve_path_index, i]() { solve_path_index(i); });
+    thread_pool().wait();
 
     if (n_trivials > 2) {
         std::cout << "Number of trivial paths: " << n_trivials << " / " << N << "\n"
@@ -537,9 +541,12 @@ mdv::mesh::multithreaded_exponential_map(
         for (long i = start; i < end; ++i) process_row(i);
     };
 
-    for (long i = 0; i < xs.rows(); i += batch_size)
-        th_pool.detach_task([&process_rows_batched, i] { process_rows_batched(i); });
-    th_pool.wait();
+    for (long i = 0; i < xs.rows(); i += batch_size) {
+        thread_pool().detach_task([&process_rows_batched, i] {
+            process_rows_batched(i);
+        });
+    }
+    thread_pool().wait();
 
     if (n_zeroed > 0) std::cout << "Zeroed " << n_zeroed << " vectors\n";
 
@@ -643,7 +650,7 @@ mdv::mesh::proj_transformation(
         const Vec3  v2 = tv.cartesian_vector();
         const Quat  q  = Quat::FromTwoVectors(v1, v2);
         tf             = Mat3{q} * v2.norm() / v1.norm();
-#if 1
+#ifndef NDEBUG
         const Vec3 v3 = tf * v1;
         if ((v3 - v2).norm() > 1e-9)
             throw std::runtime_error("Computed wrong transformation matrix");
@@ -658,9 +665,12 @@ mdv::mesh::proj_transformation(
         for (long i = start; i < end; ++i) process_row(i);
     };
 
-    for (long i = 0; i < xs.rows(); i += batch_size)
-        th_pool.detach_task([&process_rows_batched, i] { process_rows_batched(i); });
-    th_pool.wait();
+    for (long i = 0; i < xs.rows(); i += batch_size) {
+        thread_pool().detach_task([&process_rows_batched, i] {
+            process_rows_batched(i);
+        });
+    }
+    thread_pool().wait();
 
 #ifdef RERUN_DEBUG
     log_mesh(mesh);
@@ -698,7 +708,7 @@ mdv::mesh::proj_transformation_directions(
             d1            = e.cross(n).normalized();
             d2_mat.row(i) = d1;
         }
-#if 1
+#ifndef NDEBUG
         const Vec3 proj{tv.cartesian_vector()};
         const Vec3 tmp = vec - vec.dot(n) * n - vec.dot(d1) * d1;
         if ((proj - tmp).norm() > 1e-6) throw std::runtime_error("Invalid projection");
@@ -711,8 +721,8 @@ mdv::mesh::proj_transformation_directions(
 
     // BS::thread_pool pool;
     for (long i = 0; i < N; i += batch_size)
-        th_pool.detach_task([&process_batched, i]() { process_batched(i); });
-    th_pool.wait();
+        thread_pool().detach_task([&process_batched, i]() { process_batched(i); });
+    thread_pool().wait();
 
     return std::make_pair(d1_mat, d2_mat);
 }

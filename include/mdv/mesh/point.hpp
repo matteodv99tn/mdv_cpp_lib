@@ -329,7 +329,7 @@ public:
      * @param m Mesh to sample from.
      * @return Random point on the mesh.
      */
-    static Point random(const Mesh& m) noexcept;
+    static Point random(const Mesh& m);
 
     /**
      * @brief True if this point is undefined.

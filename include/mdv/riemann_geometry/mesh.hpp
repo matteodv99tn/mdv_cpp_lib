@@ -129,7 +129,7 @@ struct MeshEmbedder {
 private:
     const M* _m;
     M::Point _g;
-    Mat3     _base;
+    Mat3     _base        = Mat3::Identity();
     bool     _initialised = false;
 };
 

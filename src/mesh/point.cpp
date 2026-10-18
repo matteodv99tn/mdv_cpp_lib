@@ -267,6 +267,7 @@ Point::PointInFaceDescriptor::from_cartesian(const Face& f, const Vec3d& positio
 //  \____\___/|_| |_|___/\__|_|   \__,_|\___|\__\___/|_|  |___/
 //
 
+// NOLINTNEXTLINE(cppcoreguidelines-interfaces-global-init)
 Point::PointInFaceDescriptor Point::undefined_point{Face::invalid_face, Vec3d::Zero()};
 
 Point::Point() : _pt(undefined_point) {
@@ -324,7 +325,7 @@ Point::undefined(const Mesh& /* m */) noexcept {
 }
 
 Point
-Point::random(const Mesh& m) noexcept {
+Point::random(const Mesh& m) {
     static std::random_device rand_dev;
     static std::mt19937       generator(rand_dev());
 

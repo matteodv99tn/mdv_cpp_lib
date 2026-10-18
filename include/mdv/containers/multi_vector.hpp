@@ -19,12 +19,12 @@ namespace mdv {
  *
  */
 template <typename... Ts>
-struct multi_vector {
+struct MultiVector {
     using row    = std::tuple<Ts...>;  // NOLINT
     using vector = std::vector<row>;   // NOLINT
 
     template <typename... Args>
-    multi_vector(Args... args) noexcept : _vec(std::forward<Args>(args)...) {}
+    MultiVector(Args... args) noexcept : _vec(std::forward<Args>(args)...) {}
 
     // clang-format off
     void push_back(const row& e)  { _vec.push_back(e); }
@@ -52,19 +52,19 @@ struct multi_vector {
 
 protected:
     /**
-     * struct subtype_iterator - Iterator for just one type of the stored entries.
+     * struct SubtypeIterator - Iterator for just one type of the stored entries.
      *
      */
     template <std::size_t Index, typename BaseIterator>
-    struct subtype_iterator;
+    struct SubtypeIterator;
 
     /**
-     * struct column_iterable - Contains begin()/end() information to iterate a given
+     * struct ColumnIterable - Contains begin()/end() information to iterate a given
      * column of the vector
      *
      */
     template <std::size_t Index, typename BaseIterator, typename BaseVector>
-    struct column_iterable;
+    struct ColumnIterable;
 
 public:
     //  ___ _                 _
@@ -85,26 +85,27 @@ public:
     MDV_NODISCARD const_row_iterator cend() noexcept        { return _vec.cend();   }
 
     template <std::size_t Index>
-    MDV_NODISCARD auto column_iterator() { return column_iterable<Index, row_iterator, multi_vector>(this); }
+    MDV_NODISCARD auto column_iterator() { return ColumnIterable<Index, row_iterator, MultiVector>(this); }
 
     template <std::size_t Index>
-    MDV_NODISCARD auto ccolumn_iterator() { return column_iterable<Index, const_row_iterator, const multi_vector>(this); }
+    MDV_NODISCARD auto ccolumn_iterator() { return ColumnIterable<Index, const_row_iterator, const MultiVector>(this); }
 
     template <std::size_t Index>
-    MDV_NODISCARD auto column_iterator() const { return column_iterable<Index, const_row_iterator, const multi_vector>(this); }
+    MDV_NODISCARD auto column_iterator() const { return ColumnIterable<Index, const_row_iterator, const MultiVector>(this); }
 
     // clang-format on
 
 protected:
     template <std::size_t Index, typename BaseIterator>
-    struct subtype_iterator : BaseIterator {
+    struct SubtypeIterator : BaseIterator {
         static constexpr bool const_qualified = std::is_const_v<
                 std::remove_reference_t<typename BaseIterator::reference>>;
 
-        using e_type     = std::tuple_element_t<Index, row>;  // Element type
-        using cq_element = std::conditional_t<const_qualified, const e_type, e_type>;
-        using reference  = cq_element&;
-        using pointer    = cq_element*;
+        using ElementType = std::tuple_element_t<Index, row>;  // Element type
+        using ConstQualifiedElement =
+                std::conditional_t<const_qualified, const ElementType, ElementType>;
+        using reference = ConstQualifiedElement&;
+        using pointer   = ConstQualifiedElement*;
 
         MDV_NODISCARD reference
         operator*() noexcept {
@@ -120,8 +121,8 @@ protected:
 
     // clang-format off
     template <std::size_t Index, typename BaseIterator, typename BaseVector>
-    struct column_iterable {
-        using iterator = subtype_iterator<Index, BaseIterator>;
+    struct ColumnIterable {
+        using iterator = SubtypeIterator<Index, BaseIterator>;
 
         iterator begin() { return iterator{_v->begin()}; }
         iterator end()   { return iterator{_v->end()}; }

@@ -26,26 +26,40 @@ namespace {
         using Time            = decltype(std::chrono::high_resolution_clock::now());
         using TimeDurationVec = std::vector<std::size_t>;
 
+        TimeBenchmarker()                                  = default;
+        TimeBenchmarker(const TimeBenchmarker&)            = delete;
+        TimeBenchmarker& operator=(const TimeBenchmarker&) = delete;
+        TimeBenchmarker(TimeBenchmarker&&)                 = delete;
+        TimeBenchmarker& operator=(TimeBenchmarker&&)      = delete;
+
         static Time
         now() {
             return std::chrono::high_resolution_clock::now();
         };
 
         struct TimeSample {
+            explicit TimeSample(TimeDurationVec& destination) :
+                    start_time(now()), dest_vector(destination) {}
+
+            TimeSample(const TimeSample&)            = delete;
+            TimeSample& operator=(const TimeSample&) = delete;
+            TimeSample(TimeSample&&)                 = delete;
+            TimeSample& operator=(TimeSample&&)      = delete;
+
             ~TimeSample() {
                 const Time end_time = now();
                 const auto delta    = end_time - start_time;
-                dest_vector->emplace_back(delta.count());
+                dest_vector.emplace_back(delta.count());
             }
 
             Time             start_time;
-            TimeDurationVec* dest_vector;
+            TimeDurationVec& dest_vector;
         };
 
         MDV_NODISCARD TimeSample
         operator()(const long rows, const long cols) {
             TimeDurationVec& vec = times[std::make_pair(rows, cols)];
-            return TimeSample{.start_time = now(), .dest_vector = &vec};
+            return TimeSample{vec};
         }
 
         std::map<std::pair<long, long>, TimeDurationVec> times;
@@ -67,9 +81,17 @@ namespace {
         }
     };
 
-    TimeBenchmarker benchmarker;
+    TimeBenchmarker&
+    benchmarker() {
+        static TimeBenchmarker instance;
+        return instance;
+    }
 
-    BS::thread_pool th_pool;
+    BS::thread_pool<>&
+    thread_pool() {
+        static BS::thread_pool<> pool;
+        return pool;
+    }
 
     class DistanceEvaluator {
     public:
@@ -80,10 +102,10 @@ namespace {
         Eigen::MatrixXd
         operator()(const InputVector& pts1, const InputVector& pts2) const {
             Eigen::MatrixXd res(pts1.size(), pts2.size());
-            th_pool.detach_loop(0, res.rows(), [&](const long i) {
+            thread_pool().detach_loop(0, res.rows(), [&](const long i) {
                 evaluate_row(i, res, pts1, pts2);
             });
-            th_pool.wait();
+            thread_pool().wait();
             return res;
         }
 
@@ -147,8 +169,8 @@ namespace internal {
                         shpath_objs[i], mesh.vertex(0)
                 );
             };
-            th_pool.detach_loop(0, pts1.size(), process_i);
-            th_pool.wait();
+            thread_pool().detach_loop(0, pts1.size(), process_i);
+            thread_pool().wait();
         }
     };
 
@@ -193,7 +215,7 @@ namespace {
             Eigen::MatrixXd&                   res
     ) {
         using internal::CgalGeodesicConstructor;
-        auto time_eval = benchmarker(std::ssize(data.pts1), std::ssize(pts2));
+        auto time_eval = benchmarker()(std::ssize(data.pts1), std::ssize(pts2));
 
         auto row_processor = [&data, &res, &pts2](const long i) {
             for (long j = 0; j < res.cols(); ++j) {
@@ -205,8 +227,8 @@ namespace {
             }
         };
 
-        th_pool.detach_loop(0, res.rows(), row_processor);
-        th_pool.wait();
+        thread_pool().detach_loop(0, res.rows(), row_processor);
+        thread_pool().wait();
     }
 }  // namespace
 
@@ -296,7 +318,7 @@ Eigen::MatrixXd
 InexactMeshKernel::distance_matrix(
         const InputVector& pts1, const InputVector& pts2
 ) const {
-    auto time_eval = benchmarker(std::ssize(pts1), std::ssize(pts2));
+    auto time_eval = benchmarker()(std::ssize(pts1), std::ssize(pts2));
     if (pts1.size() < pts2.size()) return DistanceEvaluator{}(pts1, pts2);
     return DistanceEvaluator{}(pts2, pts1).transpose();
 }

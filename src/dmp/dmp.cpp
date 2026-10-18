@@ -124,7 +124,7 @@ mdv::build_quaternion_demonstration(const long n_samples) {
     using namespace std::chrono_literals;
     using Quat = Eigen::Quaterniond;
 
-#if 0
+#if 0  // NOLINT(readability-avoid-unconditional-preprocessor-if)
     const std::vector<double> ts =
             poly_5th(Eigen::VectorXd::LinSpaced(n_samples, 0.0, 1.0));
 #else

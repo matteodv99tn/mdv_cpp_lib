@@ -184,8 +184,6 @@ private:
      */
     void fill_halfedge();
 
-    friend Point exponential_map(const TangentVector&, Geodesic*);
-
     Point                   _pt;
     Vec3d                   _vec;
     Type                    _type;

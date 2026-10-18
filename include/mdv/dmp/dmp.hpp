@@ -122,8 +122,8 @@ public:
     using MinimumGoalSample = TransformationSystem::MinimumGoalSample;
     using MinimumSample     = TransformationSystem::MinimumSample;
 
-    using basis_size_t = unsigned long;
-    using weights_t    = Eigen::MatrixXd;
+    using BasisSize = unsigned long;
+    using Weights   = Eigen::MatrixXd;
 
     double tau = 1.0;
 

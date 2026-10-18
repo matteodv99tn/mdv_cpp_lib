@@ -3,6 +3,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include <fmt/base.h>
+#include <gsl/pointers>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -92,7 +93,7 @@ main() {
         return {2 * std::cos(t), 0.9 * std::sin(2.0 * t + 0.1)};
     };
 
-    auto* file = fopen("data.py", "w");
+    gsl::owner<FILE*> file = fopen("data.py", "w");
     fmt::println(file, "import numpy as np\n");
 
     // Rerun setup

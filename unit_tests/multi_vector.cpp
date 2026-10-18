@@ -3,10 +3,10 @@
 #include <gtest/gtest.h>
 #include <stdexcept>
 
-using mdv::multi_vector;
+using mdv::MultiVector;
 
-using test_tuple  = std::tuple<double, int, char>;    // NOLINT naming
-using test_vector = multi_vector<double, int, char>;  // NOLINT naming
+using test_tuple  = std::tuple<double, int, char>;   // NOLINT naming
+using test_vector = MultiVector<double, int, char>;  // NOLINT naming
 
 namespace {
 

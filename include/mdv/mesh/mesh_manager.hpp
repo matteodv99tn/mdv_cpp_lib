@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <gsl/pointers>
 #include <map>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -39,7 +40,7 @@ public:
      * @param name Optional name override.
      */
     void insert_mesh(
-            gsl::owner<Mesh*>                 mesh,
+            std::unique_ptr<Mesh>             mesh,
             const std::optional<std::string>& name = std::nullopt
     );
 
@@ -62,7 +63,7 @@ public:
 
 private:
     using FileMap = std::map<std::filesystem::path, std::string>;
-    using MeshMap = std::map<std::string, gsl::owner<Mesh*>>;
+    using MeshMap = std::map<std::string, std::unique_ptr<Mesh>>;
 
     FileMap _file_map;
     MeshMap _mesh_map;

@@ -59,18 +59,15 @@ Mesh::Mesh(gsl::owner<CgalImpl*> cgal_data, std::string name) :
 }
 
 Mesh::~Mesh() {
-    logger().trace("Deleting mesh ptr at {}", static_cast<void*>(_impl));
+    if (_impl != nullptr)
+        logger().trace("Deleting mesh ptr at {}", static_cast<void*>(_impl));
     delete _impl;
 }
 
-Mesh::Mesh(Mesh&& other) :
-        _logger(other._logger), _impl(other._impl), _name(std::move(other._name)) {
-    logger().trace(
-            "Moving mesh '{}' from {} to {}",
-            name(),
-            static_cast<void*>(&other),
-            static_cast<void*>(this)
-    );
+Mesh::Mesh(Mesh&& other) noexcept :
+        _logger(std::move(other._logger)),
+        _impl(other._impl),
+        _name(std::move(other._name)) {
     other._impl = nullptr;
 }
 

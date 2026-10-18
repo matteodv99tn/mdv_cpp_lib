@@ -17,7 +17,7 @@ namespace mdv::mesh {
  *
  * Vertices are view-types on a Mesh object.
  */
-class Vertex : public internal::IndexedMeshElement {
+class Vertex final : public internal::IndexedMeshElement {
 public:
     using Vector        = std::vector<Vertex>;
     using Iterator      = Vector::iterator;

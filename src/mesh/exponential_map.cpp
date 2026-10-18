@@ -277,7 +277,7 @@ namespace {
     struct PropagationResult {
         Kernel::Vector_3    v;
         FaceIndex           f;
-        TangentVector::Type type;
+        TangentVector::Type type = TangentVector::INSIDE_FACE;
     };
 
     /*

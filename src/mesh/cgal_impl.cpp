@@ -41,9 +41,10 @@ namespace {
 }  // namespace mdv::mesh::internal
 
 CgalImpl::CgalImpl(Mesh&& mesh, Logger::SharedPtr&& logger) :
-        _logger(std::move(logger)), _mesh(std::move(mesh)) {
-    _shortest_path        = std::make_unique<ShortestPath>(_mesh);
-    _geodesic_constructor = new CgalGeodesicConstructor(&_mesh);
+        _logger(std::move(logger)),
+        _mesh(std::move(mesh)),
+        _geodesic_constructor(new CgalGeodesicConstructor(&_mesh)) {
+    _shortest_path = std::make_unique<ShortestPath>(_mesh);
     this->logger().trace("Initialised geodesic constructor");
 
     _shortest_path->build_aabb_tree(_aabb_tree);

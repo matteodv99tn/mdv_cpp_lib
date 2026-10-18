@@ -63,7 +63,7 @@ concept copiable_sample = requires {
 
 namespace internal {
     template <typename TTangentVector, std::size_t NTangentVector, typename... Args>
-    struct sample;
+    struct Sample;
 
     template <std::size_t Index, typename BaseIterator>
     struct DemonstrationElementIterator;
@@ -75,7 +75,7 @@ namespace internal {
     struct tuple_lazy_function;
 
     template <typename T>
-    using tuple_lazy_function_t = typename tuple_lazy_function<T>::type;
+    using TupleLazyFunctionT = typename tuple_lazy_function<T>::type;
 
 }  // namespace internal
 
@@ -96,7 +96,7 @@ public:
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
     using Manifold  = M;
     using Time      = ClockT;
-    using BaseTuple = internal::sample<TangentVector, Order, Time, Point>::type;
+    using BaseTuple = internal::Sample<TangentVector, Order, Time, Point>::type;
 
     template <typename... Args>
     DemonstrationSample(Args... args) : _data(std::forward<Args>(args)...) {}
@@ -403,11 +403,11 @@ protected:
     // clang-format on
 
 private:
-    mutable Demonstration                      _dem;
-    internal::tuple_lazy_function_t<BaseTuple> _lazy_funcs;
-    bool                                       _vel_autodiff = false;
-    bool                                       _acc_autodiff = false;
-    std::shared_ptr<M>                         _m            = nullptr;
+    mutable Demonstration                   _dem;
+    internal::TupleLazyFunctionT<BaseTuple> _lazy_funcs;
+    bool                                    _vel_autodiff = false;
+    bool                                    _acc_autodiff = false;
+    std::shared_ptr<M>                      _m            = nullptr;
 
     template <std::size_t Index>
     using ElementIterator =
@@ -469,8 +469,8 @@ private:
 namespace internal {
 
     template <typename TTangentVector, std::size_t NTangentVector, typename... Args>
-    struct sample {
-        using type = typename sample<
+    struct Sample {
+        using type = typename Sample<
                 TTangentVector,
                 NTangentVector - 1,
                 Args...,
@@ -478,7 +478,7 @@ namespace internal {
     };
 
     template <typename TTangentVector, typename... Args>
-    struct sample<TTangentVector, 0, Args...> {
+    struct Sample<TTangentVector, 0, Args...> {
         using type = std::tuple<Args...>;
     };
 
