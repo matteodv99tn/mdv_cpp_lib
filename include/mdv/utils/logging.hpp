@@ -33,6 +33,7 @@ public:
 #undef REGISTER_LOG_LEVEL
 #endif
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
 #if FMT_VERSION >= 80000
 #define REGISTER_LOG_LEVEL(function, level_enum)                                       \
     template <typename... Args>                                                        \
@@ -57,6 +58,7 @@ public:
         }                                                                              \
     }
 #endif
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
     REGISTER_LOG_LEVEL(trace, Trace);
     REGISTER_LOG_LEVEL(debug, Debug);

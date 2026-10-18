@@ -17,9 +17,16 @@ fi
 
 llvm_dir=$("$script_dir/get_llvm.sh")
 
+# Generated data tables are not worth linting
+excluded=("$ws_dir/executables/dmp/data.cpp")
+exclude_args=()
+for f in "${excluded[@]}"; do
+  exclude_args+=(! -path "$f")
+done
+
 find "${paths[@]}" -type f \
   \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) \
-  ! -name '*_WIN.cpp' -print0 |
+  ! -name '*_WIN.cpp' "${exclude_args[@]}" -print0 |
   xargs -0 -r -n 1 -P "$(nproc)" bash -o pipefail -c '
   build_dir=$1
   clangd=$2
@@ -32,4 +39,5 @@ find "${paths[@]}" -type f \
     --check-locations=false \
     --check="$file" 2>&1 |
     sed "s|^|$file: |"
-' _ "$build_dir" "$llvm_dir/bin/clangd"
+' _ "$build_dir" "$llvm_dir/bin/clangd" |
+  sort -s -t: -k1,1
