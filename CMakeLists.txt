@@ -8,6 +8,7 @@ option(BUILD_TESTING "" OFF)
 option(BUILD_EXECUTABLES "" OFF)
 option(BUILD_BINDINGS "" OFF)
 option(USE_RERUN "" OFF)
+option(CGAL_DO_NOT_USE_BOOST_MP "Use CGAL's GMP fallback instead of Boost.Multiprecision/CORE" ON)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -184,6 +185,10 @@ target_link_libraries(
     range-v3
     matioCpp::matioCpp
 )
+if(CGAL_DO_NOT_USE_BOOST_MP)
+    # Preserve the backend choice in exported targets as well as this build.
+    target_compile_definitions(mdvcpplib PUBLIC CGAL_DO_NOT_USE_BOOST_MP)
+endif()
 target_compile_definitions(
     mdvcpplib
     PUBLIC -DFMT_HEADER_ONLY=1
