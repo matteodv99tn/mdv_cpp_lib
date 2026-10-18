@@ -102,6 +102,7 @@ add_library(
     ${CMAKE_CURRENT_BINARY_DIR}/src/config.cpp
 
     # General purpose
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/eigen_solvers.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/logging.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/logging_extras.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/spdlog.cpp

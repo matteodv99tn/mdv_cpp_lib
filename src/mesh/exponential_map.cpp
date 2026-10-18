@@ -11,6 +11,7 @@
 #include "mdv/mesh/point.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/utils/conditions.hpp"
+#include "mdv/utils/eigen_solvers.hpp"
 
 // \cond DOXYGEN_IGNORE
 
@@ -309,7 +310,7 @@ namespace {
         const Vec3d b2 = ax.cross(n2);
 
         // Compute rotation
-        const Eigen::Quaterniond q = Eigen::Quaterniond::FromTwoVectors(-b1, b2);
+        const Eigen::Quaterniond q            = quaternion_from_two_vectors(-b1, b2);
         const Vec3d              v_next_eigen = q * internal::convert(v);
         const auto               v_next = internal::vector3_from_eigen(v_next_eigen);
 

@@ -18,6 +18,7 @@
 #include "mdv/mesh/point.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/utils/conditions.hpp"
+#include "mdv/utils/eigen_solvers.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
 // #define RERUN_DEBUG
@@ -239,7 +240,7 @@ mdv::mesh::parallel_transport(
         if (are_equal(n_start, fn)) [[likely]]
             return tangent_vector.cartesian_vector();
 
-        return Eigen::Quaterniond::FromTwoVectors(fn, n_start)
+        return quaternion_from_two_vectors(fn, n_start)
                * tangent_vector.cartesian_vector();
     }();
 
@@ -648,7 +649,7 @@ mdv::mesh::proj_transformation(
         Mat3&       tf = res[static_cast<std::size_t>(i)];
         const Vec3& v1 = vec;
         const Vec3  v2 = tv.cartesian_vector();
-        const Quat  q  = Quat::FromTwoVectors(v1, v2);
+        const Quat  q  = quaternion_from_two_vectors(v1, v2);
         tf             = Mat3{q} * v2.norm() / v1.norm();
 #ifndef NDEBUG
         const Vec3 v3 = tf * v1;

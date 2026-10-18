@@ -16,6 +16,7 @@
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/point.hpp"
 #include "mdv/utils/conditions.hpp"
+#include "mdv/utils/eigen_solvers.hpp"
 #include "mdv/utils/logging.hpp"
 
 using std::filesystem::path;
@@ -240,7 +241,7 @@ mdv::mesh::internal::relative_face_rotation(
     const Vec3d b1 = -ax.cross(n1);
     const Vec3d b2 = ax.cross(n2);
 
-    Eigen::Quaterniond res = Eigen::Quaterniond::FromTwoVectors(-b2, b1);
+    Eigen::Quaterniond res = quaternion_from_two_vectors(-b2, b1);
     assert(are_orthogonal(n1, b1));
     assert(are_orthogonal(n2, b2));
     assert(are_orthogonal(n1, res * b2));
