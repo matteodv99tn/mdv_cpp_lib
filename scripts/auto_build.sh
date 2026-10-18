@@ -20,7 +20,7 @@ while true; do
     clear
     
     notify-send "Starting build proces..." -i $START_BUILD_ICON
-    cmake --build $BUILD_DIR --parallel
+    cmake --build "$BUILD_DIR" --parallel "${MDV_JOBS:-8}"
     if [ $? -eq 0 ]; then
         notify-send "Build successful!" -i $SUCCESS_ICON
     else

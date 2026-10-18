@@ -112,12 +112,13 @@ Install the Rerun SDK (see dependency installation above), then configure `build
 
 ```bash
 cmake -B build -DBUILD_TESTING=ON -DBUILD_EXECUTABLES=ON -DUSE_RERUN=ON
-cmake --build build --target matioCpp --parallel
+cmake --build build --target matioCpp --parallel 8
 pre-commit run --all-files --hook-stage pre-push
 ```
 
 The clean build can also be run independently with `./scripts/run_clean_build.sh`.
-Every push builds the library and Rerun-backed executables and runs the unit tests in a clean build, which can take some time. The interactive demo executables are build-checked, not launched by CTest.
+For performance reasone, the script requires Ninja and defaults to eight build jobs to limit RAM usage; set `MDV_JOBS` to override the number of build jobs.
+Linting has also a bounded number of workers (4) which can be overwritten by setting `MDV_LINT_JOBS`.
 
 
 ### Python bindings (developer workflow)
@@ -126,7 +127,7 @@ You can build and install python bindings through `pip`. From the repository roo
 
 ```
 uv venv .venv -p 3.12
-uv pip install -e .
+CMAKE_BUILD_PARALLEL_LEVEL=8 uv pip install -e .
 uv pip install pytest
 ```
 
@@ -148,7 +149,7 @@ CMAKE_INSTALL_MODE=ABS_SYMLINK \
 Build:
 
 ```
-CMAKE_INSTALL_MODE=ABS_SYMLINK cmake --build build --parallel
+CMAKE_INSTALL_MODE=ABS_SYMLINK cmake --build build --parallel 8
 ```
 
 Install:

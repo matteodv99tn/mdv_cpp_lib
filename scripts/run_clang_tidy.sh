@@ -27,7 +27,7 @@ done
 find "${paths[@]}" -type f \
   \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) \
   ! -name '*_WIN.cpp' "${exclude_args[@]}" -print0 |
-  xargs -0 -r -n 1 -P "$(nproc)" bash -o pipefail -c '
+  xargs -0 -r -n 1 -P "${MDV_LINT_JOBS:-4}" bash -o pipefail -c '
   build_dir=$1
   clangd=$2
   file=$3
