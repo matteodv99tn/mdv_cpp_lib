@@ -166,7 +166,7 @@ namespace mdv::mesh {
     );
 
     mdv::mesh::Point exponential_map(
-            mdv::mesh::TangentVector v
+            const mdv::mesh::TangentVector& v
     );
 
     std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>> solve_path(

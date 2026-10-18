@@ -19,7 +19,9 @@ MeshManager::~MeshManager() {
 }
 
 void
-MeshManager::insert_mesh(gsl::owner<Mesh*> mesh, std::optional<std::string> name) {
+MeshManager::insert_mesh(
+        gsl::owner<Mesh*> mesh, const std::optional<std::string>& name
+) {
     const std::string mesh_name = name.value_or(std::string(mesh->name()));
     _logger->info("Inserting new mesh with name '{}' into cache", mesh_name);
 
@@ -55,7 +57,7 @@ MeshManager::get_mesh_from_file(const std::filesystem::path& file_path) {
     if (!_file_map.contains(file_path)) {
         gsl::owner<Mesh*> mesh = new Mesh(Mesh::from_file(file_path));
         _file_map[file_path]   = std::string(mesh->name());
-        insert_mesh(std::move(mesh));
+        insert_mesh(mesh);
         _logger->trace("Mesh '{}' cached", file_path.string(), mesh->name());
     }
 

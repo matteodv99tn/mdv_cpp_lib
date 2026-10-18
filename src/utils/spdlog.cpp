@@ -1,6 +1,5 @@
 #include "mdv/utils/spdlog.hpp"
 
-#include <algorithm>
 #include <set>
 #include <spdlog/common.h>
 #include <spdlog/logger.h>
@@ -8,18 +7,17 @@
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 
+#include <range/v3/algorithm/transform.hpp>
+
 namespace {
 std::string
 format_logger_name(const std::string& name) {
     std::string          formatted_name;
     const std::set<char> undesired_chars{' ', '_', ',', '.'};
-    std::transform(
-            name.begin(),
-            name.end(),
-            std::back_inserter(formatted_name),
-            [undesired_chars](char c) {
+    ranges::transform(
+            name, std::back_inserter(formatted_name), [undesired_chars](char c) {
                 const auto c_low = static_cast<char>(std::tolower(c));
-                if (undesired_chars.find(c_low) != undesired_chars.end()) return '-';
+                if (undesired_chars.contains(c_low)) return '-';
                 return c_low;
             }
     );

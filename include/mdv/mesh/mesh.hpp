@@ -165,7 +165,7 @@ public:
      */
     MDV_NODISCARD Vertex
     vertex(const Index& id) const {
-        return Vertex(*this, id);
+        return {*this, id};
     }
 
     /**
@@ -374,7 +374,7 @@ private:
      * @param data CGAL backend pointer.
      * @param name Mesh name.
      */
-    Mesh(gsl::owner<CgalImpl*> data, const std::string& name);
+    Mesh(gsl::owner<CgalImpl*> data, std::string name);
 
     /**
      * @brief Logger associated with the mesh instance.

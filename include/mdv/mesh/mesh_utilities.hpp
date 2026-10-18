@@ -30,10 +30,10 @@ struct DrawableFunctionParameters {
  * @param parameters Sampling parameters.
  */
 void create_closed_from_function(
-        const std::filesystem::path&          destination,
-        std::function<double(double, double)> f,
-        double                                plane_z_coord,
-        const DrawableFunctionParameters&     parameters = DrawableFunctionParameters()
+        const std::filesystem::path&                 destination,
+        const std::function<double(double, double)>& f,
+        double                                       plane_z_coord,
+        const DrawableFunctionParameters& parameters = DrawableFunctionParameters()
 );
 
 /**
@@ -45,9 +45,9 @@ void create_closed_from_function(
  * @return Output file path.
  */
 std::filesystem::path create_closed_from_function(
-        std::function<double(double, double)> f,
-        double                                plane_z_coord,
-        const DrawableFunctionParameters&     parameters = DrawableFunctionParameters()
+        const std::function<double(double, double)>& f,
+        double                                       plane_z_coord,
+        const DrawableFunctionParameters& parameters = DrawableFunctionParameters()
 );
 
 /**
@@ -58,9 +58,9 @@ std::filesystem::path create_closed_from_function(
  * @param parameters Sampling parameters.
  */
 void create_from_function(
-        const std::filesystem::path&          destination,
-        std::function<double(double, double)> f,
-        const DrawableFunctionParameters&     parameters = DrawableFunctionParameters()
+        const std::filesystem::path&                 destination,
+        const std::function<double(double, double)>& f,
+        const DrawableFunctionParameters& parameters = DrawableFunctionParameters()
 );
 
 /**
@@ -71,8 +71,8 @@ void create_from_function(
  * @param parameters Sampling parameters.
  */
 void create_from_function(
-        const std::filesystem::path&                  destination,
-        std::function<double(const Eigen::Vector2d&)> f,
+        const std::filesystem::path&                         destination,
+        const std::function<double(const Eigen::Vector2d&)>& f,
         const DrawableFunctionParameters& parameters = DrawableFunctionParameters()
 );
 
@@ -84,8 +84,8 @@ void create_from_function(
  * @return Output file path.
  */
 std::filesystem::path create_from_function(
-        std::function<double(double, double)> f,
-        const DrawableFunctionParameters&     parameters = DrawableFunctionParameters()
+        const std::function<double(double, double)>& f,
+        const DrawableFunctionParameters& parameters = DrawableFunctionParameters()
 );
 
 /**
@@ -96,7 +96,7 @@ std::filesystem::path create_from_function(
  * @return Output file path.
  */
 std::filesystem::path create_from_function(
-        std::function<double(const Eigen::Vector2d&)> f,
+        const std::function<double(const Eigen::Vector2d&)>& f,
         const DrawableFunctionParameters& parameters = DrawableFunctionParameters()
 );
 

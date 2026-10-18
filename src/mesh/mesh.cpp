@@ -44,15 +44,15 @@ Mesh::from_file(const std::filesystem::path& file_path) {
     const std::string     file_name = file_path.stem().string();
     auto                  logger    = Mesh::default_logger;
     gsl::owner<CgalImpl*> data      = CgalImpl::from_file(file_path, std::move(logger));
-    return Mesh(data, file_name);
+    return {data, file_name};
 }
 
-Mesh::Mesh(gsl::owner<CgalImpl*> cgal_data, const std::string& name) :
-        _impl(cgal_data), _name(name) {
+Mesh::Mesh(gsl::owner<CgalImpl*> cgal_data, std::string name) :
+        _logger(cgal_data != nullptr ? cgal_data->_logger : nullptr),
+        _impl(cgal_data),
+        _name(std::move(name)) {
     Expects(cgal_data != nullptr);
     Expects(cgal_data->_logger != nullptr);
-
-    _logger = cgal_data->_logger;
 
     logger().info("Number of vertices: {}", cgal()._mesh.num_vertices());
     logger().info("Number of faces: {}", cgal()._mesh.num_faces());

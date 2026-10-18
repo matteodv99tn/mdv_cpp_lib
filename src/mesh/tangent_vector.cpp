@@ -43,11 +43,11 @@ project_along_direction(const mdv::Vec3d& vec, mdv::Vec3d dir) {
 //   | | (_| | | | | (_| |  __/ | | | |_ \ V /  __/ (__| || (_) | |
 //   |_|\__,_|_| |_|\__, |\___|_| |_|\__| \_/ \___|\___|\__\___/|_|
 //                  |___/
-TangentVector::TangentVector(const Point& app_point, const Vec3d& v, Type type) :
-        _pt(app_point), _vec(v), _type(type) {
+TangentVector::TangentVector(Point app_point, Vec3d v, Type type) :
+        _pt(std::move(app_point)), _vec(std::move(v)), _type(type) {
     using mdv::condition::are_orthogonal;
 
-    const auto point_type = location_type(app_point);
+    const auto point_type = location_type(_pt);
 
     if (point_type == LocationType::INSIDE_FACE) {
         validate_app_point_inside_face();

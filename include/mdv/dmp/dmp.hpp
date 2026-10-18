@@ -125,7 +125,7 @@ public:
     using basis_size_t = unsigned long;
     using weights_t    = Eigen::MatrixXd;
 
-    double tau;
+    double tau = 1.0;
 
     Dmp(long                          n_basis  = 12,
         const TransformationSystemPtr ts       = std::make_shared<TS>(),
@@ -136,7 +136,6 @@ public:
             _m(std::move(manifold)),
             _cs(std::move(cs)),
             _ts(std::move(ts)),
-            tau(1.0),
             _emb(std::make_shared<Embedding>(_m.get())) {
         _logger->debug("Constructing parameters for a basis of size {}", n_basis);
         const Eigen::VectorXd s_places = Eigen::VectorXd::LinSpaced(n_basis, 0.0, 1.0);
@@ -150,6 +149,7 @@ public:
     Dmp& operator=(const Dmp&) = default;
     Dmp(Dmp&&)                 = default;
     Dmp& operator=(Dmp&&)      = default;
+    ~Dmp()                     = default;
 
     template <typename Demonstration>
     MDV_NODISCARD Eigen::MatrixXd

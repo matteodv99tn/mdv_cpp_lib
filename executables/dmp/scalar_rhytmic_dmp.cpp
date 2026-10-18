@@ -49,7 +49,7 @@ main() {
             demo.front().yd() / dmp.tau,
             dmp.compute_average(demo),
             .5,
-            3 * 5 * n_samples,
+            std::size_t{3} * 5 * n_samples,
             1ms
     );
 

@@ -39,7 +39,8 @@ public:
      * @param name Optional name override.
      */
     void insert_mesh(
-            gsl::owner<Mesh*> mesh, std::optional<std::string> name = std::nullopt
+            gsl::owner<Mesh*>                 mesh,
+            const std::optional<std::string>& name = std::nullopt
     );
 
     /**

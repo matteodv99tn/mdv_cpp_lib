@@ -104,7 +104,7 @@ TEST(MultiVectorTest, AtAccessOperator) {
     const test_vector vec = build_increasing_value();
     for (std::size_t i = 0; i < vec.size(); ++i)
         EXPECT_EQ(static_cast<std::size_t>(std::get<int>(vec.at(i))), i);
-    ASSERT_THROW(vec.at(vec.size()), std::out_of_range);
+    ASSERT_THROW(static_cast<void>(vec.at(vec.size())), std::out_of_range);
 }
 
 TEST(MultiVectorTest, ColumnIterator) {

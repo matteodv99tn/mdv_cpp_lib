@@ -339,7 +339,9 @@ mdv::mesh::location_type(const TangentVector& tv) {
     return location_type(tv.application_point());
 }
 
+namespace {
 BS::thread_pool th_pool;
+}  // namespace
 
 #ifdef RERUN_DEBUG
 

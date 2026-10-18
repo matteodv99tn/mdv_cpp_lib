@@ -466,7 +466,7 @@ namespace {
 }  // namespace
 
 Point
-exponential_map(TangentVector v, Geodesic* geod) {
+exponential_map(const TangentVector& v, Geodesic* geod) {
 #if RERUN_DEBUG_ENABLED
     rec.spawn().exit_on_failure();
     logged_mesh = &(v.application_point().mesh());

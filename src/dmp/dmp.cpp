@@ -28,6 +28,7 @@ mdv::build_scalar_demonstration(const long n_samples) {
             poly_5th(Eigen::VectorXd::LinSpaced(n_samples, 0.0, 1.0));
 
     std::vector<double> pos_traj;
+    pos_traj.reserve(ts.size());
     for (const auto& t : ts) pos_traj.emplace_back(2 + 3 * t);
 
     return Demonstration<Scalar>::builder(static_cast<std::size_t>(n_samples))
@@ -129,6 +130,7 @@ mdv::build_quaternion_demonstration(const long n_samples) {
 #else
     std::vector<double> ts;
     const auto          tdata = Eigen::VectorXd::LinSpaced(n_samples - 10, 0.0, 1.0);
+    ts.reserve(static_cast<std::size_t>(tdata.size()) + 10);
     for (auto i = 0; i < 5; ++i) ts.push_back(0.0);
     for (auto i = 0; i < n_samples - 10; ++i) ts.push_back(tdata(i));
     for (auto i = 0; i < 5; ++i) ts.push_back(1.0);

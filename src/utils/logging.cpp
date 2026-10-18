@@ -17,6 +17,7 @@ using mdv::Logger;
 // |___|_| |_| |_| .__/|_|\___|_| |_| |_|\___|_| |_|\__\__,_|\__|_|\___/|_| |_|
 //               |_|
 
+namespace {
 class VoidLogger : public mdv::Logger {
 public:
     ~VoidLogger() override = default;
@@ -34,7 +35,8 @@ private:
     log_message(std::string msg, LogLevel lvl) const override {}
 };
 
-static mdv::Logger::SharedPtr default_logger = nullptr;
+mdv::Logger::SharedPtr default_logger = nullptr;
+}  // namespace
 
 mdv::Logger::SharedPtr
 mdv::get_void_logger() {

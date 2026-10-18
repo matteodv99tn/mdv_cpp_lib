@@ -263,6 +263,7 @@ if(BUILD_TESTING)
         mdvcpplib
         GTest::GTest
         GTest::Main
+        range-v3
     )
     target_compile_options(mdv_gtests PRIVATE ${MDV_WARNING_FLAGS})
     add_test(gtest mdv_gtests)

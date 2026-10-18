@@ -55,7 +55,7 @@ struct RhytmicDmp {
     using MinimumGoalSample = TransformationSystem::MinimumGoalSample;
     using MinimumSample     = TransformationSystem::MinimumSample;
 
-    double tau;
+    double tau = 1.0;
 
     RhytmicDmp(
             long                          n_basis = 20,
@@ -66,7 +66,6 @@ struct RhytmicDmp {
             _logger(std::move(logger)),
             _m(std::move(manifold)),
             _ts(std::move(ts)),
-            tau(1.0),
             _emb(std::make_shared<Embedding>(_m.get())) {
         _logger->debug("Constructing parameters for a basis of size {}", n_basis);
         auto basis = dmp::PeriodicExponentialBasis::create_equispaced(n_basis);

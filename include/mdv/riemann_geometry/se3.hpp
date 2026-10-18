@@ -18,8 +18,8 @@ struct SE3Point {
 
     SE3Point() = default;
 
-    SE3Point(const Eigen::Vector3d& pos_, const Eigen::Quaterniond& ori_) :
-            pos(pos_), ori(ori_) {
+    SE3Point(Eigen::Vector3d pos_, Eigen::Quaterniond ori_) :
+            pos(std::move(pos_)), ori(std::move(ori_)) {
         // if (ori.w() < 0.0) ori.coeffs() *= -1;
     }
 

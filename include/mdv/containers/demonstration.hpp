@@ -239,6 +239,7 @@ public:
     SampleBuilder(SampleBuilder&&)                 = delete;
     SampleBuilder& operator=(const SampleBuilder&) = delete;
     SampleBuilder& operator=(SampleBuilder&&)      = delete;
+    ~SampleBuilder()                               = default;
 
     // clang-format off
     SampleBuilder&& time(const Time& t) &&                   { _sample->t() = t;              return std::move(*this); }

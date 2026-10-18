@@ -57,8 +57,6 @@ main(int argc, char* argv[]) {
     const double ls    = 0.05;
     const double noise = 1.0;
 
-    const std::string matfile = mdv::config::letter_dataset_directory() / "C.mat";
-
     const auto letter_dataset = mdv::load_letter_dataset(0.001);
     const auto dataset        = letter_dataset.at('c');
 

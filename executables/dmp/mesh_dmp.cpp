@@ -6,6 +6,8 @@
 #include <sstream>
 #include <string>
 
+#include <range/v3/algorithm/transform.hpp>
+
 #include "mdv/dmp/coordinate_system/coordinate_system.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/utils/logging.hpp"
@@ -111,9 +113,8 @@ main() {
     const std::vector<double>     path_coords = mdv::poly_5th(ts);
     std::vector<mdv::mesh::Point> demonstration_path;
     demonstration_path.reserve(ns_demo);
-    std::transform(
-            begin(path_coords),
-            end(path_coords),
+    ranges::transform(
+            path_coords,
             std::back_inserter(demonstration_path),
             [&mesh, &path_f](const double t) -> mdv::mesh::Point {
                 return mdv::mesh::Point::from_cartesian(mesh, path_f(t * 3.14));
@@ -123,9 +124,8 @@ main() {
     // Build cartesian path and visualise it
     std::vector<Eigen::Vector3d> cartesian_demonstration;
     cartesian_demonstration.reserve(demonstration_path.size());
-    std::transform(
-            begin(demonstration_path),
-            end(demonstration_path),
+    ranges::transform(
+            demonstration_path,
             back_inserter(cartesian_demonstration),
             [](const Point& p) { return p.position(); }
     );
@@ -137,12 +137,11 @@ main() {
                                        .acceleration_automatic_differentiation()
                                        .set_sampling_period(dts_demo)
                                        .create();
-    for (std::size_t i = 0; i < demonstration.size(); ++i) {
-        rec.set_time_duration_secs("time", mdv::convert::seconds(demonstration[i].t()));
+    for (const auto& sample : demonstration) {
+        rec.set_time_duration_secs("time", mdv::convert::seconds(sample.t()));
         // rec.set_time_sequence("tick", i);
-        const Eigen::Vector3d pos = demonstration[i].y().position();
-        rec.log("demonstration/trajectory/position",
-                rr_converter(demonstration[i].y()));
+        const Eigen::Vector3d pos = sample.y().position();
+        rec.log("demonstration/trajectory/position", rr_converter(sample.y()));
         rec.log("demonstration/trajectory/x", rerun::Scalars(pos(0)));
         rec.log("demonstration/trajectory/y", rerun::Scalars(pos(1)));
         rec.log("demonstration/trajectory/z", rerun::Scalars(pos(2)));

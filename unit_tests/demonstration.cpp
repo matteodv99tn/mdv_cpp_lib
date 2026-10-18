@@ -3,6 +3,8 @@
 #include <array>
 #include <gtest/gtest.h>
 
+#include <range/v3/algorithm/transform.hpp>
+
 #include "mdv/dmp/dmp.hpp"
 #include "mdv/dmp/dmp_utilities.hpp"
 #include "mdv/riemann_geometry/concepts.hpp"
@@ -73,14 +75,9 @@ TEST(Demonstration2Assertions, DemonstrationBuilder) {
 TEST(Demonstration, PositionRetriever) {
     const auto      demonstration = mdv::build_exact_scalar_demonstration();
     Eigen::VectorXd ts(demonstration.size());
-    std::transform(
-            demonstration.begin(),
-            demonstration.end(),
-            ts.begin(),
-            [](const auto& sample) -> double {
-                return mdv::convert::seconds(sample.t());
-            }
-    );
+    ranges::transform(demonstration, ts.begin(), [](const auto& sample) -> double {
+        return mdv::convert::seconds(sample.t());
+    });
     const auto dem_pos  = demonstration.get_position_vector();
     const auto poly_pos = mdv::poly_5th(ts);
 
@@ -136,6 +133,9 @@ static_assert(
         mdv::manifold_sample<mdv::DemonstrationSample<mdv::riemann::Scalar, 2>, 1>
 );
 
-mdv::DemonstrationSample<mdv::riemann::Scalar, 1> out(
-        mdv::DemonstrationSample<mdv::riemann::Scalar, 2>{}
-);
+TEST(Demonstration, LowerOrderSampleConversion) {
+    mdv::DemonstrationSample<Scalar, 2> source{};
+    source.t() = decltype(source)::Time{1};
+    const mdv::DemonstrationSample<Scalar, 1> out(source);
+    EXPECT_EQ(out.t(), source.t());
+}

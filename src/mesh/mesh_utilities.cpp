@@ -50,7 +50,7 @@ write_off(
 
 std::pair<VertexData, FaceData>
 build_surface(
-        std::function<double(double, double)>        f,
+        const std::function<double(double, double)>& f,
         const mdv::mesh::DrawableFunctionParameters& parameters,
         const std::optional<double>                  plane_z_coord = std::nullopt
 ) {
@@ -164,10 +164,10 @@ build_surface(
 
 void
 mdv::mesh::create_closed_from_function(
-        const std::filesystem::path&          destination,
-        std::function<double(double, double)> f,
-        const double                          thickness,
-        const DrawableFunctionParameters&     parameters
+        const std::filesystem::path&                 destination,
+        const std::function<double(double, double)>& f,
+        const double                                 thickness,
+        const DrawableFunctionParameters&            parameters
 ) {
     Expects(thickness > 0.0);
     const auto [vertices, faces] = build_surface(f, parameters, thickness);
@@ -176,9 +176,9 @@ mdv::mesh::create_closed_from_function(
 
 std::filesystem::path
 mdv::mesh::create_closed_from_function(
-        std::function<double(double, double)> f,
-        const double                          thickness,
-        const DrawableFunctionParameters&     parameters
+        const std::function<double(double, double)>& f,
+        const double                                 thickness,
+        const DrawableFunctionParameters&            parameters
 ) {
     static int mesh_id = 0;
 
@@ -194,9 +194,9 @@ mdv::mesh::create_closed_from_function(
 
 void
 mdv::mesh::create_from_function(
-        const std::filesystem::path&          destination,
-        std::function<double(double, double)> f,
-        const DrawableFunctionParameters&     parameters
+        const std::filesystem::path&                 destination,
+        const std::function<double(double, double)>& f,
+        const DrawableFunctionParameters&            parameters
 ) {
     const auto [vertices, faces] = build_surface(f, parameters);
     write_off(destination, vertices, faces);
@@ -204,11 +204,11 @@ mdv::mesh::create_from_function(
 
 void
 mdv::mesh::create_from_function(
-        const std::filesystem::path&                  destination,
-        std::function<double(const Eigen::Vector2d&)> f,
-        const DrawableFunctionParameters&             parameters
+        const std::filesystem::path&                         destination,
+        const std::function<double(const Eigen::Vector2d&)>& f,
+        const DrawableFunctionParameters&                    parameters
 ) {
-    auto fun = [f](const double x, const double y) -> double {
+    auto fun = [&f](const double x, const double y) -> double {
         return f(Eigen::Vector2d({x, y}));
     };
 
@@ -217,8 +217,8 @@ mdv::mesh::create_from_function(
 
 std::filesystem::path
 mdv::mesh::create_from_function(
-        std::function<double(double, double)> f,
-        const DrawableFunctionParameters&     parameters
+        const std::function<double(double, double)>& f,
+        const DrawableFunctionParameters&            parameters
 ) {
     static int mesh_id = 0;
 
@@ -233,10 +233,10 @@ mdv::mesh::create_from_function(
 
 std::filesystem::path
 mdv::mesh::create_from_function(
-        std::function<double(const Eigen::Vector2d&)> f,
-        const DrawableFunctionParameters&             parameters
+        const std::function<double(const Eigen::Vector2d&)>& f,
+        const DrawableFunctionParameters&                    parameters
 ) {
-    auto fun = [f](const double x, const double y) -> double {
+    auto fun = [&f](const double x, const double y) -> double {
         return f(Eigen::Vector2d({x, y}));
     };
 
@@ -312,9 +312,6 @@ mdv::mesh::create_cone(const std::size_t n_edges, const double axis_from_angle_d
 
 std::filesystem::path
 mdv::mesh::create_flat(const double size) {
-    const std::filesystem::path res =
-            std::filesystem::temp_directory_path() / "flat.off";
-
     DrawableFunctionParameters params{
             .x_range                = std::make_pair(-size / 2, size / 2),
             .y_range                = std::make_pair(-size / 2, size / 2),

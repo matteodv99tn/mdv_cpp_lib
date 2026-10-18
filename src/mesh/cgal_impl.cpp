@@ -27,19 +27,21 @@ using Kernel = CgalImpl::Kernel;
 // \endcond
 
 namespace mdv::mesh::internal {
+namespace {
 
-template <class... Ts>
-struct Overload : Ts... {
-    using Ts::operator()...;
-};
+    template <class... Ts>
+    struct Overload : Ts... {
+        using Ts::operator()...;
+    };
 
-template <class... Ts>
-Overload(Ts...) -> Overload<Ts...>;
+    template <class... Ts>
+    Overload(Ts...) -> Overload<Ts...>;
 
+}  // namespace
 }  // namespace mdv::mesh::internal
 
 CgalImpl::CgalImpl(Mesh&& mesh, Logger::SharedPtr&& logger) :
-        _mesh(std::move(mesh)), _logger(std::move(logger)) {
+        _logger(std::move(logger)), _mesh(std::move(mesh)) {
     _shortest_path        = std::make_unique<ShortestPath>(_mesh);
     _geodesic_constructor = new CgalGeodesicConstructor(&_mesh);
     this->logger().trace("Initialised geodesic constructor");

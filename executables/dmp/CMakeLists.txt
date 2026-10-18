@@ -25,6 +25,7 @@ add_executable(
 target_link_libraries(
     meshdmp_test
     mdvcpplib
+    range-v3
 )
 
 add_executable(
@@ -52,6 +53,7 @@ add_executable(
 target_link_libraries(
     mesh_rhytmic_dmp
     mdvcpplib
+    range-v3
 )
 
 add_executable(

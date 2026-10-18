@@ -20,106 +20,109 @@
 namespace rs = ::ranges;
 
 namespace mdv::mesh {
-
-struct TimeBenchmarker {
-    using Time            = decltype(std::chrono::high_resolution_clock::now());
-    using TimeDurationVec = std::vector<std::size_t>;
-
-    static Time
-    now() {
-        return std::chrono::high_resolution_clock::now();
-    };
-
-    struct TimeSample {
-        ~TimeSample() {
-            const Time end_time = now();
-            const auto delta    = end_time - start_time;
-            dest_vector->emplace_back(delta.count());
-        }
-
-        Time             start_time;
-        TimeDurationVec* dest_vector;
-    };
-
-    MDV_NODISCARD TimeSample
-    operator()(const long rows, const long cols) {
-        TimeDurationVec& vec = times[std::make_pair(rows, cols)];
-        return TimeSample{.start_time = now(), .dest_vector = &vec};
-    }
-
-    std::map<std::pair<long, long>, TimeDurationVec> times;
-
-    static std::size_t
-    mean(const TimeDurationVec& ts) {
-        return rs::accumulate(ts, std::size_t{0}) / ts.size();
-    }
-
-    ~TimeBenchmarker() {
-        // Display mean / median / other data when destroying
-        fmt::println("Showing logged data");
-        for (const auto& [dims, ts] : times) {
-            const auto& [rows, cols] = dims;
-            const double time_ms     = double(mean(ts)) * 1e-6;
-            fmt::println("{} x {} -> {:.4}ms", rows, cols, time_ms);
-        }
-        fmt::println("Showing logged data --- Done");
-    }
-};
-
-static TimeBenchmarker benchmarker;
-
 namespace {
-    BS::thread_pool th_pool;
-}  // namespace
 
-class DistanceEvaluator {
-public:
-    using InputVector             = MeshKernel::InputVector;
-    using ShortestPath            = internal::CgalImpl::ShortestPath;
-    using CgalGeodesicConstructor = internal::CgalGeodesicConstructor;
+    struct TimeBenchmarker {
+        using Time            = decltype(std::chrono::high_resolution_clock::now());
+        using TimeDurationVec = std::vector<std::size_t>;
 
-    Eigen::MatrixXd
-    operator()(const InputVector& pts1, const InputVector& pts2) const {
-        Eigen::MatrixXd res(pts1.size(), pts2.size());
-        th_pool.detach_loop(0, res.rows(), [&](const long i) {
-            evaluate_row(i, res, pts1, pts2);
-        });
-        th_pool.wait();
-        return res;
-    }
+        static Time
+        now() {
+            return std::chrono::high_resolution_clock::now();
+        };
 
-private:
-    static void
-    evaluate_row(
-            const long         i,
-            Eigen::MatrixXd&   res,
-            const InputVector& pts1,
-            const InputVector& pts2
-    ) {
-        ShortestPath shpath(internal::get_mesh_impl(pts1.front().mesh()));
-        CgalGeodesicConstructor::set_source(shpath, pts1[static_cast<std::size_t>(i)]);
+        struct TimeSample {
+            ~TimeSample() {
+                const Time end_time = now();
+                const auto delta    = end_time - start_time;
+                dest_vector->emplace_back(delta.count());
+            }
 
-        for (long j = 0; j < res.cols(); ++j) {
-            const auto geod = CgalGeodesicConstructor::construct_geodesic(
-                    shpath, pts2[static_cast<std::size_t>(j)]
-            );
-            res(i, j) = length(geod);
+            Time             start_time;
+            TimeDurationVec* dest_vector;
+        };
+
+        MDV_NODISCARD TimeSample
+        operator()(const long rows, const long cols) {
+            TimeDurationVec& vec = times[std::make_pair(rows, cols)];
+            return TimeSample{.start_time = now(), .dest_vector = &vec};
         }
-    }
 
-    static void
-    evaluate_rows_batched(
-            Eigen::MatrixXd&   res,
-            const InputVector& pts1,
-            const InputVector& pts2,
-            const long         row_start_id,
-            const long         n_rows
-    ) {
-        const long& start = row_start_id;
-        const long  end   = std::min(row_start_id + n_rows, res.rows());
-        for (long i = start; i < end; ++i) evaluate_row(i, res, pts1, pts2);
-    }
-};
+        std::map<std::pair<long, long>, TimeDurationVec> times;
+
+        static std::size_t
+        mean(const TimeDurationVec& ts) {
+            return rs::accumulate(ts, std::size_t{0}) / ts.size();
+        }
+
+        ~TimeBenchmarker() {
+            // Display mean / median / other data when destroying
+            fmt::println("Showing logged data");
+            for (const auto& [dims, ts] : times) {
+                const auto& [rows, cols] = dims;
+                const double time_ms     = double(mean(ts)) * 1e-6;
+                fmt::println("{} x {} -> {:.4}ms", rows, cols, time_ms);
+            }
+            fmt::println("Showing logged data --- Done");
+        }
+    };
+
+    TimeBenchmarker benchmarker;
+
+    BS::thread_pool th_pool;
+
+    class DistanceEvaluator {
+    public:
+        using InputVector             = MeshKernel::InputVector;
+        using ShortestPath            = internal::CgalImpl::ShortestPath;
+        using CgalGeodesicConstructor = internal::CgalGeodesicConstructor;
+
+        Eigen::MatrixXd
+        operator()(const InputVector& pts1, const InputVector& pts2) const {
+            Eigen::MatrixXd res(pts1.size(), pts2.size());
+            th_pool.detach_loop(0, res.rows(), [&](const long i) {
+                evaluate_row(i, res, pts1, pts2);
+            });
+            th_pool.wait();
+            return res;
+        }
+
+    private:
+        static void
+        evaluate_row(
+                const long         i,
+                Eigen::MatrixXd&   res,
+                const InputVector& pts1,
+                const InputVector& pts2
+        ) {
+            ShortestPath shpath(internal::get_mesh_impl(pts1.front().mesh()));
+            CgalGeodesicConstructor::set_source(
+                    shpath, pts1[static_cast<std::size_t>(i)]
+            );
+
+            for (long j = 0; j < res.cols(); ++j) {
+                const auto geod = CgalGeodesicConstructor::construct_geodesic(
+                        shpath, pts2[static_cast<std::size_t>(j)]
+                );
+                res(i, j) = length(geod);
+            }
+        }
+
+        static void
+        evaluate_rows_batched(
+                Eigen::MatrixXd&   res,
+                const InputVector& pts1,
+                const InputVector& pts2,
+                const long         row_start_id,
+                const long         n_rows
+        ) {
+            const long& start = row_start_id;
+            const long  end   = std::min(row_start_id + n_rows, res.rows());
+            for (long i = start; i < end; ++i) evaluate_row(i, res, pts1, pts2);
+        }
+    };
+
+}  // namespace
 
 namespace internal {
     struct Data {
@@ -158,13 +161,15 @@ namespace internal {
         return res;
     }
 
-    void
-    eval_sek_inplace(Eigen::MatrixXd& distance_matrix, const double ls) {
-        const double lambda = 0.5 / (ls * ls);
-        distance_matrix     = distance_matrix.unaryExpr([lambda](const double x) {
-            return std::exp(-lambda * x * x);
-        });
-    }
+    namespace {
+        void
+        eval_sek_inplace(Eigen::MatrixXd& distance_matrix, const double ls) {
+            const double lambda = 0.5 / (ls * ls);
+            distance_matrix     = distance_matrix.unaryExpr([lambda](const double x) {
+                return std::exp(-lambda * x * x);
+            });
+        }
+    }  // namespace
 
     bool
     is_positive_definite(const Eigen::MatrixXd& mat) {
@@ -258,8 +263,8 @@ MeshKernel::find_max_lengthscale(
         ls = 0.5 * (ls_min + ls_max);
 
         bool is_pd = true;
-        for (std::size_t i = 0; i < dist_matrices.size(); ++i) {
-            const Eigen::MatrixXd ker = internal::eval_sek(dist_matrices[i], ls);
+        for (const auto& distance_matrix : dist_matrices) {
+            const Eigen::MatrixXd ker = internal::eval_sek(distance_matrix, ls);
             if (!internal::is_positive_definite(ker)) {
                 is_pd = false;
                 break;

@@ -405,6 +405,7 @@ public:
     Point(Point&& other)                 = default;
     Point& operator=(const Point& other) = default;
     Point& operator=(Point&& other)      = default;
+    ~Point()                             = default;
 
     /**
      * @brief Returns the underlying point descriptor.
