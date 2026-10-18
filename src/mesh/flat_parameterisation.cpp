@@ -87,7 +87,9 @@ struct FlatParameterisation::FlatParameterisationImpl {
 
         assert(std::distance(tris.begin(), tri)
                < std::distance(tris.begin(), tris.end()));
-        const FaceIndex f(std::distance(tris.begin(), tri));
+        const FaceIndex f(
+                static_cast<FaceIndex::size_type>(std::distance(tris.begin(), tri))
+        );
 
         const auto [v0, v1, v2] = get_vertices(f);
         const auto bs           = construct_barycentric<Eigen::Vector2d>(

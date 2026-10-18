@@ -193,10 +193,10 @@ CgalImpl::yield_faces() const {
     for (const CgalImpl::Mesh::Face_index& face : _mesh.faces()) {
         const auto vertex_iter =
                 CGAL::vertices_around_face(_mesh.halfedge(face), _mesh);
-        int i = 0;
+        std::size_t i = 0;
         for (const auto& vi : vertex_iter) {
             Expects(i < 3);
-            res[static_cast<long>(face)].at(i) = vi.idx();
+            res[static_cast<std::size_t>(face)].at(i) = vi.idx();
             i++;
         }
     }

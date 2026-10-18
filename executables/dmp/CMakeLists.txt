@@ -1,3 +1,5 @@
+add_compile_options(${MDV_WARNING_FLAGS})
+
 add_executable(
     s3_test
     ${CMAKE_CURRENT_LIST_DIR}/s3_test.cpp

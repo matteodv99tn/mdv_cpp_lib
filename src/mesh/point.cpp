@@ -288,7 +288,7 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
     const Face& face = mesh.face(static_cast<Index>(face_id.idx()));
     const auto  f_he = CGAL::halfedge(face_id, m_impl);
 
-    const std::size_t n_zero_coords = rs::count(
+    const auto n_zero_coords = rs::count(
             coords | rv::transform([](const double b) -> bool {
                 return std::abs(b) < 1e-12;
             }),

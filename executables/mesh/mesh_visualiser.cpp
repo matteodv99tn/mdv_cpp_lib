@@ -30,7 +30,7 @@ using std::filesystem::path;
 int
 main(int argc, char* argv[]) {
 #ifdef MDV_WITH_RERUN_SDK
-    std::srand(std::time(nullptr));
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
     // std::string mesh_path = mdv::config::mesh_dir() + "/torus_simple.off";
     // // mesh_path             = mdv::mesh::create_cone(6);
     // if (argc > 1) mesh_path = std::string(argv[1]);

@@ -85,7 +85,10 @@ TEST(Demonstration, PositionRetriever) {
     const auto poly_pos = mdv::poly_5th(ts);
 
     EXPECT_EQ(dem_pos.size(), poly_pos.size());
-    for (auto i = 0; i < dem_pos.size(); ++i) EXPECT_FLOAT_EQ(dem_pos[i], poly_pos[i]);
+    for (std::size_t i = 0; i < dem_pos.size(); ++i)
+        EXPECT_FLOAT_EQ(
+                static_cast<float>(dem_pos[i]), static_cast<float>(poly_pos[i])
+        );
 }
 
 TEST(Demonstration, NumericDifferentiation) {
@@ -100,7 +103,7 @@ TEST(Demonstration, NumericDifferentiation) {
                     .acceleration_automatic_differentiation()
                     .create();
 
-    for (auto i = 0; i < reference_demo.size(); ++i)
+    for (std::size_t i = 0; i < reference_demo.size(); ++i)
         EXPECT_NEAR(reference_demo[i].yd(), constructed_demo[i].yd(), 1e-5);
 }
 

@@ -285,7 +285,7 @@ public:
 
         const std::size_t data_size = data().size();
         if (_vel_autodiff) {
-            for (long i = 0; i < data_size - 1; ++i) {
+            for (std::size_t i = 0; i < data_size - 1; ++i) {
                 auto&        curr = data(i);
                 const auto&  next = data(i + 1);
                 const double dt   = seconds(next.t() - curr.t());
@@ -300,7 +300,7 @@ public:
         }
 
         if (_acc_autodiff) {
-            for (long i = 0; i < data_size - 1; ++i) {
+            for (std::size_t i = 0; i < data_size - 1; ++i) {
                 auto&        curr    = data(i);
                 const auto&  next    = data(i + 1);
                 const auto&  next_y  = next.y();

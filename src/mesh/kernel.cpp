@@ -3,6 +3,7 @@
 #include <chrono>
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <iterator>
 #include <stdexcept>
 #include <utility>
 
@@ -96,11 +97,12 @@ private:
             const InputVector& pts2
     ) {
         ShortestPath shpath(internal::get_mesh_impl(pts1.front().mesh()));
-        CgalGeodesicConstructor::set_source(shpath, pts1[i]);
+        CgalGeodesicConstructor::set_source(shpath, pts1[static_cast<std::size_t>(i)]);
 
         for (long j = 0; j < res.cols(); ++j) {
-            const auto geod =
-                    CgalGeodesicConstructor::construct_geodesic(shpath, pts2[j]);
+            const auto geod = CgalGeodesicConstructor::construct_geodesic(
+                    shpath, pts2[static_cast<std::size_t>(j)]
+            );
             res(i, j) = length(geod);
         }
     }
@@ -136,7 +138,7 @@ namespace internal {
             shpath_objs.reserve(pts1.size());
             for (const auto& pt : pts1) shpath_objs.emplace_back(m);
 
-            const auto process_i = [&](const long i) {
+            const auto process_i = [&](const std::size_t i) {
                 CgalGeodesicConstructor::set_source(shpath_objs[i], pts1[i]);
                 CgalGeodesicConstructor::construct_geodesic(
                         shpath_objs[i], mesh.vertex(0)
@@ -186,12 +188,13 @@ namespace {
             Eigen::MatrixXd&                   res
     ) {
         using internal::CgalGeodesicConstructor;
-        auto time_eval = benchmarker(data.pts1.size(), pts2.size());
+        auto time_eval = benchmarker(std::ssize(data.pts1), std::ssize(pts2));
 
         auto row_processor = [&data, &res, &pts2](const long i) {
             for (long j = 0; j < res.cols(); ++j) {
                 const auto path = CgalGeodesicConstructor::construct_geodesic(
-                        data.shpath_objs[i], pts2[j]
+                        data.shpath_objs[static_cast<std::size_t>(i)],
+                        pts2[static_cast<std::size_t>(j)]
                 );
                 res(i, j) = length(path);
             }
@@ -288,7 +291,7 @@ Eigen::MatrixXd
 InexactMeshKernel::distance_matrix(
         const InputVector& pts1, const InputVector& pts2
 ) const {
-    auto time_eval = benchmarker(pts1.size(), pts2.size());
+    auto time_eval = benchmarker(std::ssize(pts1), std::ssize(pts2));
     if (pts1.size() < pts2.size()) return DistanceEvaluator{}(pts1, pts2);
     return DistanceEvaluator{}(pts2, pts1).transpose();
 }

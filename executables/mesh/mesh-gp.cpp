@@ -37,8 +37,8 @@ to_demonstration_data(
     std::vector<Point>      points;
     std::vector<mdv::Vec3d> cart_points;
     std::vector<mdv::Vec3d> velocities;
-    points.reserve(pos_data.cols());
-    cart_points.reserve(pos_data.cols());
+    points.reserve(static_cast<std::size_t>(pos_data.cols()));
+    cart_points.reserve(static_cast<std::size_t>(pos_data.cols()));
     for (long i = 0; i < pos_data.cols(); i += increment) {
         const double x = pos_data(0, i);
         const double y = pos_data(1, i);
@@ -98,10 +98,11 @@ main(int argc, char* argv[]) {
     Eigen::VectorXd vz(vels.size());
 
 
-    for (long i = 0; i < vels.size(); ++i) {
-        vx(i) = vels[i](0);
-        vy(i) = vels[i](1);
-        vz(i) = vels[i](2);
+    for (std::size_t i = 0; i < vels.size(); ++i) {
+        const auto k = static_cast<Eigen::Index>(i);
+        vx(k)        = vels[i](0);
+        vy(k)        = vels[i](1);
+        vz(k)        = vels[i](2);
     }
 
     Eigen::MatrixXd V_mat(vels.size(), 3);
@@ -109,7 +110,7 @@ main(int argc, char* argv[]) {
     V_mat.col(1) = vy;
     V_mat.col(2) = vz;
 
-    Expects(vx.rows() == pts.size());
+    Expects(vx.rows() == std::ssize(pts));
 
 
     fmt::println("Creating custom Gaussian Process - Lengthscale = {}", ls);
@@ -125,7 +126,7 @@ main(int argc, char* argv[]) {
     // PointVector test_points = pts;
     PointVector test_points;
     test_points.reserve(mesh.num_vertices());
-    for (long i = 0; i < mesh.num_vertices(); ++i)
+    for (mdv::mesh::Index i = 0; i < mesh.num_vertices(); ++i)
         test_points.emplace_back(mesh.vertex(i));
 
     fmt::println("Predicting vector field...");
@@ -135,10 +136,11 @@ main(int argc, char* argv[]) {
     std::vector<::rerun::components::Vector3D>   gp_vecs;
     std::vector<::rerun::components::Position3D> gp_origs;
 
-    for (long i = 0; i < test_points.size(); ++i) {
+    for (std::size_t i = 0; i < test_points.size(); ++i) {
+        const auto k   = static_cast<Eigen::Index>(i);
         const auto pos = test_points[i].position();
         gp_origs.emplace_back(pos(0), pos(1), pos(2));
-        gp_vecs.emplace_back(V_gp(i, 0), V_gp(i, 1), V_gp(i, 2));
+        gp_vecs.emplace_back(V_gp(k, 0), V_gp(k, 1), V_gp(k, 2));
     }
 
     rec.log_static(

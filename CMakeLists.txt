@@ -74,6 +74,9 @@ set_target_properties(matioCpp::matioCpp PROPERTIES
 
 add_compile_definitions(MDV_CGAL_VERSION=${CGAL_VERSION_MAJOR})
 
+# Applied privately to project targets only, so consumers do not inherit them
+set(MDV_WARNING_FLAGS -Wconversion -Wsign-conversion)
+
 # find_program(CLANGTIDY clang-tidy)
 # set(CMAKE_CXX_CLANG_TIDY
 #     clang-tidy --config-file=${CMAKE_CURRENT_LIST_DIR}/.clang-tidy
@@ -185,6 +188,7 @@ target_compile_definitions(
     mdvcpplib
     PUBLIC -DFMT_HEADER_ONLY=1
 )
+target_compile_options(mdvcpplib PRIVATE ${MDV_WARNING_FLAGS})
 
 
 #  ____   ___  ____ ____  
@@ -260,6 +264,7 @@ if(BUILD_TESTING)
         GTest::GTest
         GTest::Main
     )
+    target_compile_options(mdv_gtests PRIVATE ${MDV_WARNING_FLAGS})
     add_test(gtest mdv_gtests)
 endif()
 

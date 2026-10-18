@@ -2,6 +2,7 @@
 #define MDV_RHYTMIC_DMP_HPP
 
 #include <cmath>
+#include <iterator>
 #include <numeric>
 #include <optional>
 
@@ -79,7 +80,10 @@ struct RhytmicDmp {
         const auto sum = [](const double sum, const auto& s) -> double {
             return sum + s.y();
         };
-        return Point{std::accumulate(demo.begin(), demo.end(), 0.0, sum) / demo.size()};
+        return Point{
+                std::accumulate(demo.begin(), demo.end(), 0.0, sum)
+                / static_cast<double>(demo.size())
+        };
     }
 
     template <typename Demo>
@@ -118,12 +122,13 @@ struct RhytmicDmp {
 
         MinimumGoalSample goal_sample;
         goal_sample.y() = goal;
-        for (long i = 0; i < demo.size(); ++i) {
+        for (std::size_t i = 0; i < demo.size(); ++i) {
+            const auto          row   = static_cast<Eigen::Index>(i);
             const TangentVector force = ts().eval_forcing(demo[i], goal_sample, tau);
 
             if constexpr (is_scalar)
-                f_des(i) = emb().embed(force, demo[i], goal_sample);
-            else f_des.row(i) = emb().embed(force, demo[i], goal_sample);
+                f_des(row) = emb().embed(force, demo[i], goal_sample);
+            else f_des.row(row) = emb().embed(force, demo[i], goal_sample);
         }
         assert(!f_des.hasNaN());
         return f_des;
@@ -187,14 +192,14 @@ struct RhytmicDmp {
 
         logger().trace("Evaluating matrix Phi");
         Eigen::MatrixXd phi(demo.size(), n_basis());
-        for (auto i = 0; i < demo.size(); ++i) {
-            const double t_secs = time_to_s(demo[i].t());
-            phi.row(i)          = fun().eval_basis(t_secs) * r;
+        for (std::size_t i = 0; i < demo.size(); ++i) {
+            const double t_secs                   = time_to_s(demo[i].t());
+            phi.row(static_cast<Eigen::Index>(i)) = fun().eval_basis(t_secs) * r;
         }
 
-        assert(phi.rows() == demo.size());
-        assert(phi.cols() == n_basis());
-        assert(f_des.rows() == demo.size());
+        assert(phi.rows() == std::ssize(demo));
+        assert(phi.cols() == static_cast<Eigen::Index>(n_basis()));
+        assert(f_des.rows() == std::ssize(demo));
         assert(f_des.cols() == embedding_dimension);
         fun().learn(phi, f_des);
         logger().info("DMP succesfully learned");
@@ -222,8 +227,9 @@ struct RhytmicDmp {
         goal.y() = g;
 
         const auto dts = seconds(dt);
-        for (auto i = 0; i < n_steps - 1; ++i) {
-            const double                     s    = time_to_s(i * dt);
+        using Rep      = typename Demonstration<M>::Time::rep;
+        for (std::size_t i = 0; i < n_steps - 1; ++i) {
+            const double                     s    = time_to_s(static_cast<Rep>(i) * dt);
             const typename Embedding::Output f    = fun()(s, r);
             const TangentVector              f_tv = emb().decode(f, res[i], goal);
             ts().step(res[i], goal, f_tv, tau, dts, res[i + 1]);

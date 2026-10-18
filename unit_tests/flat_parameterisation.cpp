@@ -26,7 +26,7 @@ TEST(MdvMesh, FlatParameterisation) {
     ASSERT_FALSE(map.is_inside_mesh(map.min_uv() - Eigen::Vector2d{0.1, 0.1}));
 
     // Check bijective mapping of vertices
-    for (long i = 0; i < mesh.num_vertices(); ++i) {
+    for (Index i = 0; i < mesh.num_vertices(); ++i) {
         const auto   v   = mesh.vertex(i);
         const auto   uv  = map.project(v);
         const auto   rec = map.retrieve(uv);
@@ -37,7 +37,7 @@ TEST(MdvMesh, FlatParameterisation) {
 
     // Check bijective mapping of points centered in the faces
     constexpr double b = 1.0 / 3.0;
-    for (long i = 0; i < mesh.num_faces(); ++i) {
+    for (Index i = 0; i < mesh.num_faces(); ++i) {
         const auto   pt  = Point::PointInFaceDescriptor(mesh.face(i), {b, b, b});
         const auto   uv  = map.project(pt);
         const auto   rec = map.retrieve(uv);

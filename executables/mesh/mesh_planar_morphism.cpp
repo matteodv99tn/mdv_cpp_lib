@@ -44,7 +44,7 @@ main(int argc, char* argv[]) {
 
     std::vector<Eigen::Vector2d> projs;
     projs.reserve(sub_mesh.num_vertices());
-    for (long i = 0; i < sub_mesh.num_vertices(); ++i)
+    for (mdv::mesh::Index i = 0; i < sub_mesh.num_vertices(); ++i)
         projs.emplace_back(param.project(sub_mesh.vertex(i)));
 
     std::vector<Eigen::Vector3d> reconstructed;
@@ -64,13 +64,13 @@ main(int argc, char* argv[]) {
 
     std::vector<rerun::components::Position3D> planar_pos;
     planar_pos.reserve(sub_mesh.num_vertices());
-    for (long i = 0; i < sub_mesh.num_vertices(); ++i) {
+    for (mdv::mesh::Index i = 0; i < sub_mesh.num_vertices(); ++i) {
         planar_pos.emplace_back(projs[i](0), projs[i](1), 0.0);
     }
 
     std::vector<rerun::components::Position3D> reconstructed_pos;
     reconstructed_pos.reserve(sub_mesh.num_vertices());
-    for (long i = 0; i < sub_mesh.num_vertices(); ++i) {
+    for (mdv::mesh::Index i = 0; i < sub_mesh.num_vertices(); ++i) {
         reconstructed_pos.emplace_back(
                 reconstructed[i](0), reconstructed[i](1), reconstructed[i](2)
         );
@@ -87,7 +87,7 @@ main(int argc, char* argv[]) {
 
     constexpr double err_th  = 1e-9;
     long             n_wrong = 0;
-    for (long i = 0; i < sub_mesh.num_vertices(); ++i) {
+    for (mdv::mesh::Index i = 0; i < sub_mesh.num_vertices(); ++i) {
         const auto v   = sub_mesh.vertex(i).position();
         const auto err = (v - reconstructed[i]).norm();
         if (err > err_th) ++n_wrong;
@@ -111,7 +111,7 @@ main(int argc, char* argv[]) {
 
     max_err            = 0.0;
     constexpr double b = 1.0 / 3.0;
-    for (long i = 0; i < sub_mesh.num_faces(); ++i) {
+    for (mdv::mesh::Index i = 0; i < sub_mesh.num_faces(); ++i) {
         const auto pt = Point::PointInFaceDescriptor(
                 sub_mesh.face(i), Eigen::Vector3d{b, b, b}
         );
@@ -134,13 +134,13 @@ main(int argc, char* argv[]) {
         );
     }
 
-    for (long i = 0; i < sub_mesh.num_vertices(); ++i) {
+    for (mdv::mesh::Index i = 0; i < sub_mesh.num_vertices(); ++i) {
         using mdv::condition::are_equal;
         if (!are_equal(sub_mesh.vertex(i).position(), filled_mesh.vertex(i).position()))
             throw std::runtime_error("Vertices have been moved");
     }
 
-    for (long i = 0; i < sub_mesh.num_faces(); ++i) {
+    for (mdv::mesh::Index i = 0; i < sub_mesh.num_faces(); ++i) {
         const auto f1  = sub_mesh.face(i);
         const auto f2  = filled_mesh.face(i);
         const auto v1s = f1.vertices_ids();

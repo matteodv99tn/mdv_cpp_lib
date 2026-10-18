@@ -74,8 +74,8 @@ main() {
     const auto ori =
             mdv::filter_orientation(mdv::encode_orientation(upsampled_traj), 100);
 
-    for (long i = 0; i < upsampled_traj.size(); ++i) {
-        rec.set_time_sequence("step", i);
+    for (std::size_t i = 0; i < upsampled_traj.size(); ++i) {
+        rec.set_time_sequence("step", static_cast<std::int64_t>(i));
         rec.log("tcp", rr_converter(upsampled_path[i], ori[i]));
     }
 

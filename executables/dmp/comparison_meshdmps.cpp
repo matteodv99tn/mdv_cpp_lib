@@ -106,7 +106,9 @@ main() {
     using rerun::components::LineStrip2D, rerun::archetypes::LineStrips2D;
     auto path = LineStrip2D(
             demo_3d | rv::transform([](const auto& v) {
-                return rerun::datatypes::Vec2D(v(0), v(1));
+                return rerun::datatypes::Vec2D(
+                        static_cast<float>(v(0)), static_cast<float>(v(1))
+                );
             })
             | rs::to_vector
     );
@@ -156,7 +158,11 @@ main() {
     const auto tmp           = get_integrated_position();
     auto       original_path = LineStrip3D(
             tmp | rv::transform([](const auto& p) {
-                return rerun::datatypes::Vec3D(p(0), p(1), p(2));
+                return rerun::datatypes::Vec3D(
+                        static_cast<float>(p(0)),
+                        static_cast<float>(p(1)),
+                        static_cast<float>(p(2))
+                );
             })
             | rs::to_vector
     );
@@ -179,7 +185,11 @@ main() {
     auto bunny_path = LineStrip3D(
             new_path | rv::transform([](const auto& sample) {
                 const auto p = sample.y().position();
-                return rerun::datatypes::Vec3D(p(0), p(1), p(2));
+                return rerun::datatypes::Vec3D(
+                        static_cast<float>(p(0)),
+                        static_cast<float>(p(1)),
+                        static_cast<float>(p(2))
+                );
             })
             | rs::to_vector
     );

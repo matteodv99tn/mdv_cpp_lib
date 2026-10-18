@@ -29,7 +29,7 @@ public:
      * @param mesh Owning mesh.
      * @param id Vertex index.
      */
-    Vertex(const Mesh& mesh, const long id) : IndexedMeshElement(mesh, id) {}
+    Vertex(const Mesh& mesh, const Index id) : IndexedMeshElement(mesh, id) {}
 
     /**
      * @brief Vertex position in 3D.

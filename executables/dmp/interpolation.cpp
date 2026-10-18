@@ -41,21 +41,23 @@ main() {
     std::vector<double> pos_data;
     pos_data.reserve(n_pts + 1);
     for (std::size_t i = 0; i < 3; ++i) pos_data.emplace_back(0.0);
-    for (std::size_t i = 0; i < n_pts + 1; ++i) pos_data.emplace_back(ds * i);
+    for (std::size_t i = 0; i < n_pts + 1; ++i)
+        pos_data.emplace_back(ds * static_cast<double>(i));
     for (std::size_t i = 0; i < 5; ++i) pos_data.emplace_back(1.0);
 
 
-    const Demo        dem = Demo::builder(pos_data.size())
-                                    .set_sampling_period(std::chrono::milliseconds(500))
-                                    .assign_position(pos_data)
-                                    .velocity_automatic_differentiation()
-                                    .acceleration_automatic_differentiation()
-                                    .create();
-    const auto        integration_dt    = std::chrono::milliseconds(2);
-    const std::size_t integration_steps = dem.back().t() / integration_dt;
-    const double      alpha             = 48.0;
-    auto              logger = mdv::static_logger_factory("interpolation dmp");
-    Dmp               dmp;
+    const Demo dem = Demo::builder(pos_data.size())
+                             .set_sampling_period(std::chrono::milliseconds(500))
+                             .assign_position(pos_data)
+                             .velocity_automatic_differentiation()
+                             .acceleration_automatic_differentiation()
+                             .create();
+    const auto integration_dt = std::chrono::milliseconds(2);
+    const auto integration_steps =
+            static_cast<std::size_t>(dem.back().t() / integration_dt);
+    const double alpha  = 48.0;
+    auto         logger = mdv::static_logger_factory("interpolation dmp");
+    Dmp          dmp;
     dmp.learn(dem);
     dmp.tau = mdv::convert::seconds(integration_dt * integration_steps);
     std::cout << "tau = " << dmp.tau << "\n";
@@ -95,21 +97,23 @@ main() {
     rec.log_static("demonstration/acc", SeriesPoints().with_colors(c1).with_names("a[1]").with_marker_sizes(1.5));
     rec.log_static("execution/acc", SeriesLines().with_colors(c1).with_names(""));
 
-    for (long i{0}; i < size(dem); ++i) {
+    for (long i{0}; i < std::ssize(dem); ++i) {
+        const auto k = static_cast<std::size_t>(i);
         // Export time
         rec.set_time_sequence("tick", i);
-        rec.set_time_duration_secs("time", mdv::convert::seconds(dem[i].t()));
-        rec.log("demonstration/pos", Scalars(dem[i].y()));
-        rec.log("demonstration/vel", Scalars(dem[i].yd()));
-        rec.log("demonstration/acc", Scalars(dem[i].ydd()));
+        rec.set_time_duration_secs("time", mdv::convert::seconds(dem[k].t()));
+        rec.log("demonstration/pos", Scalars(dem[k].y()));
+        rec.log("demonstration/vel", Scalars(dem[k].yd()));
+        rec.log("demonstration/acc", Scalars(dem[k].ydd()));
     }
-    for (long i{0}; i < size(out); ++i) {
+    for (long i{0}; i < std::ssize(out); ++i) {
+        const auto k = static_cast<std::size_t>(i);
         // Export time
         rec.set_time_sequence("tick", i);
-        rec.set_time_duration_secs("time", mdv::convert::seconds(out[i].t()));
-        rec.log("execution/pos", Scalars(out[i].y()));
-        rec.log("execution/vel", Scalars(out[i].yd()));
-        rec.log("execution/acc", Scalars(out[i].ydd()));
+        rec.set_time_duration_secs("time", mdv::convert::seconds(out[k].t()));
+        rec.log("execution/pos", Scalars(out[k].y()));
+        rec.log("execution/vel", Scalars(out[k].yd()));
+        rec.log("execution/acc", Scalars(out[k].ydd()));
     }
     // clang-format on
 #endif  // MDV_WITH_RERUN_SDK

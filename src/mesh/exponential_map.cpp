@@ -295,8 +295,7 @@ namespace {
         const auto      he     = get_halfedge(f, p, m);
         const FaceIndex next_f = m.face(CGAL::opposite(he, m));
 
-        constexpr Index invalid = -1;
-        if (next_f == FaceIndex{invalid})
+        if (next_f == FaceIndex{invalid_index})
             throw std::runtime_error("Boarder reached when computing exponential map");
 
         const auto& v0 = m.point(source(he, m));

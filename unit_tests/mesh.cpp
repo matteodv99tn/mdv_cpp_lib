@@ -28,9 +28,11 @@ TEST(MeshGeodesic, RandomVertexPoints) {
     const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto mesh      = Mesh::from_file(mesh_path);
 
-    std::random_device                  dev;
-    std::mt19937                        rng(dev());
-    std::uniform_int_distribution<long> dist(0, mesh.num_vertices() - 1);
+    std::random_device                   dev;
+    std::mt19937                         rng(dev());
+    std::uniform_int_distribution<Index> dist(
+            0, static_cast<Index>(mesh.num_vertices() - 1)
+    );
 
 
     for (std::size_t i = 0; i < 40; ++i) {
@@ -50,9 +52,11 @@ TEST(MeshGeodesic, RandomEdgePoints) {
     const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto mesh      = Mesh::from_file(mesh_path);
 
-    std::random_device                  dev;
-    std::mt19937                        rng(dev());
-    std::uniform_int_distribution<long> dist(0, mesh.num_vertices() - 1);
+    std::random_device                   dev;
+    std::mt19937                         rng(dev());
+    std::uniform_int_distribution<Index> dist(
+            0, static_cast<Index>(mesh.num_vertices() - 1)
+    );
 
 
     using EdgeDescriptor = Point::PointOnEdgeDescriptor;
@@ -73,8 +77,14 @@ TEST(Vertex, Curvatures) {
     const path mesh_path = mdv::config::meshes_directory() / "cube.stl";
     const auto mesh      = Mesh::from_file(mesh_path);
 
-    for (long i = 0; i < mesh.num_vertices(); ++i) {
-        ASSERT_FLOAT_EQ(mesh.vertex(i).total_curvature(), 1.5 * M_PI);
-        ASSERT_FLOAT_EQ(mesh.vertex(i).gauss_curvature(), 0.5 * M_PI);
+    for (Index i = 0; i < mesh.num_vertices(); ++i) {
+        ASSERT_FLOAT_EQ(
+                static_cast<float>(mesh.vertex(i).total_curvature()),
+                static_cast<float>(1.5 * M_PI)
+        );
+        ASSERT_FLOAT_EQ(
+                static_cast<float>(mesh.vertex(i).gauss_curvature()),
+                static_cast<float>(0.5 * M_PI)
+        );
     }
 }

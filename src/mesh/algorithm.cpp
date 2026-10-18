@@ -70,7 +70,7 @@ mdv::mesh::point_from_geodesic(
 
     double s_travelled = 0.0;
 
-    for (auto i = 0; i < geod.size() - 1; ++i) {
+    for (std::size_t i = 0; i < geod.size() - 1; ++i) {
         const Eigen::Vector3d delta = geod[i + 1] - geod[i];
         const double          si    = delta.norm() / (*len);
         if (s_travelled + si < s_target) {
@@ -437,12 +437,12 @@ mdv::mesh::solve_path(
 
     std::atomic_long n_trivials = 0;
 
-    std::vector<MatPair> res(N);
+    std::vector<MatPair> res(static_cast<std::size_t>(N));
 
     auto solve_path_index = [&x0, &x1, &t, &mesh, &N, &T, &res, &n_trivials](long i) {
         const auto pt0  = Point::from_cartesian(mesh, x0.row(i));
         const auto pt1  = Point::from_cartesian(mesh, x1.row(i));
-        MatPair&   pair = res[i];
+        MatPair&   pair = res[static_cast<std::size_t>(i)];
 
         if ((pt0.position() - pt1.position()).norm() < 1e-9) {
             ++n_trivials;
@@ -626,7 +626,7 @@ mdv::mesh::proj_transformation(
 
     constexpr long    batch_size = 16;
     const long        N          = xs.rows();
-    std::vector<Mat3> res(N);
+    std::vector<Mat3> res(static_cast<std::size_t>(N));
 #ifdef RERUN_DEBUG
     Eigen::MatrixXd vp(N, 3);  // projected vectors -- for visualisation
 #endif
@@ -637,7 +637,7 @@ mdv::mesh::proj_transformation(
         const auto pt = Point::from_cartesian(mesh, pos);
         const auto tv = TangentVector::from_ambient_vector(pt, vec);
 
-        Mat3&       tf = res[i];
+        Mat3&       tf = res[static_cast<std::size_t>(i)];
         const Vec3& v1 = vec;
         const Vec3  v2 = tv.cartesian_vector();
         const Quat  q  = Quat::FromTwoVectors(v1, v2);

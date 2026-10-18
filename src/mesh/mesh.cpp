@@ -196,30 +196,31 @@ Mesh::random_face() const {
     static std::random_device                  rand_dev;
     static std::mt19937                        generator(rand_dev());
     std::uniform_int_distribution<std::size_t> distribution(0, num_faces() - 1);
-    return face(distribution(generator));
+    // CGAL surface meshes use 32-bit indices, so any face index fits in Index
+    return face(static_cast<Index>(distribution(generator)));
 }
 
 Eigen::MatrixXd
 Mesh::get_vertex_matrix() const {
     Eigen::MatrixXd res(num_vertices(), 3);
-    for (long i = 0; i < num_vertices(); ++i) res.row(i) = vertex(i).position();
+    for (Index i = 0; i < num_vertices(); ++i) res.row(i) = vertex(i).position();
     return res;
 }
 
-Eigen::MatrixXi
+Mesh::FaceMatrix
 Mesh::get_face_matrix() const {
-    Eigen::MatrixXi res(num_faces(), 3);
-    for (long i = 0; i < num_faces(); ++i) {
+    FaceMatrix res(num_faces(), 3);
+    for (Index i = 0; i < num_faces(); ++i) {
         const auto [b0, b1, b2] = face(i).vertices_ids();
-        res.row(i)              = Eigen::Vector3i({b0, b1, b2});
+        res.row(i) << b0, b1, b2;
     }
     return res;
 }
 
 Eigen::MatrixXd
 Mesh::get_face_matrix_double() const {
-    const Eigen::MatrixXi mat = get_face_matrix();
-    Eigen::MatrixXd       res(mat.rows(), mat.cols());
+    const FaceMatrix mat = get_face_matrix();
+    Eigen::MatrixXd  res(mat.rows(), mat.cols());
     for (long i = 0; i < mat.rows(); ++i)
         for (long j = 0; j < mat.cols(); ++j)
             res(i, j) = static_cast<double>(mat(i, j));
@@ -288,7 +289,7 @@ Mesh::extract_normal_bounded_surface(
     auto        m_new      = m_original;
 
     long n_removed = 0;
-    for (long i = 0; i < mesh.num_faces(); ++i) {
+    for (Index i = 0; i < mesh.num_faces(); ++i) {
         if (face_class[i] != VisitState::VALID_FACE) {
             ++n_removed;
             CgalImpl::CgalFaceIndex f_id(i);

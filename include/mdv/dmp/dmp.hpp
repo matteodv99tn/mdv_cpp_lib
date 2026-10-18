@@ -1,7 +1,9 @@
 #ifndef MDV_DMP_HPP
 #define MDV_DMP_HPP
 
+#include <cstddef>
 #include <gsl/assert>
+#include <iterator>
 
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/concepts.hpp"
@@ -156,11 +158,12 @@ public:
         Eigen::MatrixXd f_des(demo.size(), embedding_dimension);
         const auto      goal = demo.back();
 
-        for (long i = 0; i < demo.size(); ++i) {
+        for (std::size_t i = 0; i < demo.size(); ++i) {
+            const auto          row   = static_cast<Eigen::Index>(i);
             const TangentVector force = transf_sys().eval_forcing(demo[i], goal, tau);
 
-            if constexpr (is_scalar) f_des(i) = force;
-            else f_des.row(i) = embedding().embed(force, demo[i], goal);
+            if constexpr (is_scalar) f_des(row) = force;
+            else f_des.row(row) = embedding().embed(force, demo[i], goal);
         }
         assert(!f_des.hasNaN());
         return f_des;
@@ -179,8 +182,8 @@ public:
 
         logger().trace("Evaluating matrix Phi");
         Eigen::MatrixXd phi(demo.size(), n_basis());
-        for (auto i = 0; i < demo.size(); ++i)
-            phi.row(i) =
+        for (std::size_t i = 0; i < demo.size(); ++i)
+            phi.row(static_cast<Eigen::Index>(i)) =
                     fun().eval_basis(time_to_s(demo[i].t())) * time_to_s(demo[i].t());
 
         const auto scale = embedding().embed_scale(
@@ -189,9 +192,9 @@ public:
                 demo.back()
         );
 
-        assert(phi.rows() == demo.size());
-        assert(phi.cols() == n_basis());
-        assert(f_des.rows() == demo.size());
+        assert(phi.rows() == std::ssize(demo));
+        assert(phi.cols() == static_cast<Eigen::Index>(n_basis()));
+        assert(f_des.rows() == std::ssize(demo));
         assert(f_des.cols() == embedding_dimension);
         fun().learn(phi, f_des, scale);
         logger().info("DMP succesfully learned");
@@ -227,8 +230,9 @@ public:
         goal.y() = g;
 
         const auto dts = seconds(dt);
-        for (auto i = 0; i < n_steps - 1; ++i) {
-            const double                     s    = time_to_s(i * dt);
+        using Rep      = typename Demonstration<M>::Time::rep;
+        for (std::size_t i = 0; i < n_steps - 1; ++i) {
+            const double                     s    = time_to_s(static_cast<Rep>(i) * dt);
             const typename Embedding::Output f    = cwise_dot(fun()(s, s), scale);
             const TangentVector              f_tv = embedding().decode(f, res[i], goal);
             transf_sys().step(res[i], goal, f_tv, tau, dts, res[i + 1]);

@@ -2,6 +2,7 @@
 #define MDV_MESH_FWD_HPP
 
 #include <Eigen/Dense>
+#include <limits>
 #include <vector>
 
 /**
@@ -54,7 +55,7 @@ using IndexTriplet = std::array<Index, 3>;
 /**
  * @brief Sentinel invalid index.
  */
-constexpr Index invalid_index = -1;
+constexpr Index invalid_index = std::numeric_limits<Index>::max();
 
 /**
  * @brief 3D point in ambient space.

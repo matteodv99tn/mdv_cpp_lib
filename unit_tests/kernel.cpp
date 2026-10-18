@@ -31,7 +31,10 @@ TEST(MeshKernel, Square_SinglePointSet) {
     auto            start = std::chrono::high_resolution_clock::now();
     for (long i = 0; i < n_pts; ++i) {
         for (long j = 0; j < n_pts; ++j) {
-            mesh_d(i, j) = length(mesh.build_geodesic(points[i], points[j]));
+            mesh_d(i, j) = length(mesh.build_geodesic(
+                    points[static_cast<std::size_t>(i)],
+                    points[static_cast<std::size_t>(j)]
+            ));
         }
     }
     auto stop = std::chrono::high_resolution_clock::now();
@@ -69,7 +72,10 @@ TEST(MeshKernel, Square_DoublePointSet) {
     Eigen::MatrixXd mesh_d(n_pts_a, n_pts_b);
     for (long i = 0; i < n_pts_a; ++i) {
         for (long j = 0; j < n_pts_b; ++j) {
-            mesh_d(i, j) = length(mesh.build_geodesic(points_a[i], points_b[j]));
+            mesh_d(i, j) = length(mesh.build_geodesic(
+                    points_a[static_cast<std::size_t>(i)],
+                    points_b[static_cast<std::size_t>(j)]
+            ));
         }
     }
 

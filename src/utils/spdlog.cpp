@@ -18,7 +18,7 @@ format_logger_name(const std::string& name) {
             name.end(),
             std::back_inserter(formatted_name),
             [undesired_chars](char c) {
-                const char c_low = std::tolower(c);  // NOLINT: narrowing conversion
+                const auto c_low = static_cast<char>(std::tolower(c));
                 if (undesired_chars.find(c_low) != undesired_chars.end()) return '-';
                 return c_low;
             }

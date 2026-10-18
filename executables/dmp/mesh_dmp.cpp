@@ -138,7 +138,7 @@ main() {
                                        .acceleration_automatic_differentiation()
                                        .set_sampling_period(dts_demo)
                                        .create();
-    for (long i = 0; i < demonstration.size(); ++i) {
+    for (std::size_t i = 0; i < demonstration.size(); ++i) {
         rec.set_time_duration_secs("time", mdv::convert::seconds(demonstration[i].t()));
         // rec.set_time_sequence("tick", i);
         const Eigen::Vector3d pos = demonstration[i].y().position();
@@ -171,11 +171,11 @@ main() {
     fmt::print("g': {}\n", mdv::eigen_to_str(new_g.position()));
 
     fmt::print("Integrating...\n");
-    const Demo out = dmp.integrate(y0, new_g, ns_int, 1ms);
+    const Demo out = dmp.integrate(y0, new_g, static_cast<std::size_t>(ns_int), 1ms);
     fmt::print("Integrating... Done!\n");
 
     std::vector<Eigen::Vector3d> res_traj(out.size());
-    for (long i = 0; i < out.size(); ++i) {
+    for (std::size_t i = 0; i < out.size(); ++i) {
         rec.set_time_duration_secs("time", mdv::convert::seconds(out[i].t()));
         // rec.set_time_sequence("tick", i);
         const Eigen::Vector3d pos = out[i].y().position();

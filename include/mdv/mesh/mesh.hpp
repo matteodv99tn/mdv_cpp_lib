@@ -37,7 +37,8 @@ public:
      */
     static Logger::SharedPtr default_logger;
 
-    using CgalImpl = internal::CgalImpl;
+    using CgalImpl   = internal::CgalImpl;
+    using FaceMatrix = Eigen::Matrix<Index, Eigen::Dynamic, 3>;
 
     // Factory functions
     /**
@@ -346,7 +347,7 @@ public:
      *
      * @return Face index matrix (N x 3).
      */
-    MDV_NODISCARD Eigen::MatrixXi get_face_matrix() const;
+    MDV_NODISCARD FaceMatrix get_face_matrix() const;
 
     /**
      * @brief Constructs an Nx3 matrix of face indices as doubles.

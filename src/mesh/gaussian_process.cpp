@@ -1,5 +1,6 @@
 #include "mdv/mesh/gaussian_process.hpp"
 
+#include <iterator>
 #include <stdexcept>
 #include <vector>
 
@@ -24,7 +25,7 @@ struct InexactGaussianProcess::GpData {
            const double           noise,
            const double           ls) :
             train_points(pts), y_true(y), kernel(pts[0].mesh()) {
-        if (y.rows() != pts.size()) {
+        if (y.rows() != std::ssize(pts)) {
             const auto msg = fmt::format(
                     "Ground truth rows ({}) differs from points size ({})",
                     y.rows(),
@@ -33,7 +34,7 @@ struct InexactGaussianProcess::GpData {
             throw std::runtime_error(msg);
         }
 
-        const long n_pts = train_points.size();
+        const long n_pts = std::ssize(train_points);
 
         kernel.set_points1(train_points);
         const Eigen::MatrixXd Kxx = kernel(train_points, ls);
