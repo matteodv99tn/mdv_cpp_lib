@@ -37,10 +37,6 @@ to_string(const Quat& q) {
 }
 
 using namespace mdv::mesh;
-using std::filesystem::path;
-
-namespace rs = ::ranges;
-namespace rv = ::ranges::views;
 
 int
 main() {

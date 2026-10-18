@@ -86,7 +86,7 @@ public:
      * @param other Face to test adjacency with.
      * @return Shared half-edge if adjacent, otherwise empty.
      */
-    std::optional<HalfEdge> adjacent_to(const Face& other) const;
+    MDV_NODISCARD std::optional<HalfEdge> adjacent_to(const Face& other) const;
 
     /**
      * @brief Vertex indices of this triangle.

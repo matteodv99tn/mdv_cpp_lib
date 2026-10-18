@@ -50,9 +50,8 @@ mdv::mesh::length(const Geodesic& geod) {
         return res;
     };
 
-    const double sum = rs::accumulate(
-            geod | rv::sliding(2) | rv::transform(segment_length), double{0.0}
-    );
+    const double sum =
+            rs::accumulate(geod | rv::sliding(2) | rv::transform(segment_length), 0.0);
     return sum;
 }
 

@@ -29,7 +29,6 @@ using mdv::mesh::internal::CgalImpl;
 using std::filesystem::path;
 
 namespace rs = ::ranges;
-namespace rv = ::ranges::views;
 // \endcond
 
 mdv::Logger::SharedPtr Mesh::default_logger = get_default_logger();
@@ -221,9 +220,11 @@ Eigen::MatrixXd
 Mesh::get_face_matrix_double() const {
     const FaceMatrix mat = get_face_matrix();
     Eigen::MatrixXd  res(mat.rows(), mat.cols());
-    for (long i = 0; i < mat.rows(); ++i)
-        for (long j = 0; j < mat.cols(); ++j)
+    for (long i = 0; i < mat.rows(); ++i) {
+        for (long j = 0; j < mat.cols(); ++j) {
             res(i, j) = static_cast<double>(mat(i, j));
+        }
+    }
     return res;
 }
 

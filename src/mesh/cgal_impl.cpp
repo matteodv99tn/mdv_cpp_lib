@@ -20,7 +20,6 @@
 
 using std::filesystem::path;
 
-namespace rs = ranges;
 // \cond DOXYGEN_IGNORE
 using ::mdv::mesh::internal::CgalImpl;
 using Kernel = CgalImpl::Kernel;
@@ -30,12 +29,12 @@ using Kernel = CgalImpl::Kernel;
 namespace mdv::mesh::internal {
 
 template <class... Ts>
-struct overload : Ts... {
+struct Overload : Ts... {
     using Ts::operator()...;
 };
 
 template <class... Ts>
-overload(Ts...) -> overload<Ts...>;
+Overload(Ts...) -> Overload<Ts...>;
 
 }  // namespace mdv::mesh::internal
 
@@ -120,7 +119,7 @@ mdv::mesh::internal::location_from_mesh_point(
         );
     };
     return std::visit(
-            overload{
+            Overload{
                     std::move(vertex_descriptor),
                     std::move(face_descriptor),
                     std::move(edge_descriptor)

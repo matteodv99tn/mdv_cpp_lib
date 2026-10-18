@@ -3,7 +3,6 @@
 #include <cmath>
 #include <Eigen/Dense>
 #include <gsl/assert>
-#include <math.h>
 
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/dmp_utilities.hpp"

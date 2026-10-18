@@ -63,9 +63,10 @@ TEST(Dmp, ScalarDmp) {
     // Evaluate learned forcing term
     const auto      fdes = dmp.evaluate_desired_forcing_term(demo);
     Eigen::VectorXd fval(fdes.size());
-    for (Eigen::Index i = 0; i < fdes.size(); ++i)
+    for (Eigen::Index i = 0; i < fdes.size(); ++i) {
         fval(i) =
                 dmp.fun()(mdv::convert::seconds(demo[static_cast<std::size_t>(i)].t()));
+    }
 
     const double f_mae = (fdes - fval).cwiseAbs().mean();
     ASSERT_EQ(fdes.rows(), n_ts);

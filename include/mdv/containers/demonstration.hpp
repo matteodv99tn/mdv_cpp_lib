@@ -69,7 +69,7 @@ namespace internal {
     struct DemonstrationElementIterator;
 
     template <std::size_t Index, typename BaseIter>
-    DemonstrationElementIterator<Index, BaseIter> make_element_iterator(BaseIter);
+    DemonstrationElementIterator<Index, BaseIter> make_element_iterator(BaseIter it);
 
     template <typename T>
     struct tuple_lazy_function;
@@ -135,7 +135,9 @@ private:
     template <typename SourceTpl, typename TargetTpl, std::size_t... Idx>
     static void
     copy_tpl_impl(
-            const SourceTpl& source, TargetTpl& target, std::index_sequence<Idx...>
+            const SourceTpl& source,
+            TargetTpl&       target,
+            std::index_sequence<Idx...> /* indices */
     ) {
         ((std::get<Idx>(target) = std::get<Idx>(source)), ...);
     }

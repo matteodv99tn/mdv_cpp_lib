@@ -22,7 +22,6 @@
 #include "mdv/utils/spdlog.hpp"
 
 using namespace mdv::mesh;
-using std::filesystem::path;
 
 namespace rs = ::ranges;
 namespace rv = ::ranges::views;

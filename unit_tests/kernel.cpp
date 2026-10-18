@@ -61,7 +61,8 @@ TEST(MeshKernel, Square_DoublePointSet) {
 
     const long         n_pts_a = 20;
     const long         n_pts_b = 10;
-    std::vector<Point> points_a, points_b;
+    std::vector<Point> points_a;
+    std::vector<Point> points_b;
     points_a.reserve(n_pts_a);
     points_b.reserve(n_pts_b);
     for (long i = 0; i < n_pts_a; ++i)

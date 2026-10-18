@@ -15,12 +15,12 @@ using mdv::riemann::Scalar;
 static_assert(mdv::concepts::manifold<S3>);
 
 TEST(Demonstration2Assertions, Demonstration) {
-    using row = std::tuple<
+    using Row = std::tuple<
             std::chrono::steady_clock::duration,
             Eigen::Quaterniond,
             Eigen::Vector4d,
             Eigen::Vector4d>;
-    static_assert(std::is_same_v<row, Demonstration<S3>::BaseTuple>);
+    static_assert(std::is_same_v<Row, Demonstration<S3>::BaseTuple>);
 
     const Eigen::Quaterniond q  = Eigen::Quaterniond::UnitRandom();
     const Eigen::Vector4d    v1 = Eigen::Vector4d::Random();
@@ -85,10 +85,11 @@ TEST(Demonstration, PositionRetriever) {
     const auto poly_pos = mdv::poly_5th(ts);
 
     EXPECT_EQ(dem_pos.size(), poly_pos.size());
-    for (std::size_t i = 0; i < dem_pos.size(); ++i)
+    for (std::size_t i = 0; i < dem_pos.size(); ++i) {
         EXPECT_FLOAT_EQ(
                 static_cast<float>(dem_pos[i]), static_cast<float>(poly_pos[i])
         );
+    }
 }
 
 TEST(Demonstration, NumericDifferentiation) {

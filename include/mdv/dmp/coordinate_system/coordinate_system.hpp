@@ -1,7 +1,7 @@
 #ifndef MDV_DMP_COORDINATE_SYSTEM_INTERFACE_HPP
 #define MDV_DMP_COORDINATE_SYSTEM_INTERFACE_HPP
 
-#include <math.h>
+#include <cmath>
 
 #include "mdv/macros.hpp"
 
@@ -19,7 +19,7 @@ public:
     /**
      * @brief Performs one discrete integration timestep
      */
-    double
+    MDV_NODISCARD double
     step(const double current_state, const double tau, const double dt) const {
         return current_state * (1 - _gamma / tau * dt);
     }

@@ -6,6 +6,7 @@
 #include <Eigen/src/Geometry/Transform.h>
 #include <utility>
 
+#include "mdv/macros.hpp"
 #include "mdv/riemann_geometry/fwd.hpp"
 #include "mdv/riemann_geometry/utils.hpp"
 
@@ -22,7 +23,7 @@ struct SE3Point {
         // if (ori.w() < 0.0) ori.coeffs() *= -1;
     }
 
-    Eigen::Affine3d to_affine() const;
+    MDV_NODISCARD Eigen::Affine3d to_affine() const;
 
     static SE3Point from_affine(const Eigen::Affine3d& transform);
 };
@@ -112,7 +113,7 @@ struct TrivialTypeEmbedding<riemann::SE3TangentVector> {
     using Input  = riemann::SE3TangentVector;
     using Output = Eigen::Vector<double, 7>;
 
-    Output
+    MDV_NODISCARD Output
     embed(const Input& in) const {
         return {in.pos(0),
                 in.pos(1),
@@ -123,7 +124,7 @@ struct TrivialTypeEmbedding<riemann::SE3TangentVector> {
                 in.ori(3)};
     }
 
-    Input
+    MDV_NODISCARD Input
     decode(const Output& out) const {
         return out;
     }

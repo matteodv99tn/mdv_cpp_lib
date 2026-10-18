@@ -13,7 +13,7 @@
 namespace mdv {
 
 namespace {
-    using path = std::filesystem::path;
+    using Path = std::filesystem::path;
 
     std::pair<long, long>
     find_start_end_indices(const Eigen::MatrixXd& vel_data, const double v_th) {
@@ -73,7 +73,7 @@ namespace {
 
     LetterDemoCollections
     process_letter_dataset(
-            const path& file, const double vel_threshold, const double scale
+            const Path& file, const double vel_threshold, const double scale
     ) {
         matioCpp::File      mat_file(file);
         matioCpp::CellArray demos   = mat_file.read("demos").asCellArray();
@@ -98,7 +98,7 @@ load_letter_dataset(const double vel_threshold, const double scale) {
 
     std::map<char, LetterDemoCollections> res;
     for (char letter = 'A'; letter <= 'Z'; ++letter) {
-        const path file_path = base_path / path(fmt::format("{}.mat", letter));
+        const Path file_path = base_path / Path(fmt::format("{}.mat", letter));
         res.emplace(
                 std::tolower(letter),
                 process_letter_dataset(file_path, vel_threshold, scale)

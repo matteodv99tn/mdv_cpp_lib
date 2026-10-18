@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 
 #include "mdv/config.hpp"
-#include "mdv/mesh/flat_parameterisation.hpp"
 #include "mdv/mesh/mesh.hpp"
 
 using namespace mdv::mesh;

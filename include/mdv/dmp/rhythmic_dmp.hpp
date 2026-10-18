@@ -29,7 +29,7 @@ public:
     /**
      * @brief Performs one discrete integration timestep
      */
-    double
+    MDV_NODISCARD double
     step(const double current_state, const double tau, const double dt) const {
         return std::fmod(current_state + 2.0 * M_PI * dt / tau, 2.0 * M_PI);
     }
@@ -126,9 +126,11 @@ struct RhytmicDmp {
             const auto          row   = static_cast<Eigen::Index>(i);
             const TangentVector force = ts().eval_forcing(demo[i], goal_sample, tau);
 
-            if constexpr (is_scalar)
+            if constexpr (is_scalar) {
                 f_des(row) = emb().embed(force, demo[i], goal_sample);
-            else f_des.row(row) = emb().embed(force, demo[i], goal_sample);
+            } else {
+                f_des.row(row) = emb().embed(force, demo[i], goal_sample);
+            }
         }
         assert(!f_des.hasNaN());
         return f_des;

@@ -27,7 +27,6 @@
 #include "mdv/rerun.hpp"
 #include "mdv/riemann_geometry/mesh.hpp"
 #include "mdv/utils/conversions.hpp"
-#include "mdv/utils/spdlog.hpp"
 
 using Quat = Eigen::Quaterniond;
 

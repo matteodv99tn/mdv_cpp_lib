@@ -45,13 +45,13 @@ struct DefaultManifoldEmbedding {
 
     template <typename StateType, typename GoalType>
     Output
-    embed(const Input& in, const StateType& x, const GoalType& g) const {
+    embed(const Input& in, const StateType& /* x */, const GoalType& /* g */) const {
         return _impl.embed(in);
     }
 
     template <typename StateType, typename GoalType>
     Input
-    decode(const Output& out, const StateType& x, const GoalType& g) const {
+    decode(const Output& out, const StateType& /* x */, const GoalType& /* g */) const {
         return _impl.decode(out);
     }
 
@@ -63,7 +63,9 @@ struct DefaultManifoldEmbedding {
 
     template <typename StateType, typename GoalType>
     Output
-    embed_scale(const Input& in, const StateType& x, const GoalType& g) const
+    embed_scale(
+            const Input& /* in */, const StateType& /* x */, const GoalType& /* g */
+    ) const
         requires std::same_as<M, riemann::S3>
     {
         return Output::Ones();
@@ -182,9 +184,10 @@ public:
 
         logger().trace("Evaluating matrix Phi");
         Eigen::MatrixXd phi(demo.size(), n_basis());
-        for (std::size_t i = 0; i < demo.size(); ++i)
+        for (std::size_t i = 0; i < demo.size(); ++i) {
             phi.row(static_cast<Eigen::Index>(i)) =
                     fun().eval_basis(time_to_s(demo[i].t())) * time_to_s(demo[i].t());
+        }
 
         const auto scale = embedding().embed_scale(
                 manifold().logarithmic_map(demo.front().y(), demo.back().y()),

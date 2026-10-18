@@ -40,7 +40,6 @@ to_string(const Quat& q) {
 }
 
 using namespace mdv::mesh;
-using std::filesystem::path;
 
 template <typename T>
 std::vector<double>

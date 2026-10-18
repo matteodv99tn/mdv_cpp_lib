@@ -25,8 +25,6 @@
 
 using namespace mdv::mesh;
 
-using std::filesystem::path;
-
 int
 main(int argc, char* argv[]) {
 #ifdef MDV_WITH_RERUN_SDK

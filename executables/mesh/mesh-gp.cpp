@@ -105,17 +105,17 @@ main(int argc, char* argv[]) {
         vz(k)        = vels[i](2);
     }
 
-    Eigen::MatrixXd V_mat(vels.size(), 3);
-    V_mat.col(0) = vx;
-    V_mat.col(1) = vy;
-    V_mat.col(2) = vz;
+    Eigen::MatrixXd v_mat(vels.size(), 3);
+    v_mat.col(0) = vx;
+    v_mat.col(1) = vy;
+    v_mat.col(2) = vz;
 
     Expects(vx.rows() == std::ssize(pts));
 
 
     fmt::println("Creating custom Gaussian Process - Lengthscale = {}", ls);
     InexactGaussianProcess gp(&mesh, ls, noise);
-    gp.train(pts, V_mat);
+    gp.train(pts, v_mat);
     fmt::println("Gaussian Process initialised");
 
     mdv::RerunConverter    to_rerun;
@@ -130,7 +130,7 @@ main(int argc, char* argv[]) {
         test_points.emplace_back(mesh.vertex(i));
 
     fmt::println("Predicting vector field...");
-    const Eigen::MatrixXd V_gp = gp.predict(test_points);
+    const Eigen::MatrixXd v_gp = gp.predict(test_points);
     fmt::println("Prediction computed");
 
     std::vector<::rerun::components::Vector3D>   gp_vecs;
@@ -140,7 +140,7 @@ main(int argc, char* argv[]) {
         const auto k   = static_cast<Eigen::Index>(i);
         const auto pos = test_points[i].position();
         gp_origs.emplace_back(pos(0), pos(1), pos(2));
-        gp_vecs.emplace_back(V_gp(k, 0), V_gp(k, 1), V_gp(k, 2));
+        gp_vecs.emplace_back(v_gp(k, 0), v_gp(k, 1), v_gp(k, 2));
     }
 
     rec.log_static(

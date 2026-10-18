@@ -19,7 +19,7 @@ public:
     }
 
     static TangentVector
-    parallel_transport(const double p1, const double p2, const double v1) {
+    parallel_transport(const double /* p1 */, const double /* p2 */, const double v1) {
         return v1;
     }
 

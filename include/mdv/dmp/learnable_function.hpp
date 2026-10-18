@@ -135,8 +135,8 @@ public:
         else return scale * (b.transpose() * _ws).transpose();
     };
 
-    Eigen::VectorXd
-    eval_basis(const double s) const {
+    MDV_NODISCARD Eigen::VectorXd
+                  eval_basis(const double s) const {
         Eigen::VectorXd basis(std::ssize(_bs));
         auto            basis_eval = [&s](const BaseFunction& b) { return b(s); };
 

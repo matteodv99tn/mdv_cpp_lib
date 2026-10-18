@@ -18,7 +18,6 @@
 #include "mdv/mesh/mesh.hpp"
 
 namespace rs = ::ranges;
-namespace rv = ::ranges::views;
 
 // \cond DOXYGEN_IGNORE
 using FaceData   = std::vector<std::vector<long>>;
@@ -322,6 +321,8 @@ mdv::mesh::create_flat(const double size) {
             .x_discretisation_steps = 2,
             .y_discretisation_steps = 2,
     };
-    const auto zero_func = [](const double x, const double y) -> double { return 0.0; };
+    const auto zero_func = [](const double /* x */, const double /* y */) -> double {
+        return 0.0;
+    };
     return create_from_function(zero_func, params);
 }

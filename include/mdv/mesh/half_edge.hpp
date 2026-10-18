@@ -173,7 +173,7 @@ private:
      * @param other Half-edge to compare.
      * @return True if opposite.
      */
-    bool is_opposite_of(const HalfEdge& other) const noexcept;
+    MDV_NODISCARD bool is_opposite_of(const HalfEdge& other) const noexcept;
 };
 
 }  // namespace mdv::mesh

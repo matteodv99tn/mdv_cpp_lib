@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 
+#include "mdv/macros.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/conditions.hpp"
 
@@ -13,19 +14,19 @@ public:
     using Point         = mdv::mesh::Point;
     using TangentVector = Eigen::Vector3d;
 
-    TangentVector logarithmic_map(const Point& q1, const Point& q2) const;
+    MDV_NODISCARD TangentVector logarithmic_map(const Point& q1, const Point& q2) const;
 
-    Point exponential_map(const Point& q, const TangentVector& v) const;
+    MDV_NODISCARD Point exponential_map(const Point& q, const TangentVector& v) const;
 
-    TangentVector parallel_transport(
-            const Point& q, const Point& p, const TangentVector& v
-    ) const;
+    MDV_NODISCARD TangentVector
+    parallel_transport(const Point& q, const Point& p, const TangentVector& v) const;
 
-    TangentVector covariant_derivative(const Point& q, const TangentVector& v) const;
+    MDV_NODISCARD TangentVector
+    covariant_derivative(const Point& q, const TangentVector& v) const;
 
-    Point default_point() const;
+    MDV_NODISCARD Point default_point() const;
 
-    TangentVector default_tangent_vector() const;
+    MDV_NODISCARD TangentVector default_tangent_vector() const;
 };
 
 struct MeshEmbedder {

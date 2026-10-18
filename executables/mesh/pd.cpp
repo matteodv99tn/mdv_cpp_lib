@@ -8,8 +8,6 @@
 
 using namespace mdv::mesh;
 
-using std::filesystem::path;
-
 int
 main(int argc, char* argv[]) {
     std::string mesh_path = mdv::config::meshes_directory() / "angle.off";
