@@ -25,7 +25,8 @@ namespace {
                 vel_data.colwise().begin(), vel_data.colwise().end(), exceeds_threshold
         );
         auto end_iter = std::find_if(
-                vel_data.colwise().rbegin(), vel_data.colwise().rend(),
+                vel_data.colwise().rbegin(),
+                vel_data.colwise().rend(),
                 exceeds_threshold
         );
 

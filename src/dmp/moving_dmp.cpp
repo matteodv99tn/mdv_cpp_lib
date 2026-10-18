@@ -110,7 +110,11 @@ generate_trajectory(
     const long   geod_steps = std::ceil(trav_time / (1e-3 * double(params.dt_ms)));
     logger.info(
             "Path length/speed {:3f}/{:3f} -> Travel time: {:3f}s ({} samples at {}ms)",
-            len, params.linear_speed, trav_time, geod_steps, params.dt_ms
+            len,
+            params.linear_speed,
+            trav_time,
+            geod_steps,
+            params.dt_ms
     );
 
     const auto ss     = create_equispaced(params.num_centroid_steps, 0.0, 1.0, false);

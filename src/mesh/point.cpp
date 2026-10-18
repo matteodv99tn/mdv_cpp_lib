@@ -280,7 +280,9 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
     const auto&            m_impl = mesh.cgal()._mesh;
     const CgalImpl::Point3 point{cartesian_pt(0), cartesian_pt(1), cartesian_pt(2)};
     const auto [face_id, coords] = CgalImpl::ShortestPath::locate(
-            point, mesh.cgal()._aabb_tree, m_impl,
+            point,
+            mesh.cgal()._aabb_tree,
+            m_impl,
             get(CGAL::vertex_point, internal::get_mesh_impl(mesh))
     );
     const Face& face = mesh.face(static_cast<Index>(face_id.idx()));

@@ -25,7 +25,11 @@ Face::describe() const {
     const auto  v2 = he.next().origin().id();
     const auto  v3 = he.next().next().origin().id();
     return fmt::format(
-            "Face ID #{} (vertices {}, {}, {}) of mesh '{}'", id(), v1, v2, v3,
+            "Face ID #{} (vertices {}, {}, {}) of mesh '{}'",
+            id(),
+            v1,
+            v2,
+            v3,
             mesh().name()
     );
 }

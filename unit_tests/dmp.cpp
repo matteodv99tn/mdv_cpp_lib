@@ -223,8 +223,10 @@ TEST(Dmp, R2MeshDmpComparison) {
     using MeshDemo = mdv::Demonstration<MeshMan>;
     using R2Dmp    = mdv::Dmp<R2>;
     using MeshDmp  = mdv::Dmp<
-            MeshMan, mdv::dmp::TransformationSystem<MeshMan>,
-            mdv::dmp::ExponentialCoordinateSystem, mdv::DefaultFunction,
+            MeshMan,
+            mdv::dmp::TransformationSystem<MeshMan>,
+            mdv::dmp::ExponentialCoordinateSystem,
+            mdv::DefaultFunction,
             mdv::riemann::MeshEmbedder>;
 
     const auto fun       = [](const double x, const double y) -> double { return 0.0; };
@@ -279,7 +281,9 @@ TEST(Dmp, R2MeshDmpComparison) {
             r2_demo.front().y(), r2_demo.back().y(), r2_demo.size(), r2_demo[1].t()
     );
     const auto mesh_res = mesh_dmp.integrate(
-            mesh_demo.front().y(), mesh_demo.back().y(), mesh_demo.size(),
+            mesh_demo.front().y(),
+            mesh_demo.back().y(),
+            mesh_demo.size(),
             mesh_demo[1].t()
     );
 

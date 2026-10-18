@@ -64,7 +64,8 @@ CgalImpl::CgalImpl(CgalImpl&& other) noexcept :
         _current_shortpath_source(other._current_shortpath_source) {
     other._current_shortpath_source = nullptr;
     logger().trace(
-            "Moved CgalImpl from {} to {}", static_cast<void*>(&other),
+            "Moved CgalImpl from {} to {}",
+            static_cast<void*>(&other),
             static_cast<void*>(this)
     );
 }
@@ -112,13 +113,16 @@ mdv::mesh::internal::location_from_mesh_point(
         const auto& aabb_tree = pt.mesh().cgal()._aabb_tree;
         const auto& m_impl    = internal::get_mesh_impl(pt.mesh());
         return CgalImpl::ShortestPath::locate(
-                internal::point3_from_point(pt), aabb_tree, m_impl,
+                internal::point3_from_point(pt),
+                aabb_tree,
+                m_impl,
                 get(CGAL::vertex_point, m_impl)
         );
     };
     return std::visit(
             overload{
-                    std::move(vertex_descriptor), std::move(face_descriptor),
+                    std::move(vertex_descriptor),
+                    std::move(face_descriptor),
                     std::move(edge_descriptor)
             },
             point.descriptor()

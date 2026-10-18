@@ -94,7 +94,8 @@ main(int argc, char* argv[]) {
     }
 
     fmt::println(
-            "Number of wrongly reconstructed vertices: {} / {}", n_wrong,
+            "Number of wrongly reconstructed vertices: {} / {}",
+            n_wrong,
             sub_mesh.num_vertices()
     );
 

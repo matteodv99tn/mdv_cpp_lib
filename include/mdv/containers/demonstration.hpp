@@ -445,7 +445,9 @@ private:
                             "provided container size ({}) for {} component, and no "
                             "default "
                             "value constructor",
-                            data().size(), content.size(), comp_desc
+                            data().size(),
+                            content.size(),
+                            comp_desc
                     )
             );
         }

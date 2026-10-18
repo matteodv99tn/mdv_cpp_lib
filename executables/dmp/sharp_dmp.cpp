@@ -50,8 +50,11 @@ main() {
     using Se3Dmp  = mdv::Dmp<mdv::riemann::SE3>;
     using Demo    = mdv::Demonstration<mdv::riemann::SE3>;
     using MeshDmp = mdv::Dmp<
-            M, mdv::dmp::TransformationSystem<M>, mdv::dmp::ExponentialCoordinateSystem,
-            mdv::DefaultFunction, mdv::riemann::MeshEmbedder>;
+            M,
+            mdv::dmp::TransformationSystem<M>,
+            mdv::dmp::ExponentialCoordinateSystem,
+            mdv::DefaultFunction,
+            mdv::riemann::MeshEmbedder>;
     using Mesh = mdv::mesh::Mesh;
 
     const long ns_demo  = 101;  // Demonstration samples

@@ -67,7 +67,9 @@ Mesh::~Mesh() {
 Mesh::Mesh(Mesh&& other) :
         _logger(other._logger), _impl(other._impl), _name(std::move(other._name)) {
     logger().trace(
-            "Moving mesh '{}' from {} to {}", name(), static_cast<void*>(&other),
+            "Moving mesh '{}' from {} to {}",
+            name(),
+            static_cast<void*>(&other),
             static_cast<void*>(this)
     );
     other._impl = nullptr;
@@ -112,7 +114,8 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
     using Mat33 = Eigen::Matrix<double, 3, 3>;
 
     logger().debug(
-            "Building geodesic from {} to {}", eigen_to_str(from.position()),
+            "Building geodesic from {} to {}",
+            eigen_to_str(from.position()),
             eigen_to_str(to.position())
     );
 
@@ -276,7 +279,8 @@ Mesh::extract_normal_bounded_surface(
 
     mesh.logger().info(
             "Constructing submesh by from point {} - maximum normal angle: {}deg",
-            pt.describe(), max_normal_angle
+            pt.describe(),
+            max_normal_angle
     );
     propagate(propagate, pt.face().id());
 

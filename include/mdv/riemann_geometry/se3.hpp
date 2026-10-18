@@ -114,8 +114,13 @@ struct TrivialTypeEmbedding<riemann::SE3TangentVector> {
 
     Output
     embed(const Input& in) const {
-        return {in.pos(0), in.pos(1), in.pos(2), in.ori(0),
-                in.ori(1), in.ori(2), in.ori(3)};
+        return {in.pos(0),
+                in.pos(1),
+                in.pos(2),
+                in.ori(0),
+                in.ori(1),
+                in.ori(2),
+                in.ori(3)};
     }
 
     Input

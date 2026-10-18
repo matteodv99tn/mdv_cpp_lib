@@ -26,7 +26,8 @@ struct InexactGaussianProcess::GpData {
             train_points(pts), y_true(y), kernel(pts[0].mesh()) {
         if (y.rows() != pts.size()) {
             const auto msg = fmt::format(
-                    "Ground truth rows ({}) differs from points size ({})", y.rows(),
+                    "Ground truth rows ({}) differs from points size ({})",
+                    y.rows(),
                     pts.size()
             );
             throw std::runtime_error(msg);

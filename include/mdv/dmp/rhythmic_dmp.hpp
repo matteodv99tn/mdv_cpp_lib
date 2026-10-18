@@ -157,8 +157,11 @@ struct RhytmicDmp {
         };
 
         return std::transform_reduce(
-                demo.begin(), demo.end(), -std::numeric_limits<double>::infinity(),
-                std::less<double>{}, compute_distance
+                demo.begin(),
+                demo.end(),
+                -std::numeric_limits<double>::infinity(),
+                std::less<double>{},
+                compute_distance
         );
     }
 
@@ -333,7 +336,8 @@ public:
         _dmp = std::move(dmp);
         if (_dmp.tau <= min_tau) {
             _dmp.logger().debug(
-                    "Current dmp object has tau = {}, setting to default {}", _dmp.tau,
+                    "Current dmp object has tau = {}, setting to default {}",
+                    _dmp.tau,
                     min_tau
             );
             _dmp.tau = min_tau;

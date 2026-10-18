@@ -91,7 +91,9 @@ struct FlatParameterisation::FlatParameterisationImpl {
 
         const auto [v0, v1, v2] = get_vertices(f);
         const auto bs           = construct_barycentric<Eigen::Vector2d>(
-                {qclose.x(), qclose.y()}, get_vertex2(v0), get_vertex2(v1),
+                {qclose.x(), qclose.y()},
+                get_vertex2(v0),
+                get_vertex2(v1),
                 get_vertex2(v2)
         );
         return bs(0) * get_vertex3(v0) + bs(1) * get_vertex3(v1)

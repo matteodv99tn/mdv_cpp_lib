@@ -50,8 +50,11 @@ main() {
 
     using Demo = mdv::Demonstration<M>;
     using Dmp  = mdv::Dmp<
-            M, mdv::dmp::TransformationSystem<M>, mdv::dmp::ExponentialCoordinateSystem,
-            mdv::DefaultFunction, mdv::riemann::MeshEmbedder>;
+            M,
+            mdv::dmp::TransformationSystem<M>,
+            mdv::dmp::ExponentialCoordinateSystem,
+            mdv::DefaultFunction,
+            mdv::riemann::MeshEmbedder>;
     using Mesh = mdv::mesh::Mesh;
 
     const long ns_demo  = 101;  // Demonstration samples
@@ -110,7 +113,8 @@ main() {
     std::vector<mdv::mesh::Point> demonstration_path;
     demonstration_path.reserve(ns_demo);
     std::transform(
-            begin(path_coords), end(path_coords),
+            begin(path_coords),
+            end(path_coords),
             std::back_inserter(demonstration_path),
             [&mesh, &path_f](const double t) -> mdv::mesh::Point {
                 return mdv::mesh::Point::from_cartesian(mesh, path_f(t * 3.14));
@@ -121,7 +125,8 @@ main() {
     std::vector<Eigen::Vector3d> cartesian_demonstration;
     cartesian_demonstration.reserve(demonstration_path.size());
     std::transform(
-            begin(demonstration_path), end(demonstration_path),
+            begin(demonstration_path),
+            end(demonstration_path),
             back_inserter(cartesian_demonstration),
             [](const Point& p) { return p.position(); }
     );

@@ -124,7 +124,8 @@ RerunConverter::operator()(
     return rra::Arrows3D::from_vectors({dx, dy, dz})
             .with_origins({o, o, o})
             .with_colors(
-                    {rrc::Color(255, 0, 0, 255), rrc::Color(0, 255, 0, 255),
+                    {rrc::Color(255, 0, 0, 255),
+                     rrc::Color(0, 255, 0, 255),
                      rrc::Color(0, 0, 255, 255)}
             );
 }
@@ -146,8 +147,9 @@ RerunConverter::as_points(const std::vector<Eigen::Vector3d>& pts) const {
 
 rrd::Vec3D
 RerunConverter::operator()(const Eigen::Vector3d& x) const {
-    return {static_cast<float>(x(0)), static_cast<float>(x(1)),
-            static_cast<float>(x(2))};
+    return {
+            static_cast<float>(x(0)), static_cast<float>(x(1)), static_cast<float>(x(2))
+    };
 }
 
 std::vector<rrc::Vector3D>
