@@ -6,7 +6,6 @@
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
-#include "mdv/mesh/conditions.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/point.hpp"
 #include "mdv/mesh/tangent_vector.hpp"

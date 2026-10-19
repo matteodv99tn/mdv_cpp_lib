@@ -10,9 +10,7 @@
 #include "mdv/mesh/vertex.hpp"
 #include "mdv/utils/conditions.hpp"
 
-// \cond DOXYGEN_IGNORE
-using mdv::mesh::Face;
-// \endcond
+namespace mdv::mesh {
 
 Face Face::invalid_face = Face();
 
@@ -20,10 +18,11 @@ std::string
 Face::describe() const {
     if (!is_valid()) return "Invalid face object";
 
-    const auto& he = half_edge();
-    const auto  v1 = he.origin().id();
-    const auto  v2 = he.next().origin().id();
-    const auto  v3 = he.next().next().origin().id();
+    const auto& m  = internal::get_mesh_impl(*this);
+    const auto  he = CGAL::halfedge(internal::to_face_impl(*this), m);
+    const Index v1 = CGAL::source(he, m);
+    const Index v2 = CGAL::source(CGAL::next(he, m), m);
+    const Index v3 = CGAL::source(CGAL::next(CGAL::next(he, m), m), m);
     return fmt::format(
             "Face ID #{} (vertices {}, {}, {}) of mesh '{}'",
             id(),
@@ -34,14 +33,6 @@ Face::describe() const {
     );
 }
 
-mdv::mesh::HalfEdge
-Face::half_edge() const noexcept {
-    return {mesh(),
-            CGAL::halfedge(
-                    internal::to_face_impl(*this), internal::get_mesh_impl(*this)
-            )};
-}
-
 Eigen::Vector3d
 Face::normal() const noexcept {
     const auto normal = CGAL::Polygon_mesh_processing::compute_face_normal(
@@ -50,20 +41,7 @@ Face::normal() const noexcept {
     return {normal.x(), normal.y(), normal.z()};
 }
 
-std::optional<mdv::mesh::HalfEdge>
-Face::adjacent_to(const Face& other) const {
-    const auto  this_f = internal::to_face_impl(*this);
-    const auto& m      = internal::get_mesh_impl(*this);
-
-    for (auto h : CGAL::halfedges_around_face(halfedge(this_f, m), m)) {
-        const auto h_opposite = CGAL::opposite(h, m);
-        if (m.face(h_opposite) == internal::to_face_impl(other))
-            return HalfEdge{mesh(), static_cast<Index>(h)};
-    }
-    return std::nullopt;
-}
-
-std::array<mdv::mesh::Index, 3>
+std::array<Index, 3>
 Face::vertices_ids() const {
     const auto           f_id = internal::to_face_impl(*this);
     const auto&          m    = internal::get_mesh_impl(*this);
@@ -78,7 +56,7 @@ Face::vertices_ids() const {
     return res;
 }
 
-std::array<mdv::mesh::Index, 3>
+std::array<Index, 3>
 Face::neighbour_ids() const {
     const auto           f_id = internal::to_face_impl(*this);
     const auto&          m    = internal::get_mesh_impl(*this);
@@ -92,3 +70,5 @@ Face::neighbour_ids() const {
     assert(j == 3);
     return res;
 }
+
+}  // namespace mdv::mesh

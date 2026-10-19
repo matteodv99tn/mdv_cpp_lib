@@ -14,18 +14,10 @@
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
-// \cond DOXYGEN_IGNORE
+namespace mdv::mesh {
+
 namespace rs = ::ranges;
 namespace rv = ::ranges::views;
-
-using mdv::mesh::CartesianPoint;
-using mdv::mesh::Face;
-using mdv::mesh::Mesh;
-using mdv::mesh::Point;
-using mdv::mesh::internal::CgalImpl;
-
-// \endcond
-
 
 //  ____  _                  __     __        _
 // |  _ \| |_    ___  _ __   \ \   / /__ _ __| |_ _____  __
@@ -43,9 +35,9 @@ Point::PointOnVertexDescriptor::describe() const {
 Face
 Point::PointOnVertexDescriptor::face() const {
     auto default_face = [this]() -> Face {
-        const auto& m            = internal::get_mesh_impl(_v);
-        const auto  v_id         = static_cast<CgalImpl::CgalVertexIndex>(_v.id());
-        const auto  he           = CGAL::halfedge(v_id, m);
+        const auto& m    = internal::get_mesh_impl(_v);
+        const auto  v_id = static_cast<internal::CgalImpl::CgalVertexIndex>(_v.id());
+        const auto  he   = CGAL::halfedge(v_id, m);
         static bool warn_printed = false;
         if (!warn_printed) {
             std::cerr
@@ -97,7 +89,7 @@ Point::PointOnEdgeDescriptor::PointOnEdgeDescriptor(
         HalfEdge he, const CartesianPoint& position
 ) :
         _he(std::move(he)) {
-    using Kernel      = CgalImpl::Kernel;
+    using Kernel      = internal::CgalImpl::Kernel;
     const auto& m     = internal::get_mesh_impl(he);
     const auto  he_id = internal::to_halfedge_impl(_he);
 
@@ -239,25 +231,14 @@ Point::PointInFaceDescriptor::describe() const {
 
 CartesianPoint
 Point::PointInFaceDescriptor::position() const noexcept {
-    const CgalImpl::ShortestPath::Barycentric_coordinates bs{_b(0), _b(1), _b(2)};
+    const internal::CgalImpl::ShortestPath::Barycentric_coordinates bs{
+            _b(0), _b(1), _b(2)
+    };
     return internal::convert(
-            CgalImpl::ShortestPath::point(
+            internal::CgalImpl::ShortestPath::point(
                     internal::to_face_impl(_f), bs, internal::get_mesh_impl(_f)
             )
     );
-}
-
-Point::PointInFaceDescriptor
-Point::PointInFaceDescriptor::from_cartesian(const Face& f, const Vec3d& position) {
-    using BarycentricConstructor = CgalImpl::ShortestPathTraits::
-            Construct_barycentric_coordinate_in_triangle_3;
-    BarycentricConstructor bc;
-    const auto             tri = internal::triangle3_from_face(f);
-    const auto             pt  = internal::point3_from_eigen(position);
-    const auto [b1, b2, b3]    = bc(tri, pt);
-    return {
-            f, {b1, b2, b3}
-    };
 }
 
 //   ____                _                   _
@@ -278,9 +259,11 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
     // TODO: handle the case in which the provided cartesian position is outside the
     // actual surface, and closest point lies on edge/vertex
 
-    const auto&            m_impl = mesh.cgal()._mesh;
-    const CgalImpl::Point3 point{cartesian_pt(0), cartesian_pt(1), cartesian_pt(2)};
-    const auto [face_id, coords] = CgalImpl::ShortestPath::locate(
+    const auto&                      m_impl = mesh.cgal()._mesh;
+    const internal::CgalImpl::Point3 point{
+            cartesian_pt(0), cartesian_pt(1), cartesian_pt(2)
+    };
+    const auto [face_id, coords] = internal::CgalImpl::ShortestPath::locate(
             point,
             mesh.cgal()._aabb_tree,
             m_impl,
@@ -306,7 +289,7 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
             return PointOnVertexDescriptor{Vertex(mesh, v_id)};
     }
 
-    using Segment3 = CgalImpl::Kernel::Segment_3;
+    using Segment3 = internal::CgalImpl::Kernel::Segment_3;
     for (const auto he : CGAL::halfedges_around_face(f_he, m_impl)) {
         const auto p0 = m_impl.point(CGAL::source(he, m_impl));
         const auto p1 = m_impl.point(CGAL::target(he, m_impl));
@@ -317,11 +300,6 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
     return PointInFaceDescriptor{
             face, {coords[0], coords[1], coords[2]}
     };
-}
-
-Point
-Point::undefined(const Mesh& /* m */) noexcept {
-    return {undefined_point};
 }
 
 Point
@@ -342,13 +320,14 @@ Point::random(const Mesh& m) {
 }
 
 namespace {
-bool
-operator==(
-        const Point::PointInFaceDescriptor& p1, const Point::PointInFaceDescriptor& p2
-) {
-    return (p1.face() == p2.face())
-           && mdv::condition::is_zero_norm(p1.coords() - p2.coords());
-}
+    bool
+    operator==(
+            const Point::PointInFaceDescriptor& p1,
+            const Point::PointInFaceDescriptor& p2
+    ) {
+        return (p1.face() == p2.face())
+               && mdv::condition::is_zero_norm(p1.coords() - p2.coords());
+    }
 }  // namespace
 
 bool
@@ -366,3 +345,5 @@ bool
 Point::operator!=(const Point& other) const noexcept {
     return !(*this == other);
 }
+
+}  // namespace mdv::mesh

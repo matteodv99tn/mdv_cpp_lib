@@ -1,9 +1,6 @@
 #ifndef MDV_MESH_FACE_HPP
 #define MDV_MESH_FACE_HPP
 
-#include <optional>
-#include <vector>
-
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh_element.hpp"
@@ -20,10 +17,6 @@ namespace mdv::mesh {
  */
 class Face final : public internal::IndexedMeshElement {
 public:
-    using Vector        = std::vector<Face>;
-    using Iterator      = Vector::iterator;
-    using ConstIterator = Vector::const_iterator;
-
     /**
      * @brief Constructs a face from mesh and index.
      *
@@ -36,13 +29,6 @@ public:
      * @brief Sentinel invalid face.
      */
     static Face invalid_face;
-
-    /**
-     * @brief Returns one of the half-edges belonging to this face.
-     *
-     * @return A half-edge on this face.
-     */
-    MDV_NODISCARD HalfEdge half_edge() const noexcept;
 
     /**
      * @brief Face normal in 3D.
@@ -63,30 +49,11 @@ public:
     }
 
     /**
-     * @brief Inequality check by identity.
-     *
-     * @param other Face to compare.
-     * @return True if different object.
-     */
-    MDV_NODISCARD bool
-    operator!=(const Face& other) const {
-        return this != &other;
-    }
-
-    /**
      * @brief Human-readable face description.
      *
      * @return Description string.
      */
     MDV_NODISCARD std::string describe() const override;
-
-    /**
-     * @brief Returns the shared half-edge if this face is adjacent to another.
-     *
-     * @param other Face to test adjacency with.
-     * @return Shared half-edge if adjacent, otherwise empty.
-     */
-    MDV_NODISCARD std::optional<HalfEdge> adjacent_to(const Face& other) const;
 
     /**
      * @brief Vertex indices of this triangle.

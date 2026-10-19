@@ -5,14 +5,8 @@
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/mesh_element.hpp"
 #include "mdv/utils/conditions.hpp"
-#include "mdv/utils/eigen_solvers.hpp"
 
-// \cond DOXYGEN_IGNORE
-using mdv::mesh::Face;
-using mdv::mesh::HalfEdge;
-using mdv::mesh::Vertex;
-
-// \endcond
+namespace mdv::mesh {
 
 HalfEdge::HalfEdge(const Vertex& v, const Face& f) :
         internal::IndexedMeshElement(v.mesh(), invalid_index) {
@@ -20,7 +14,6 @@ HalfEdge::HalfEdge(const Vertex& v, const Face& f) :
 
     using VertexIndex = internal::CgalImpl::CgalVertexIndex;
     using FaceIndex   = internal::CgalImpl::CgalFaceIndex;
-    using HeIndex     = internal::CgalImpl::CgalHalfEdgeIndex;
 
     const VertexIndex v_id{v.id()};
     const FaceIndex   f_id{f.id()};
@@ -51,15 +44,6 @@ HalfEdge::face() const noexcept {
     return {mesh(), id};
 }
 
-Face
-HalfEdge::opposite_face() const noexcept {
-    const auto& m           = internal::get_mesh_impl(*this);
-    const auto  he_id       = internal::to_halfedge_impl(*this);
-    const auto  opposite_id = CGAL::opposite(he_id, m);
-    const auto  id          = CGAL::face(opposite_id, m);
-    return {mesh(), id};
-}
-
 Eigen::Vector3d
 HalfEdge::inbound_direction() const {
     using Vec3   = Eigen::Vector3d;
@@ -74,24 +58,6 @@ HalfEdge::inbound_direction() const {
     assert(mdv::condition::are_orthogonal(e, res));
     assert(mdv::condition::are_orthogonal(face().normal(), res));
 
-    return res;
-}
-
-Eigen::Quaterniond
-HalfEdge::aligning_rotation() const {
-    using Vec3 = Eigen::Vector3d;
-    using Quat = Eigen::Quaterniond;
-
-    const Vec3 e       = normalised_direction();
-    const Vec3 x_this  = inbound_direction();
-    const Vec3 x_other = twin().inbound_direction();
-
-    assert(mdv::condition::are_orthogonal(x_this, e));
-    assert(mdv::condition::are_orthogonal(x_other, e));
-
-    const Quat res = quaternion_from_two_vectors(-x_this, x_other);
-    assert(mdv::condition::are_equal(res * (-x_this), x_other));
-    assert(mdv::condition::are_equal(res * e, e));
     return res;
 }
 
@@ -130,10 +96,4 @@ HalfEdge::describe() const {
     );
 }
 
-bool
-HalfEdge::is_opposite_of(const HalfEdge& other) const noexcept {
-    const auto& m        = internal::get_mesh_impl(*this);
-    const auto  this_id  = internal::to_halfedge_impl(*this);
-    const auto  other_id = internal::to_halfedge_impl(other);
-    return this_id == CGAL::opposite(other_id, m);
-}
+}  // namespace mdv::mesh

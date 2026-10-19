@@ -218,17 +218,6 @@ public:
         PointInFaceDescriptor(Face face, Vec3d barycentric_coords);
 
         /**
-         * @brief Computes barycentric coordinates from a 3D position on a face.
-         *
-         * @param f Face containing the point.
-         * @param position Cartesian position on the face.
-         * @return Face descriptor with barycentric coordinates.
-         */
-        static PointInFaceDescriptor from_cartesian(
-                const Face& f, const Vec3d& position
-        );
-
-        /**
          * @brief Cartesian position of the barycentric point.
          *
          * @return Cartesian position.
@@ -314,14 +303,6 @@ public:
      * @return Closest point on the mesh.
      */
     static Point from_cartesian(const Mesh& m, const CartesianPoint& pt);
-
-    /**
-     * @brief Returns an undefined point bound to a mesh.
-     *
-     * @param m Mesh to bind the undefined point to.
-     * @return Undefined point.
-     */
-    static Point undefined(const Mesh& m) noexcept;
 
     /**
      * @brief Random point inside a random face.

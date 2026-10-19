@@ -84,15 +84,6 @@ Point exponential_map(const TangentVector& v, Geodesic* geod = nullptr);
 
 
 /**
- * @brief Point-to-face distance (absolute distance to plane).
- *
- * @param f Face on the mesh.
- * @param pt Query point in 3D.
- * @return Absolute distance to the face plane.
- */
-double distance(const Face& f, const CartesianPoint& pt);
-
-/**
  * @brief Point-to-point distance in ambient 3D.
  *
  * @param p1 First point on the mesh.
@@ -100,15 +91,6 @@ double distance(const Face& f, const CartesianPoint& pt);
  * @return Euclidean distance in 3D.
  */
 double distance(const Point& p1, const Point& p2);
-
-/**
- * @brief Distance from a half-edge to a 3D point.
- *
- * @param he Half-edge on the mesh.
- * @param p Query point in 3D.
- * @return Euclidean distance to the edge line segment.
- */
-double distance(const HalfEdge& he, const Eigen::Vector3d& p);
 
 /**
  * @brief Checks if UV lies in the unit right triangle.

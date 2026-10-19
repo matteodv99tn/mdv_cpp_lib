@@ -12,7 +12,6 @@
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/cgal_geodesic.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
-#include "mdv/mesh/conditions.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/point.hpp"
@@ -29,18 +28,14 @@
 #include "mdv/rerun.hpp"
 #endif
 
-// \cond DOXYGEN_IGNORE
-using mdv::mesh::Geodesic;
-using mdv::mesh::Mesh;
-using mdv::mesh::TangentVector;
-// \endcond
+namespace mdv::mesh {
 
 namespace rs  = ::ranges;
 namespace rv  = ::ranges::views;
 namespace pmp = CGAL::Polygon_mesh_processing;
 
 double
-mdv::mesh::length(const Geodesic& geod) {
+length(const Geodesic& geod) {
     if (geod.size() < 2) return 0.0;
 
     auto segment_length = [](const auto& rng) -> double {
@@ -56,10 +51,8 @@ mdv::mesh::length(const Geodesic& geod) {
     return sum;
 }
 
-mdv::mesh::CartesianPoint
-mdv::mesh::point_from_geodesic(
-        const Geodesic& geod, const double s_input, const double* len
-) {
+CartesianPoint
+point_from_geodesic(const Geodesic& geod, const double s_input, const double* len) {
     double       internal_len = 0.0;
     const double s_target     = std::clamp(s_input, 0.0, 1.0);
 
@@ -85,7 +78,7 @@ mdv::mesh::point_from_geodesic(
 }
 
 Geodesic
-mdv::mesh::geodesic_resample(const Geodesic& geod, std::vector<double> coordinates) {
+geodesic_resample(const Geodesic& geod, std::vector<double> coordinates) {
     Geodesic     res;
     const double len = length(geod);
     res.reserve(coordinates.size());
@@ -96,7 +89,7 @@ mdv::mesh::geodesic_resample(const Geodesic& geod, std::vector<double> coordinat
 };
 
 Eigen::MatrixXd
-mdv::mesh::geodesic_resample(const Geodesic& geod, const Eigen::VectorXd& coordinates) {
+geodesic_resample(const Geodesic& geod, const Eigen::VectorXd& coordinates) {
     if (geod.size() < 2)
         throw std::runtime_error("Cannot resample a geodesic with size less then 2!");
 
@@ -138,9 +131,7 @@ mdv::mesh::geodesic_resample(const Geodesic& geod, const Eigen::VectorXd& coordi
 };
 
 TangentVector
-mdv::mesh::parallel_transport(
-        const TangentVector& tangent_vector, const Point& dest_point
-) {
+parallel_transport(const TangentVector& tangent_vector, const Point& dest_point) {
     using namespace mdv::condition;
     using Mat3 = Eigen::Matrix3d;
 
@@ -279,7 +270,7 @@ mdv::mesh::parallel_transport(
 }
 
 TangentVector
-mdv::mesh::logarithmic_map(const Point& p, const Point& y) {
+logarithmic_map(const Point& p, const Point& y) {
     using mdv::condition::are_equal;
 
     assert(Mesh::default_logger);
@@ -300,32 +291,17 @@ mdv::mesh::logarithmic_map(const Point& p, const Point& y) {
 }
 
 double
-mdv::mesh::distance(const Face& f, const CartesianPoint& pt) {
-    const Eigen::Vector3d delta = pt - f.half_edge().origin_position();
-    return std::abs(delta.dot(f.normal()));
-}
-
-double
-mdv::mesh::distance(const Point& p1, const Point& p2) {
+distance(const Point& p1, const Point& p2) {
     return (p1.position() - p2.position()).norm();
 }
 
 bool
-mdv::mesh::uv_in_unitary_triangle(const Eigen::Vector2d& uv) {
+uv_in_unitary_triangle(const Eigen::Vector2d& uv) {
     return (uv.sum() <= 1.0) && (uv(0) >= 0.0) && (uv(1) >= 0.0);
 }
 
-double
-mdv::mesh::distance(const HalfEdge& he, const Eigen::Vector3d& p) {
-    using Vec3         = Eigen::Vector3d;
-    const Vec3   o     = he.origin_position();
-    const Vec3   delta = p - o;
-    const double dot   = he.normalised_direction().dot(delta);
-    return (delta - dot * he.normalised_direction()).norm();
-}
-
-mdv::mesh::LocationType
-mdv::mesh::location_type(const Point& pt) {
+LocationType
+location_type(const Point& pt) {
     if (std::holds_alternative<Point::PointInFaceDescriptor>(pt.descriptor())) {
         return INSIDE_FACE;
     }
@@ -335,99 +311,101 @@ mdv::mesh::location_type(const Point& pt) {
     return ON_VERTEX;
 }
 
-mdv::mesh::LocationType
-mdv::mesh::location_type(const TangentVector& tv) {
+LocationType
+location_type(const TangentVector& tv) {
     return location_type(tv.application_point());
 }
 
 namespace {
-BS::thread_pool<>&
-thread_pool() {
-    static BS::thread_pool<> pool;
-    return pool;
-}
-}  // namespace
+    BS::thread_pool<>&
+    thread_pool() {
+        static BS::thread_pool<> pool;
+        return pool;
+    }
 
 #ifdef RERUN_DEBUG
 
-rerun::RecordingStream&
-rec() {
-    static constexpr std::string_view url = "rerun+http://10.236.248.135:9876/proxy";
-    static rerun::RecordingStream     _rec("flow_matching");
-    static bool                       rec_init = [](rerun::RecordingStream& stream) {
-        fmt::print("\rConnecting to rerun with URL {}", url);
-        stream.connect_grpc(url).exit_on_failure();
-        return true;
-    }(_rec);
-    return _rec;
-}
-
-void
-step_timetick(std::string_view time_axis) {
-    static std::map<std::string_view, long> data;
-
-    long& k = data[time_axis];
-    ++k;
-    rec().set_time_sequence(time_axis, k);
-    fmt::print("\rSetting tick {} for time axis {}\n", k, time_axis);
-};
-
-void
-log_mesh(const Mesh& m) {
-    static bool logged = false;
-
-    if (logged) return;
-
-    rec().log_static("mesh", mdv::RerunConverter{}(m));
-    logged = true;
-}
-
-void
-log_points(const Eigen::MatrixXd& pts, std::string_view path) {
-    const long                                 N = pts.rows();
-    std::vector<rerun::components::Position3D> pos;
-    pos.reserve(N);
-    for (long i = 0; i < N; ++i) {
-        const double x = pts(i, 0);
-        const double y = pts(i, 1);
-        const double z = pts(i, 2);
-        pos.emplace_back(x, y, z);
-    }
-    rec().log(path, rerun::archetypes::Points3D{std::move(pos)});
-}
-
-void
-log_vectorfield(
-        const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs, std::string_view path
-) {
-    std::vector<rerun::components::Position3D> origins;
-    std::vector<rerun::components::Vector3D>   directions;
-    const long                                 N = xs.rows();
-    origins.reserve(N);
-    directions.reserve(N);
-    for (long i = 0; i < N; ++i) {
-        const double px = xs(i, 0);
-        const double py = xs(i, 1);
-        const double pz = xs(i, 2);
-        origins.emplace_back(px, py, pz);
-
-        const double vx = vs(i, 0);
-        const double vy = vs(i, 1);
-        const double vz = vs(i, 2);
-        directions.emplace_back(vx, vy, vz);
+    rerun::RecordingStream&
+    rec() {
+        static constexpr std::string_view url =
+                "rerun+http://10.236.248.135:9876/proxy";
+        static rerun::RecordingStream _rec("flow_matching");
+        static bool                   rec_init = [](rerun::RecordingStream& stream) {
+            fmt::print("\rConnecting to rerun with URL {}", url);
+            stream.connect_grpc(url).exit_on_failure();
+            return true;
+        }(_rec);
+        return _rec;
     }
 
-    rec().log(
-            path,
-            rerun::archetypes::Arrows3D::from_vectors(std::move(directions))
-                    .with_origins(std::move(origins))
-    );
-}
+    void
+    step_timetick(std::string_view time_axis) {
+        static std::map<std::string_view, long> data;
+
+        long& k = data[time_axis];
+        ++k;
+        rec().set_time_sequence(time_axis, k);
+        fmt::print("\rSetting tick {} for time axis {}\n", k, time_axis);
+    };
+
+    void
+    log_mesh(const Mesh& m) {
+        static bool logged = false;
+
+        if (logged) return;
+
+        rec().log_static("mesh", mdv::RerunConverter{}(m));
+        logged = true;
+    }
+
+    void
+    log_points(const Eigen::MatrixXd& pts, std::string_view path) {
+        const long                                 N = pts.rows();
+        std::vector<rerun::components::Position3D> pos;
+        pos.reserve(N);
+        for (long i = 0; i < N; ++i) {
+            const double x = pts(i, 0);
+            const double y = pts(i, 1);
+            const double z = pts(i, 2);
+            pos.emplace_back(x, y, z);
+        }
+        rec().log(path, rerun::archetypes::Points3D{std::move(pos)});
+    }
+
+    void
+    log_vectorfield(
+            const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs, std::string_view path
+    ) {
+        std::vector<rerun::components::Position3D> origins;
+        std::vector<rerun::components::Vector3D>   directions;
+        const long                                 N = xs.rows();
+        origins.reserve(N);
+        directions.reserve(N);
+        for (long i = 0; i < N; ++i) {
+            const double px = xs(i, 0);
+            const double py = xs(i, 1);
+            const double pz = xs(i, 2);
+            origins.emplace_back(px, py, pz);
+
+            const double vx = vs(i, 0);
+            const double vy = vs(i, 1);
+            const double vz = vs(i, 2);
+            directions.emplace_back(vx, vy, vz);
+        }
+
+        rec().log(
+                path,
+                rerun::archetypes::Arrows3D::from_vectors(std::move(directions))
+                        .with_origins(std::move(origins))
+        );
+    }
 
 #endif
 
+}  // namespace
+
 std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>>
-mdv::mesh::solve_path(
+solve_path(
         const Mesh&            mesh,
         const Eigen::MatrixXd& x0,
         const Eigen::MatrixXd& x1,
@@ -496,7 +474,7 @@ mdv::mesh::solve_path(
 }
 
 Eigen::MatrixXd
-mdv::mesh::multithreaded_exponential_map(
+multithreaded_exponential_map(
         const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
 ) {
     using Vec3 = Eigen::Vector3d;
@@ -561,7 +539,7 @@ mdv::mesh::multithreaded_exponential_map(
 }
 
 long
-mdv::mesh::num_points_on_mesh(const Mesh& mesh, const Eigen::MatrixXd& xs) {
+num_points_on_mesh(const Mesh& mesh, const Eigen::MatrixXd& xs) {
     using Vec3 = Eigen::Vector3d;
 
     const long N       = xs.rows();
@@ -575,7 +553,7 @@ mdv::mesh::num_points_on_mesh(const Mesh& mesh, const Eigen::MatrixXd& xs) {
 }
 
 Eigen::MatrixXd
-mdv::mesh::projx(const Mesh& mesh, const Eigen::MatrixXd& xs) {
+projx(const Mesh& mesh, const Eigen::MatrixXd& xs) {
     using Vec3 = Eigen::Vector3d;
     if (xs.cols() != 3) throw std::runtime_error("projx require xs to have 3 columns");
     const long      N    = xs.rows();
@@ -610,9 +588,7 @@ mdv::mesh::projx(const Mesh& mesh, const Eigen::MatrixXd& xs) {
 }
 
 Eigen::MatrixXd
-mdv::mesh::proju(
-        const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
-) {
+proju(const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs) {
     if (xs.cols() != 3) throw std::runtime_error("projx require xs to have 3 columns");
     Eigen::MatrixXd res(xs.rows(), xs.cols());
     for (long i = 0; i < xs.rows(); ++i) {
@@ -624,7 +600,7 @@ mdv::mesh::proju(
 }
 
 std::vector<Eigen::Matrix3d>
-mdv::mesh::proj_transformation(
+proj_transformation(
         const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
 ) {
     using Vec3 = Eigen::Vector3d;
@@ -684,7 +660,7 @@ mdv::mesh::proj_transformation(
 }
 
 std::pair<Eigen::MatrixXd, Eigen::MatrixXd>
-mdv::mesh::proj_transformation_directions(
+proj_transformation_directions(
         const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs
 ) {
     using Mat  = Eigen::MatrixXd;
@@ -729,7 +705,7 @@ mdv::mesh::proj_transformation_directions(
 }
 
 std::pair<Eigen::MatrixXd, Eigen::MatrixXd>
-mdv::mesh::closest_face_normal_and_vertex(const Mesh& mesh, const Eigen::MatrixXd& xs) {
+closest_face_normal_and_vertex(const Mesh& mesh, const Eigen::MatrixXd& xs) {
     if (xs.cols() != 3) throw std::runtime_error("projx require xs to have 3 columns");
 
     std::pair<Eigen::MatrixXd, Eigen::MatrixXd> res = std::make_pair(
@@ -752,7 +728,7 @@ mdv::mesh::closest_face_normal_and_vertex(const Mesh& mesh, const Eigen::MatrixX
 }
 
 void
-mdv::mesh::validate_projx(
+validate_projx(
         const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& xs_proj
 ) {
     using Vec3 = Eigen::Vector3d;
@@ -782,3 +758,5 @@ mdv::mesh::validate_projx(
             N
     );
 }
+
+}  // namespace mdv::mesh

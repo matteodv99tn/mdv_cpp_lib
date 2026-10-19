@@ -1,8 +1,6 @@
 #ifndef MDV_MESH_HALF_EDGE_HPP
 #define MDV_MESH_HALF_EDGE_HPP
 
-#include <vector>
-
 #include "mdv/macros.hpp"
 #include "mdv/mesh/face.hpp"
 #include "mdv/mesh/fwd.hpp"
@@ -22,10 +20,6 @@ namespace mdv::mesh {
  * Half-edges are view-types on a Mesh object.
  */
 struct HalfEdge final : internal::IndexedMeshElement {
-    using Vector        = std::vector<HalfEdge>;
-    using Iterator      = Vector::iterator;
-    using ConstIterator = Vector::const_iterator;
-
     /**
      * @brief Constructs a half-edge associated with the given mesh.
      *
@@ -91,13 +85,6 @@ struct HalfEdge final : internal::IndexedMeshElement {
     MDV_NODISCARD Eigen::Vector3d inbound_direction() const;
 
     /**
-     * @brief Rotation aligning this half-edge frame to its twin face frame.
-     *
-     * @return Quaternion aligning local frames.
-     */
-    MDV_NODISCARD Eigen::Quaterniond aligning_rotation() const;
-
-    /**
      * @brief Next half-edge in the face loop.
      *
      * @return Next half-edge.
@@ -126,35 +113,6 @@ struct HalfEdge final : internal::IndexedMeshElement {
     MDV_NODISCARD Vertex origin() const noexcept;
 
     /**
-     * @brief Face on the opposite side of the edge.
-     *
-     * @return Opposite face.
-     */
-    MDV_NODISCARD Face opposite_face() const noexcept;
-
-    /**
-     * @brief Equality check by identity.
-     *
-     * @param other Half-edge to compare.
-     * @return True if same object.
-     */
-    MDV_NODISCARD bool
-    operator==(const HalfEdge& other) const {
-        return this == &other;
-    }
-
-    /**
-     * @brief Inequality check by identity.
-     *
-     * @param other Half-edge to compare.
-     * @return True if different object.
-     */
-    MDV_NODISCARD bool
-    operator!=(const HalfEdge& other) const {
-        return this != &other;
-    }
-
-    /**
      * @brief Human-readable half-edge description.
      *
      * @return Description string.
@@ -166,14 +124,6 @@ private:
     friend class Face;
 
     HalfEdge() = default;
-
-    /**
-     * @brief Returns true if this half-edge is opposite to another.
-     *
-     * @param other Half-edge to compare.
-     * @return True if opposite.
-     */
-    MDV_NODISCARD bool is_opposite_of(const HalfEdge& other) const noexcept;
 };
 
 }  // namespace mdv::mesh

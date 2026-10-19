@@ -20,18 +20,11 @@
 #include "mdv/utils/logging.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
-
-// \cond DOXYGEN_IGNORE
-using mdv::mesh::Face;
-using mdv::mesh::Mesh;
-using mdv::mesh::Vertex;
-using mdv::mesh::internal::CgalImpl;
-using std::filesystem::path;
+namespace mdv::mesh {
 
 namespace rs = ::ranges;
-// \endcond
 
-mdv::Logger::SharedPtr Mesh::default_logger = get_default_logger();
+Logger::SharedPtr Mesh::default_logger = get_default_logger();
 
 //   ____                _                   _
 //  / ___|___  _ __  ___| |_ _ __ _   _  ___| |_ ___  _ __ ___
@@ -99,7 +92,7 @@ Mesh::transform(const Eigen::Affine3d& transformation) {
     cgal().transform(transformation);
 }
 
-mdv::mesh::Geodesic
+Geodesic
 Mesh::build_geodesic(const Point& from, const Point& to) const {
     using mdv::condition::are_orthogonal, mdv::condition::is_zero_norm;
     using Kernel = internal::CgalImpl::Kernel;
@@ -306,3 +299,5 @@ Mesh::extract_normal_bounded_surface(
             fmt::format("{}_normal_bounded", mesh.name()),
     };
 }
+
+}  // namespace mdv::mesh

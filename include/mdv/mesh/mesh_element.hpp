@@ -17,8 +17,6 @@ namespace mdv::mesh::internal {
  */
 class MeshElement {
 public:
-    using CgalImpl = ::mdv::mesh::internal::CgalImpl;
-
     /**
      * @brief Default constructor, yields an invalid element.
      */
@@ -46,16 +44,6 @@ public:
     MDV_NODISCARD virtual bool
     is_valid() const noexcept {
         return (_mesh_ptr != nullptr);
-    }
-
-    /**
-     * @brief Returns true if the element has no associated mesh.
-     *
-     * @return True if the mesh pointer is null.
-     */
-    MDV_NODISCARD virtual bool
-    undefined_mesh() const noexcept {
-        return (_mesh_ptr == nullptr);
     }
 
     /**

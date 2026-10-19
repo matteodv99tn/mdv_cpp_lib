@@ -6,9 +6,6 @@
 #include <gsl/pointers>
 #include <string_view>
 
-#include <boost/range/iterator_range.hpp>
-#include <boost/range/iterator_range_core.hpp>
-
 #include "mdv/macros.hpp"
 #include "mdv/mesh/face.hpp"
 #include "mdv/mesh/fwd.hpp"
@@ -113,13 +110,6 @@ public:
      * @return Geodesic polyline representing the shortest path on the surface.
      */
     MDV_NODISCARD Geodesic build_geodesic(const Point& from, const Point& to) const;
-
-    /**
-     * @brief Computes per-vertex normals.
-     *
-     * @return Vector of vertex normals indexed by vertex id.
-     */
-    MDV_NODISCARD std::vector<Eigen::Vector3d> compute_vertex_normals() const noexcept;
 
     // Getters
     /**
