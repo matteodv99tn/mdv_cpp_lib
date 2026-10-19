@@ -8,14 +8,12 @@
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/mesh.hpp"
 
-using namespace mdv::mesh;
-using namespace mdv::condition;
-using mdv::Vec3d;
-using std::filesystem::path;
+namespace mdv::mesh {
+namespace fs = std::filesystem;
 
 TEST(MeshKernel, Square_SinglePointSet) {
-    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
-    const auto mesh      = Mesh::from_file(mesh_path);
+    const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto     mesh      = Mesh::from_file(mesh_path);
 
     auto to_ms = [](const auto& delta) {
         return std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
@@ -56,8 +54,8 @@ TEST(MeshKernel, Square_SinglePointSet) {
 }
 
 TEST(MeshKernel, Square_DoublePointSet) {
-    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
-    const auto mesh      = Mesh::from_file(mesh_path);
+    const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto     mesh      = Mesh::from_file(mesh_path);
 
     const long         n_pts_a = 20;
     const long         n_pts_b = 10;
@@ -90,3 +88,64 @@ TEST(MeshKernel, Square_DoublePointSet) {
         }
     }
 }
+
+TEST(MeshKernel, DeterministicDistanceMatrixInvariants) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "torus_simple.off");
+    const auto face = mesh.face(0);
+    const auto edge = Point::PointOnEdgeDescriptor(
+            HalfEdge{mesh.vertex(face.vertices_ids()[0]), face}, 0.3
+    );
+    const std::vector<Point> points{
+            Point(mesh.vertex(0)),
+            Point(edge),
+            Point(Point::PointInFaceDescriptor(mesh.face(23), {0.2, 0.3, 0.5})),
+            Point(edge.display_in_opposite_halfedge())
+    };
+    const std::vector<Point> other{
+            points[2],
+            points[0],
+            Point(Point::PointInFaceDescriptor(mesh.face(7), {0.4, 0.35, 0.25}))
+    };
+    MeshKernel kernel(mesh);
+    const auto square  = kernel.distance_matrix(points, points);
+    const auto cross   = kernel.distance_matrix(points, other);
+    const auto reverse = kernel.distance_matrix(other, points);
+    ASSERT_EQ(square.rows(), static_cast<Eigen::Index>(points.size()));
+    ASSERT_EQ(square.cols(), square.rows());
+    ASSERT_EQ(cross.rows(), square.rows());
+    ASSERT_EQ(cross.cols(), static_cast<Eigen::Index>(other.size()));
+    ASSERT_EQ(reverse.rows(), cross.cols());
+    ASSERT_EQ(reverse.cols(), cross.rows());
+    for (Eigen::Index i = 0; i < square.rows(); ++i) {
+        SCOPED_TRACE(i);
+        EXPECT_NEAR(square(i, i), 0.0, 1e-9);
+        for (Eigen::Index j = 0; j < square.cols(); ++j) {
+            SCOPED_TRACE(j);
+            EXPECT_NEAR(square(i, j), square(j, i), 1e-9);
+            EXPECT_NEAR(
+                    square(i, j),
+                    length(mesh.build_geodesic(
+                            points[static_cast<std::size_t>(i)],
+                            points[static_cast<std::size_t>(j)]
+                    )),
+                    1e-9
+            );
+        }
+        for (Eigen::Index j = 0; j < cross.cols(); ++j) {
+            SCOPED_TRACE(j);
+            EXPECT_NEAR(cross(i, j), reverse(j, i), 1e-9);
+            EXPECT_NEAR(
+                    cross(i, j),
+                    length(mesh.build_geodesic(
+                            points[static_cast<std::size_t>(i)],
+                            other[static_cast<std::size_t>(j)]
+                    )),
+                    1e-9
+            );
+        }
+        // Opposite edge descriptors denote the same position and distances.
+        EXPECT_NEAR(square(i, 1), square(i, 3), 1e-9);
+    }
+}
+
+}  // namespace mdv::mesh

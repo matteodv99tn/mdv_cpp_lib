@@ -6,19 +6,19 @@
 #include <gtest/gtest.h>
 #include <numbers>
 #include <stdexcept>
+#include <vector>
 
 #include "mdv/config.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/conditions.hpp"
 
-using namespace mdv::mesh;
-
-using std::filesystem::path;
+namespace mdv::mesh {
+namespace fs = std::filesystem;
 
 TEST(MdvMesh, TangentVectorUnitRandomInitialisation) {
-    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
-    const auto mesh      = Mesh::from_file(mesh_path);
+    const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto     mesh      = Mesh::from_file(mesh_path);
 
     for (int i{0}; i < 256; ++i) {
         const auto pt  = Point::random(mesh);
@@ -28,11 +28,11 @@ TEST(MdvMesh, TangentVectorUnitRandomInitialisation) {
 }
 
 TEST(MdvMesh, TangentVectorFromTipInitialisation) {
-    using Vec3           = Eigen::Vector3d;
-    using Mat3           = Eigen::Matrix3d;
-    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
-    const auto mesh      = Mesh::from_file(mesh_path);
-    const auto pref_dir  = Vec3::UnitX();
+    using Vec3               = Eigen::Vector3d;
+    using Mat3               = Eigen::Matrix3d;
+    const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto     mesh      = Mesh::from_file(mesh_path);
+    const auto     pref_dir  = Vec3::UnitX();
 
     for (int i{0}; i < 256; ++i) {
         const auto pt    = Point::random(mesh);
@@ -48,11 +48,11 @@ TEST(MdvMesh, TangentVectorFromTipInitialisation) {
 }
 
 TEST(MdvMesh, TangentVectorDifference) {
-    using Vec3           = Eigen::Vector3d;
-    using Mat3           = Eigen::Matrix3d;
-    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
-    const auto mesh      = Mesh::from_file(mesh_path);
-    const auto pref_dir  = Vec3::UnitX();
+    using Vec3               = Eigen::Vector3d;
+    using Mat3               = Eigen::Matrix3d;
+    const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto     mesh      = Mesh::from_file(mesh_path);
+    const auto     pref_dir  = Vec3::UnitX();
 
     for (int i{0}; i < 256; ++i) {
         const auto pt = Point::random(mesh);
@@ -71,7 +71,7 @@ TEST(MdvMesh, TangentVectorDifference) {
 }
 
 TEST(MdvMesh, TangentVectorOrder) {
-    using mdv::mesh::internal::vector_inside_triangle;
+    using internal::vector_inside_triangle;
     using Vec3 = Eigen::Vector3d;
 
     ASSERT_THROW(
@@ -118,8 +118,8 @@ TEST(MdvMesh, TangentVectorConstructor) {
     // -> Cube stays in [-50, -50, -50] x [50, 50, 50]
     using mdv::condition::are_equal;
 
-    const path mesh_path = mdv::config::meshes_directory() / "cube.stl";
-    const auto mesh      = Mesh::from_file(mesh_path);
+    const fs::path mesh_path = mdv::config::meshes_directory() / "cube.stl";
+    const auto     mesh      = Mesh::from_file(mesh_path);
 
     const auto p_v = Point::from_cartesian(mesh, {-50, -50, -50});
     ASSERT_EQ(location_type(p_v), LocationType::ON_VERTEX);
@@ -185,8 +185,8 @@ TEST(MdvMesh, ExponentialMap) {
     using Vec3 = Eigen::Vector3d;
     using AS   = Eigen::AngleAxisd;
 
-    const path mesh_path = mdv::config::meshes_directory() / "cube.stl";
-    const auto mesh      = Mesh::from_file(mesh_path);
+    const fs::path mesh_path = mdv::config::meshes_directory() / "cube.stl";
+    const auto     mesh      = Mesh::from_file(mesh_path);
 
     {
         // Trivial exponential map: start and end at middle of the face by passing on 1
@@ -391,3 +391,90 @@ TEST(MdvMesh, ExponentialMap) {
         ASSERT_TRUE(are_equal(res.position(), p4_value));
     }
 }
+
+TEST(MdvMesh, DeterministicTangentInvariants) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const std::vector<Vec3d> positions{
+            {50,  -20, 5  },
+            {-50, 0,   -50},
+            {-50, -50, -50}
+    };
+    const std::vector<Vec3d> ambient_vectors{
+            {7, 3,  4 },
+            {0, 10, 0 },
+            {0, 0,  10}
+    };
+    for (std::size_t i = 0; i < positions.size(); ++i) {
+        SCOPED_TRACE(i);
+        const auto  p = Point::from_cartesian(mesh, positions[i]);
+        auto        v = TangentVector::from_ambient_vector(p, ambient_vectors[i]);
+        const Vec3d original = v.cartesian_vector();
+        EXPECT_NEAR(
+                (v.application_point().position() - p.position()).norm(), 0.0, 1e-9
+        );
+        EXPECT_NEAR(original.dot(v.application_point().face().normal()), 0.0, 1e-9);
+        EXPECT_NEAR((v.tip() - p.position() - original).norm(), 0.0, 1e-9);
+        if (i != 0) {
+            ASSERT_EQ(v.type(), TangentVector::ALONG_EDGE);
+            EXPECT_NEAR(
+                    original.cross(v.halfedge().direction().normalized()).norm(),
+                    0.0,
+                    1e-9
+            );
+        }
+        const auto unit = v.normalised();
+        EXPECT_NEAR(unit.cartesian_vector().norm(), 1.0, 1e-12);
+        EXPECT_NEAR((v.cartesian_vector() - original).norm(), 0.0, 1e-12);
+        EXPECT_NEAR(
+                (unit.application_point().position() - p.position()).norm(), 0.0, 1e-9
+        );
+        v.scale(2.5);
+        EXPECT_NEAR((v.cartesian_vector() - 2.5 * original).norm(), 0.0, 1e-9);
+    }
+}
+
+TEST(MdvMesh, FoldedMapAndTransportInvariants) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const auto p    = Point::from_cartesian(mesh, {50, -20, 5});
+    const auto q    = Point::from_cartesian(mesh, {10, -20, 50});
+    ASSERT_EQ(location_type(p), LocationType::INSIDE_FACE);
+    ASSERT_EQ(location_type(q), LocationType::INSIDE_FACE);
+    const auto   log      = logarithmic_map(p, q);
+    const double distance = length(mesh.build_geodesic(p, q));
+    EXPECT_NEAR(log.cartesian_vector().norm(), distance, 1e-9);
+    Geodesic   path;
+    const auto end = exponential_map(log, &path);
+    ASSERT_GE(path.size(), 2);
+    EXPECT_NEAR((path.front() - p.position()).norm(), 0.0, 1e-9);
+    EXPECT_NEAR((path.back() - end.position()).norm(), 0.0, 1e-9);
+    EXPECT_NEAR((end.position() - q.position()).norm(), 0.0, 1e-9);
+    EXPECT_NEAR(length(path), log.cartesian_vector().norm(), 1e-9);
+    EXPECT_LE(length(mesh.build_geodesic(p, end)), length(path) + 1e-9);
+    EXPECT_NEAR(
+            (Point::from_cartesian(mesh, end.position()).position() - end.position())
+                    .norm(),
+            0.0,
+            1e-9
+    );
+
+    const TangentVector v(p, {0, 2, 3});
+    const TangentVector w(p, {0, -4, 1});
+    const auto          pv = parallel_transport(v, q);
+    const auto          pw = parallel_transport(w, q);
+    EXPECT_NEAR(pv.cartesian_vector().norm(), v.cartesian_vector().norm(), 1e-9);
+    EXPECT_NEAR(pw.cartesian_vector().norm(), w.cartesian_vector().norm(), 1e-9);
+    EXPECT_NEAR(
+            pv.cartesian_vector().dot(pw.cartesian_vector()),
+            v.cartesian_vector().dot(w.cartesian_vector()),
+            1e-9
+    );
+    EXPECT_NEAR(pv.cartesian_vector().dot(q.face().normal()), 0.0, 1e-9);
+    EXPECT_NEAR((pv.application_point().position() - q.position()).norm(), 0.0, 1e-9);
+    EXPECT_NEAR(
+            (parallel_transport(v, p).cartesian_vector() - v.cartesian_vector()).norm(),
+            0.0,
+            1e-9
+    );
+}
+
+}  // namespace mdv::mesh

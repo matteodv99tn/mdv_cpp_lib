@@ -1,18 +1,19 @@
 #include "mdv/mesh/mesh.hpp"
 
 #include <gtest/gtest.h>
+#include <numbers>
 #include <random>
+#include <vector>
 
 #include "mdv/config.hpp"
 #include "mdv/mesh/algorithm.hpp"
 
-
-using namespace mdv::mesh;
-using std::filesystem::path;
+namespace mdv::mesh {
+namespace fs = std::filesystem;
 
 TEST(MeshGeodesic, RandomPoints) {
-    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
-    const auto mesh      = Mesh::from_file(mesh_path);
+    const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto     mesh      = Mesh::from_file(mesh_path);
 
     for (std::size_t i = 0; i < 40; ++i) {
         const auto p0 = Point::random(mesh);
@@ -25,8 +26,8 @@ TEST(MeshGeodesic, RandomPoints) {
 }
 
 TEST(MeshGeodesic, RandomVertexPoints) {
-    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
-    const auto mesh      = Mesh::from_file(mesh_path);
+    const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto     mesh      = Mesh::from_file(mesh_path);
 
     std::random_device                   dev;
     std::mt19937                         rng(dev());
@@ -49,8 +50,8 @@ TEST(MeshGeodesic, RandomVertexPoints) {
 }
 
 TEST(MeshGeodesic, RandomEdgePoints) {
-    const path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
-    const auto mesh      = Mesh::from_file(mesh_path);
+    const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
+    const auto     mesh      = Mesh::from_file(mesh_path);
 
     std::random_device                   dev;
     std::mt19937                         rng(dev());
@@ -74,8 +75,8 @@ TEST(MeshGeodesic, RandomEdgePoints) {
 }
 
 TEST(Vertex, Curvatures) {
-    const path mesh_path = mdv::config::meshes_directory() / "cube.stl";
-    const auto mesh      = Mesh::from_file(mesh_path);
+    const fs::path mesh_path = mdv::config::meshes_directory() / "cube.stl";
+    const auto     mesh      = Mesh::from_file(mesh_path);
 
     for (Index i = 0; i < mesh.num_vertices(); ++i) {
         ASSERT_FLOAT_EQ(
@@ -88,3 +89,71 @@ TEST(Vertex, Curvatures) {
         );
     }
 }
+
+TEST(MeshGeodesic, DeterministicDescriptorInvariants) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "torus_simple.off");
+    const auto face = mesh.face(0);
+    const auto edge = Point::PointOnEdgeDescriptor(
+            HalfEdge{mesh.vertex(face.vertices_ids()[0]), face}, 0.3
+    );
+    const std::vector<Point> points{
+            Point(mesh.vertex(0)),
+            Point(mesh.vertex(17)),
+            Point(edge),
+            Point(edge.display_in_opposite_halfedge()),
+            Point(Point::PointInFaceDescriptor(mesh.face(0), {0.2, 0.3, 0.5})),
+            Point(Point::PointInFaceDescriptor(mesh.face(23), {0.4, 0.35, 0.25}))
+    };
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        SCOPED_TRACE(i);
+        const auto& from      = points[i];
+        const auto  projected = Point::from_cartesian(mesh, from.position());
+        EXPECT_NEAR((projected.position() - from.position()).norm(), 0.0, 1e-9);
+        EXPECT_NEAR(length(mesh.build_geodesic(from, from)), 0.0, 1e-9);
+        for (std::size_t j = i + 1; j < points.size(); ++j) {
+            SCOPED_TRACE(j);
+            const auto& to      = points[j];
+            const auto  forward = mesh.build_geodesic(from, to);
+            const auto  reverse = mesh.build_geodesic(to, from);
+            if ((to.position() - from.position()).norm() < 1e-12) {
+                // Coincident positions (including opposite edge descriptors) have
+                // an empty polyline in the current API.
+                EXPECT_NEAR(length(forward), 0.0, 1e-9);
+                EXPECT_NEAR(length(reverse), 0.0, 1e-9);
+                continue;
+            }
+            ASSERT_FALSE(forward.empty());
+            ASSERT_FALSE(reverse.empty());
+            EXPECT_NEAR((forward.front() - from.position()).norm(), 0.0, 1e-9);
+            EXPECT_NEAR((forward.back() - to.position()).norm(), 0.0, 1e-9);
+            EXPECT_NEAR((reverse.front() - to.position()).norm(), 0.0, 1e-9);
+            EXPECT_NEAR((reverse.back() - from.position()).norm(), 0.0, 1e-9);
+            EXPECT_NEAR(length(forward), length(reverse), 1e-9);
+            EXPECT_GE(length(forward) + 1e-9, (to.position() - from.position()).norm());
+        }
+    }
+}
+
+TEST(Vertex, ClosedMeshCurvatureSums) {
+    for (const auto* name : {"cube.stl", "torus_simple.off"}) {
+        SCOPED_TRACE(name);
+        const auto mesh        = Mesh::from_file(config::meshes_directory() / name);
+        double     total_angle = 0.0;
+        double     curvature   = 0.0;
+        for (Index i = 0; i < mesh.num_vertices(); ++i) {
+            total_angle += mesh.vertex(i).total_curvature();
+            curvature += mesh.vertex(i).gauss_curvature();
+        }
+        // A closed triangular mesh has E = 3F/2.
+        const double euler = static_cast<double>(mesh.num_vertices())
+                             - 0.5 * static_cast<double>(mesh.num_faces());
+        EXPECT_NEAR(
+                total_angle,
+                std::numbers::pi * static_cast<double>(mesh.num_faces()),
+                1e-9
+        );
+        EXPECT_NEAR(curvature, 2.0 * std::numbers::pi * euler, 1e-9);
+    }
+}
+
+}  // namespace mdv::mesh
