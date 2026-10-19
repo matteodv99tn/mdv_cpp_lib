@@ -8,6 +8,7 @@ repos:
         entry: ./scripts/run_clang_format.sh
         language: system
         types_or: [c++, c]
+        exclude: ^third_party/
         stages: [pre-commit]
       - id: clang-tidy
         name: clang-tidy

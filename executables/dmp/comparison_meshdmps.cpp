@@ -2,7 +2,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-#include <fmt/base.h>
+#include <fmt/format.h>
 #include <gsl/pointers>
 #include <iostream>
 #include <sstream>
@@ -67,10 +67,10 @@ void
 write_matrix(
         FILE* file, const std::string& varname, const std::vector<Eigen::Vector3d>& data
 ) {
-    fmt::println(file, "\n{} = np.array([", varname);
+    fmt::print(file, "\n{} = np.array([\n", varname);
     for (const auto& v : data)
-        fmt::println(file, "    [{}, {}, {}],", v(0), v(1), v(2));
-    fmt::println(file, "])");
+        fmt::print(file, "    [{}, {}, {}],\n", v(0), v(1), v(2));
+    fmt::print(file, "])\n");
 }
 
 std::vector<Eigen::Vector3d>
@@ -94,7 +94,7 @@ main() {
     };
 
     gsl::owner<FILE*> file = fopen("data.py", "w");
-    fmt::println(file, "import numpy as np\n");
+    fmt::print(file, "import numpy as np\n\n");
 
     // Rerun setup
     rerun::RecordingStream rec("meshdmp_comparison");

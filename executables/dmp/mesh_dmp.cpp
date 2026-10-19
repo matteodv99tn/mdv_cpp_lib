@@ -2,7 +2,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-#include <fmt/base.h>
+#include <fmt/format.h>
 #include <sstream>
 #include <string>
 

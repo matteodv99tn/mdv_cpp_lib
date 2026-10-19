@@ -1,6 +1,6 @@
 #include <chrono>
 #include <Eigen/Core>
-#include <fmt/base.h>
+#include <fmt/format.h>
 #include <fmt/os.h>
 #include <string>
 
@@ -66,8 +66,8 @@ main(int argc, char* argv[]) {
     auto       mesh     = Mesh::from_file(meshfile);
     MeshKernel kernel(mesh);
 
-    fmt::println("Number of faces: {}", mesh.num_faces());
-    fmt::println("Number of vertices: {}", mesh.num_vertices());
+    fmt::print("Number of faces: {}\n", mesh.num_faces());
+    fmt::print("Number of vertices: {}\n", mesh.num_vertices());
 
     // Dataset generation
     std::vector<PointVector>             point_data;
@@ -87,9 +87,9 @@ main(int argc, char* argv[]) {
     PointVector             pts  = rv::join(point_data) | rs::to_vector;
     std::vector<mdv::Vec3d> vels = rv::join(vel_data) | rs::to_vector;
 
-    fmt::println("Number of train points: {}", pts.size());
+    fmt::print("Number of train points: {}\n", pts.size());
     double max_ls = kernel.find_pointset_max_lengthscale(pts);
-    fmt::println("Max ls: {}", max_ls);
+    fmt::print("Max ls: {}\n", max_ls);
 
     Eigen::VectorXd vx(vels.size());
     Eigen::VectorXd vy(vels.size());
@@ -111,10 +111,10 @@ main(int argc, char* argv[]) {
     Expects(vx.rows() == std::ssize(pts));
 
 
-    fmt::println("Creating custom Gaussian Process - Lengthscale = {}", ls);
+    fmt::print("Creating custom Gaussian Process - Lengthscale = {}\n", ls);
     InexactGaussianProcess gp(&mesh, ls, noise);
     gp.train(pts, v_mat);
-    fmt::println("Gaussian Process initialised");
+    fmt::print("Gaussian Process initialised\n");
 
     mdv::RerunConverter    to_rerun;
     rerun::RecordingStream rec("gaussianprocess");
@@ -127,9 +127,9 @@ main(int argc, char* argv[]) {
     for (mdv::mesh::Index i = 0; i < mesh.num_vertices(); ++i)
         test_points.emplace_back(mesh.vertex(i));
 
-    fmt::println("Predicting vector field...");
+    fmt::print("Predicting vector field...\n");
     const Eigen::MatrixXd v_gp = gp.predict(test_points);
-    fmt::println("Prediction computed");
+    fmt::print("Prediction computed\n");
 
     std::vector<::rerun::components::Vector3D>   gp_vecs;
     std::vector<::rerun::components::Position3D> gp_origs;
@@ -157,7 +157,7 @@ main(int argc, char* argv[]) {
     );
     const double dt = 0.2;
 
-    fmt::println("Starting dynamics integration");
+    fmt::print("Starting dynamics integration\n");
     Geodesic path;
     path.reserve(100);
     auto start = std::chrono::high_resolution_clock::now();
@@ -185,7 +185,7 @@ main(int argc, char* argv[]) {
     auto       stop = std::chrono::high_resolution_clock::now();
     const auto time_ms =
             std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-    fmt::println("{} steps in {}ms", path.size(), time_ms);
+    fmt::print("{} steps in {}ms\n", path.size(), time_ms);
 
 
     return 0;

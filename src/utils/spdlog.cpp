@@ -1,22 +1,24 @@
 #include "mdv/utils/spdlog.hpp"
 
+#include <algorithm>
+#include <cctype>
+#include <iterator>
 #include <set>
 #include <spdlog/common.h>
 #include <spdlog/logger.h>
-#include <spdlog/sinks/stdout_color_sinks-inl.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
-
-#include <range/v3/algorithm/transform.hpp>
 
 namespace {
 std::string
 format_logger_name(const std::string& name) {
     std::string          formatted_name;
     const std::set<char> undesired_chars{' ', '_', ',', '.'};
-    ranges::transform(
+    std::ranges::transform(
             name, std::back_inserter(formatted_name), [undesired_chars](char c) {
-                const auto c_low = static_cast<char>(std::tolower(c));
+                const auto c_low =
+                        static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
                 if (undesired_chars.contains(c_low)) return '-';
                 return c_low;
             }

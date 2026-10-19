@@ -1,4 +1,4 @@
-#include <fmt/base.h>
+#include <fmt/format.h>
 #include <fmt/os.h>
 #include <limits>
 #include <stdexcept>
@@ -93,8 +93,8 @@ main(int argc, char* argv[]) {
         if (err > err_th) ++n_wrong;
     }
 
-    fmt::println(
-            "Number of wrongly reconstructed vertices: {} / {}",
+    fmt::print(
+            "Number of wrongly reconstructed vertices: {} / {}\n",
             n_wrong,
             sub_mesh.num_vertices()
     );
@@ -107,7 +107,7 @@ main(int argc, char* argv[]) {
         const double e   = (pt.position() - rev.position()).norm();
         max_err          = std::max(max_err, e);
     }
-    fmt::println("Maximum reconstruction error: {}", max_err);
+    fmt::print("Maximum reconstruction error: {}\n", max_err);
 
     max_err            = 0.0;
     constexpr double b = 1.0 / 3.0;
@@ -119,12 +119,12 @@ main(int argc, char* argv[]) {
         const auto   rev = param.retrieve(uv);
         const double e   = (pt.position() - rev.position()).norm();
         max_err          = std::max(max_err, e);
-        if (e > 1e-6) { fmt::println("Err at face {} = {}", i, e); }
+        if (e > 1e-6) { fmt::print("Err at face {} = {}\n", i, e); }
     }
-    fmt::println("Maximum reconstruction error: {}", max_err);
+    fmt::print("Maximum reconstruction error: {}\n", max_err);
 
 
-    fmt::println("Checking hole filling algorithm result");
+    fmt::print("Checking hole filling algorithm result\n");
     if (filled_mesh.num_faces() < sub_mesh.num_faces())
         throw std::runtime_error("Filled mesh has less face than starting input!");
 
@@ -150,7 +150,7 @@ main(int argc, char* argv[]) {
             throw std::runtime_error("Faces have been changed");
         }
     }
-    fmt::println("Checking hole filling algorithm result -- Passed!");
+    fmt::print("Checking hole filling algorithm result -- Passed!\n");
 
     return 0;
 }

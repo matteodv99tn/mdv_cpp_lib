@@ -3,6 +3,7 @@
 #include <chrono>
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <fmt/format.h>
 #include <iterator>
 #include <stdexcept>
 #include <utility>
@@ -71,13 +72,13 @@ namespace {
 
         ~TimeBenchmarker() {
             // Display mean / median / other data when destroying
-            fmt::println("Showing logged data");
+            fmt::print("Showing logged data\n");
             for (const auto& [dims, ts] : times) {
                 const auto& [rows, cols] = dims;
                 const double time_ms     = double(mean(ts)) * 1e-6;
-                fmt::println("{} x {} -> {:.4}ms", rows, cols, time_ms);
+                fmt::print("{} x {} -> {:.4}ms\n", rows, cols, time_ms);
             }
-            fmt::println("Showing logged data --- Done");
+            fmt::print("Showing logged data --- Done\n");
         }
     };
 
