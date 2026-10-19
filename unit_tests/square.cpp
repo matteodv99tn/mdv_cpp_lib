@@ -1,5 +1,7 @@
 #include <array>
 #include <gtest/gtest.h>
+#include <string>
+#include <utility>
 #include <variant>
 
 #include "mdv/config.hpp"
@@ -178,6 +180,27 @@ TEST(Mesh, SquareMapAndTransportInvariants) {
                 (pv.application_point().position() - q.position()).norm(), 0.0, 1e-9
         );
     }
+}
+
+TEST(Mesh, MoveAssignmentReplacesGeometry) {
+    auto       source      = Mesh::from_file(config::meshes_directory() / "square.off");
+    auto       destination = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const auto expected_vertices = source.num_vertices();
+    const auto expected_faces    = source.num_faces();
+    const std::string expected_name{source.name()};
+    destination = std::move(source);
+    EXPECT_EQ(destination.num_vertices(), expected_vertices);
+    EXPECT_EQ(destination.num_faces(), expected_faces);
+    EXPECT_EQ(destination.name(), expected_name);
+    auto* alias = &destination;
+    destination = std::move(*alias);
+    EXPECT_EQ(destination.num_vertices(), expected_vertices);
+    EXPECT_EQ(destination.num_faces(), expected_faces);
+    EXPECT_EQ(destination.name(), expected_name);
+    auto moved = std::move(destination);
+    EXPECT_EQ(moved.num_vertices(), expected_vertices);
+    EXPECT_EQ(moved.num_faces(), expected_faces);
+    EXPECT_EQ(moved.name(), expected_name);
 }
 
 }  // namespace mdv::mesh

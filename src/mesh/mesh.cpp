@@ -8,6 +8,7 @@
 #include <Eigen/Geometry>
 #include <gsl/assert>
 #include <random>
+#include <utility>
 
 #include <range/v3/all.hpp>
 
@@ -59,17 +60,19 @@ Mesh::~Mesh() {
 
 Mesh::Mesh(Mesh&& other) noexcept :
         _logger(std::move(other._logger)),
-        _impl(other._impl),
+        _impl(std::exchange(other._impl, nullptr)),
         _name(std::move(other._name)) {
-    other._impl = nullptr;
 }
 
 Mesh&
 Mesh::operator=(Mesh&& other) noexcept {
-    this->_logger = std::move(other._logger);
-    this->_impl   = other._impl;
-    other._impl   = nullptr;
-    this->_name   = std::move(other._name);
+    if (this == &other) return *this;
+    delete _impl;
+    _logger = std::move(other._logger);
+    // std::exchange transfers ownership, which the owner-alias check cannot infer.
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+    _impl = std::exchange(other._impl, nullptr);
+    _name = std::move(other._name);
     return *this;
 }
 

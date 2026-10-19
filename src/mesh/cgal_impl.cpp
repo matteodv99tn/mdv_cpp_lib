@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <optional>
 #include <stdexcept>
+#include <utility>
 
 #include <range/v3/algorithm/transform.hpp>
 
@@ -59,13 +60,18 @@ CgalImpl::~CgalImpl() {
     delete _geodesic_constructor;
 }
 
-CgalImpl::CgalImpl(CgalImpl&& other) noexcept :
+// NOLINTNEXTLINE | Constructor is not properly move-safe
+CgalImpl::CgalImpl(CgalImpl&& other) :
         _logger(std::move(other._logger)),
         _mesh(std::move(other._mesh)),
-        _geodesic_constructor(other._geodesic_constructor),
-        _aabb_tree(std::move(other._aabb_tree)),
-        _current_shortpath_source(other._current_shortpath_source) {
-    other._current_shortpath_source = nullptr;
+        _current_shortpath_source(
+                std::exchange(other._current_shortpath_source, nullptr)
+        ),
+        _geodesic_constructor(new CgalGeodesicConstructor(&_mesh, &_aabb_tree)) {
+    // The shortest-path object, AABB tree and geodesic constructor reference the
+    // mesh they were built on: rebuild them against this object's mesh.
+    _shortest_path = std::make_unique<ShortestPath>(_mesh);
+    _shortest_path->build_aabb_tree(_aabb_tree);
     logger().trace(
             "Moved CgalImpl from {} to {}",
             static_cast<void*>(&other),

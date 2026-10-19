@@ -101,9 +101,16 @@ public:
     /**
      * @brief Move constructor.
      *
+     * Rebuilds the shortest-path object, AABB tree and geodesic constructor, which
+     * reference the mesh they were built on. The moved-from instance keeps its own
+     * geodesic constructor and is only safe to destroy.
+     *
      * @param other Instance to move from.
      */
-    CgalImpl(CgalImpl&&) noexcept;
+    // TODO: move constructor is not "noexcept" with current implementation, as it needs
+    // to repopulate dynamic quantities in the moved-to object.
+    // If we remove shortest path computation inside mesh, this should not be a problem.
+    CgalImpl(CgalImpl&&);  // NOLINT
 
     /**
      * @brief Non-movable assignment.
