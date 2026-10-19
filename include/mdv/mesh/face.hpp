@@ -38,14 +38,14 @@ public:
     MDV_NODISCARD Eigen::Vector3d normal() const noexcept;
 
     /**
-     * @brief Equality check by identity.
+     * @brief Equality check by element index.
      *
      * @param other Face to compare.
-     * @return True if same object.
+     * @return True if both handles identify the same index.
      */
     MDV_NODISCARD bool
-    operator==(const Face& other) const {
-        return this == &other;
+    operator==(const Face& other) const noexcept {
+        return id() == other.id();
     }
 
     /**

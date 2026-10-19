@@ -156,4 +156,19 @@ TEST(Vertex, ClosedMeshCurvatureSums) {
     }
 }
 
+TEST(Face, EqualityUsesElementIndex) {
+    const auto mesh  = Mesh::from_file(config::meshes_directory() / "square.off");
+    const auto first = mesh.face(0);
+    const auto copy  = mesh.face(0);
+    EXPECT_EQ(first, copy);
+    EXPECT_EQ(mesh.face(0), mesh.face(0));
+    EXPECT_NE(mesh.face(0), mesh.face(1));
+    EXPECT_TRUE(Point{}.is_undefined());
+    EXPECT_FALSE(Point{mesh.vertex(0)}.is_undefined());
+    const Point interior{
+            Point::PointInFaceDescriptor{first, {0.2, 0.3, 0.5}}
+    };
+    EXPECT_FALSE(interior.is_undefined());
+}
+
 }  // namespace mdv::mesh
