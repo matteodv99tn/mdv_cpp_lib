@@ -28,12 +28,12 @@ while true; do
         continue
     fi
 
-    GTEST_COLOR=1 ctest --test-dir $BUILD_DIR
+    GTEST_COLOR=1 ctest --test-dir "$BUILD_DIR" --parallel "${MDV_JOBS:-8}" \
+        --output-on-failure --no-tests=error
     if [ $? -eq 0 ]; then
         notify-send "Tests passed!" -i $SUCCESS_ICON
     else
         notify-send "Some tests failed!" -i $FAILED_ICOND
-        cat $BUILD_DIR/Testing/Temporary/LastTest.log
         continue
     fi
 

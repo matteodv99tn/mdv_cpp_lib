@@ -58,7 +58,7 @@ jobs:
       - name: Build
         run: cmake --build build --parallel 2
       - name: Test
-        run: ctest --test-dir build --output-on-failure --no-tests=error
+        run: ctest --test-dir build --parallel 2 --output-on-failure --no-tests=error
       - uses: actions/cache@v4
         if: matrix.os == 'ubuntu-latest' && matrix.compiler.name == 'Clang' && matrix.build_type == 'Debug'
         with:

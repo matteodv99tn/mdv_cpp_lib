@@ -256,6 +256,7 @@ endif()
 #
 if(BUILD_TESTING)
     find_and_log_required(GTest)
+    include(GoogleTest)
     file(GLOB UNIT_TEST_SRCS unit_tests/*.cpp)
     add_executable(
         mdv_gtests
@@ -269,7 +270,7 @@ if(BUILD_TESTING)
         range-v3
     )
     target_compile_options(mdv_gtests PRIVATE ${MDV_WARNING_FLAGS})
-    add_test(gtest mdv_gtests)
+    gtest_discover_tests(mdv_gtests DISCOVERY_MODE PRE_TEST)
 endif()
 
 
