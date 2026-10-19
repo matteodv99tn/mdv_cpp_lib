@@ -40,8 +40,8 @@ main() {
 
     const Eigen::VectorXd f_des = dmp.evaluate_desired_forcing_term(dem);
     Eigen::VectorXd       f_lrnd(f_des.size());
-    for (auto i = 0; i < dem.size(); ++i)
-        f_lrnd(i) = dmp.fun()(dmp.time_to_s(dem[i].t()));
+    for (std::size_t i = 0; i < dem.size(); ++i)
+        f_lrnd(static_cast<Eigen::Index>(i)) = dmp.fun()(dmp.time_to_s(dem[i].t()));
 
 
 #ifdef MDV_WITH_RERUN_SDK
@@ -78,20 +78,21 @@ main() {
     // Other stylings
     rec.log_static("coord_system", SeriesLines().with_colors(c2).with_names("s"));
 
-    for(auto i = 0; i < dmp.n_basis(); ++i)
+    for(std::size_t i = 0; i < dmp.n_basis(); ++i)
         rec.log_static("basis/c" + std::to_string(i+1), SeriesLines().with_names(""));
 
-    for (long i{0}; i < size(dem); ++i) {
-        const double s = dmp.time_to_s(dem[i].t());
+    for (long i{0}; i < std::ssize(dem); ++i) {
+        const auto   k = static_cast<std::size_t>(i);
+        const double s = dmp.time_to_s(dem[k].t());
         // Export time
         rec.set_time_sequence("tick", i);
-        rec.set_time_duration_secs("time", mdv::convert::seconds(dem[i].t()));
-        rec.log("demonstration/pos", Scalars(dem[i].y()));
-        rec.log("execution/pos", Scalars(out[i].y()));
-        rec.log("demonstration/vel", Scalars(dem[i].yd()));
-        rec.log("execution/vel", Scalars(out[i].yd()));
-        rec.log("demonstration/acc", Scalars(dem[i].ydd()));
-        rec.log("execution/acc", Scalars(out[i].ydd()));
+        rec.set_time_duration_secs("time", mdv::convert::seconds(dem[k].t()));
+        rec.log("demonstration/pos", Scalars(dem[k].y()));
+        rec.log("execution/pos", Scalars(out[k].y()));
+        rec.log("demonstration/vel", Scalars(dem[k].yd()));
+        rec.log("execution/vel", Scalars(out[k].yd()));
+        rec.log("demonstration/acc", Scalars(dem[k].ydd()));
+        rec.log("execution/acc", Scalars(out[k].ydd()));
 
         rec.log("forcing/desired", Scalars(f_des(i)));
         rec.log("forcing/learned", Scalars(f_lrnd(i) * s));

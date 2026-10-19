@@ -2,9 +2,11 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-#include <fmt/base.h>
+#include <fmt/format.h>
 #include <sstream>
 #include <string>
+
+#include <range/v3/algorithm/transform.hpp>
 
 #include "mdv/dmp/coordinate_system/coordinate_system.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
@@ -27,7 +29,6 @@
 #include "mdv/rerun.hpp"
 #include "mdv/riemann_geometry/mesh.hpp"
 #include "mdv/utils/conversions.hpp"
-#include "mdv/utils/spdlog.hpp"
 
 using Quat = Eigen::Quaterniond;
 
@@ -50,8 +51,11 @@ main() {
 
     using Demo = mdv::Demonstration<M>;
     using Dmp  = mdv::Dmp<
-            M, mdv::dmp::TransformationSystem<M>, mdv::dmp::ExponentialCoordinateSystem,
-            mdv::DefaultFunction, mdv::riemann::MeshEmbedder>;
+            M,
+            mdv::dmp::TransformationSystem<M>,
+            mdv::dmp::ExponentialCoordinateSystem,
+            mdv::DefaultFunction,
+            mdv::riemann::MeshEmbedder>;
     using Mesh = mdv::mesh::Mesh;
 
     const long ns_demo  = 101;  // Demonstration samples
@@ -109,8 +113,8 @@ main() {
     const std::vector<double>     path_coords = mdv::poly_5th(ts);
     std::vector<mdv::mesh::Point> demonstration_path;
     demonstration_path.reserve(ns_demo);
-    std::transform(
-            begin(path_coords), end(path_coords),
+    ranges::transform(
+            path_coords,
             std::back_inserter(demonstration_path),
             [&mesh, &path_f](const double t) -> mdv::mesh::Point {
                 return mdv::mesh::Point::from_cartesian(mesh, path_f(t * 3.14));
@@ -120,8 +124,8 @@ main() {
     // Build cartesian path and visualise it
     std::vector<Eigen::Vector3d> cartesian_demonstration;
     cartesian_demonstration.reserve(demonstration_path.size());
-    std::transform(
-            begin(demonstration_path), end(demonstration_path),
+    ranges::transform(
+            demonstration_path,
             back_inserter(cartesian_demonstration),
             [](const Point& p) { return p.position(); }
     );
@@ -133,12 +137,11 @@ main() {
                                        .acceleration_automatic_differentiation()
                                        .set_sampling_period(dts_demo)
                                        .create();
-    for (long i = 0; i < demonstration.size(); ++i) {
-        rec.set_time_duration_secs("time", mdv::convert::seconds(demonstration[i].t()));
+    for (const auto& sample : demonstration) {
+        rec.set_time_duration_secs("time", mdv::convert::seconds(sample.t()));
         // rec.set_time_sequence("tick", i);
-        const Eigen::Vector3d pos = demonstration[i].y().position();
-        rec.log("demonstration/trajectory/position",
-                rr_converter(demonstration[i].y()));
+        const Eigen::Vector3d pos = sample.y().position();
+        rec.log("demonstration/trajectory/position", rr_converter(sample.y()));
         rec.log("demonstration/trajectory/x", rerun::Scalars(pos(0)));
         rec.log("demonstration/trajectory/y", rerun::Scalars(pos(1)));
         rec.log("demonstration/trajectory/z", rerun::Scalars(pos(2)));
@@ -166,11 +169,11 @@ main() {
     fmt::print("g': {}\n", mdv::eigen_to_str(new_g.position()));
 
     fmt::print("Integrating...\n");
-    const Demo out = dmp.integrate(y0, new_g, ns_int, 1ms);
+    const Demo out = dmp.integrate(y0, new_g, static_cast<std::size_t>(ns_int), 1ms);
     fmt::print("Integrating... Done!\n");
 
     std::vector<Eigen::Vector3d> res_traj(out.size());
-    for (long i = 0; i < out.size(); ++i) {
+    for (std::size_t i = 0; i < out.size(); ++i) {
         rec.set_time_duration_secs("time", mdv::convert::seconds(out[i].t()));
         // rec.set_time_sequence("tick", i);
         const Eigen::Vector3d pos = out[i].y().position();

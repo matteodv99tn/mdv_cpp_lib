@@ -55,13 +55,15 @@ namespace {
 
     ::rerun::components::Position3D
     to_rr_pos(const Kernel::Point_3& in) {
-        return {static_cast<float>(in.x()), static_cast<float>(in.y()),
+        return {static_cast<float>(in.x()),
+                static_cast<float>(in.y()),
                 static_cast<float>(in.z())};
     }
 
     ::rerun::components::Vector3D
     to_rr_vec(const Kernel::Vector_3& in) {
-        return {static_cast<float>(in.x()), static_cast<float>(in.y()),
+        return {static_cast<float>(in.x()),
+                static_cast<float>(in.y()),
                 static_cast<float>(in.z())};
     }
 
@@ -275,7 +277,7 @@ namespace {
     struct PropagationResult {
         Kernel::Vector_3    v;
         FaceIndex           f;
-        TangentVector::Type type;
+        TangentVector::Type type = TangentVector::INSIDE_FACE;
     };
 
     /*
@@ -293,8 +295,7 @@ namespace {
         const auto      he     = get_halfedge(f, p, m);
         const FaceIndex next_f = m.face(CGAL::opposite(he, m));
 
-        constexpr Index invalid = -1;
-        if (next_f == FaceIndex{invalid})
+        if (next_f == FaceIndex{invalid_index})
             throw std::runtime_error("Boarder reached when computing exponential map");
 
         const auto& v0 = m.point(source(he, m));
@@ -385,7 +386,8 @@ namespace {
         assert(are_orthogonal(n, d));
         assert(are_orthogonal(vec_dir, n));
         assert(vector_inside_triangle(
-                convert(he_to_vec3(*he_circ)), vec_dir,
+                convert(he_to_vec3(*he_circ)),
+                vec_dir,
                 convert(he_to_vec3(*(he_circ--)))
         ));
         return {
@@ -464,7 +466,7 @@ namespace {
 }  // namespace
 
 Point
-exponential_map(TangentVector v, Geodesic* geod) {
+exponential_map(const TangentVector& v, Geodesic* geod) {
 #if RERUN_DEBUG_ENABLED
     rec.spawn().exit_on_failure();
     logged_mesh = &(v.application_point().mesh());

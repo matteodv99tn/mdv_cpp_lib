@@ -49,7 +49,7 @@ namespace {
 
     std::vector<double>
     create_equispaced(
-            const int    n_samples,
+            const long   n_samples,
             const double min,
             const double max,
             const bool   half_open_set
@@ -57,7 +57,7 @@ namespace {
         const double den  = half_open_set ? double(n_samples) : double(n_samples - 1);
         const double step = (max - min) / den;
 
-        return rv::iota(0, n_samples) | rv::transform([step](const int i) -> double {
+        return rv::iota(0L, n_samples) | rv::transform([step](const long i) -> double {
                    return step * double(i);
                })
                | rs::to_vector;
@@ -105,12 +105,17 @@ generate_trajectory(
     logger.info("Dmp on plane learned");
 
 
-    const double len        = mesh::length(centroid_path);
-    const double trav_time  = len / params.linear_speed;
-    const long   geod_steps = std::ceil(trav_time / (1e-3 * double(params.dt_ms)));
+    const double len       = mesh::length(centroid_path);
+    const double trav_time = len / params.linear_speed;
+    const auto   geod_steps =
+            static_cast<long>(std::ceil(trav_time / (1e-3 * double(params.dt_ms))));
     logger.info(
             "Path length/speed {:3f}/{:3f} -> Travel time: {:3f}s ({} samples at {}ms)",
-            len, params.linear_speed, trav_time, geod_steps, params.dt_ms
+            len,
+            params.linear_speed,
+            trav_time,
+            geod_steps,
+            params.dt_ms
     );
 
     const auto ss     = create_equispaced(params.num_centroid_steps, 0.0, 1.0, false);
@@ -123,7 +128,7 @@ generate_trajectory(
 
     const long embedding_update_steps = (geod_steps / params.num_centroid_steps) + 1;
     const auto get_k = [&embedding_update_steps](const long i) -> std::size_t {
-        return i / embedding_update_steps;
+        return static_cast<std::size_t>(i / embedding_update_steps);
     };
 
     const auto get_direction = [g_path](std::size_t k) -> Vec3 {
@@ -138,9 +143,10 @@ generate_trajectory(
 
 
     Vec3d      dir              = get_direction(0).normalized();
-    const auto update_embedding = [&](const std::size_t i) -> std::size_t {
+    const auto update_embedding = [&](const long i) -> std::size_t {
         auto k = get_k(i);
-        dir += 1.1 * params.dt_ms * 1e-3 * (get_direction(k) - dir);
+        dir += 1.1 * static_cast<double>(params.dt_ms) * 1e-3
+               * (get_direction(k) - dir);
         dir.normalize();
         if (i % embedding_update_steps != 0) return k;
         ;
@@ -172,10 +178,10 @@ generate_trajectory(
 
     std::size_t        k_g = 0;
     std::vector<Point> res;
-    res.reserve(geod_steps);
+    res.reserve(static_cast<std::size_t>(geod_steps));
     dmp.tau = params.dmp_tau;
     std::chrono::milliseconds dt(params.dt_ms);
-    for (std::size_t i = 0; i < geod_steps; ++i) {
+    for (long i = 0; i < geod_steps; ++i) {
         res.emplace_back(y);
         if (i % params.print_every == 0) logger.debug("i = {}", i);
 
@@ -208,10 +214,10 @@ upsample_to_1khz(
     const std::vector<double> interp_coords =
             rv::iota(0, samples_to_add)
             | rv::transform([&samples_to_add](const long i) -> double {
-                  return i / double(samples_to_add);
+                  return static_cast<double>(i) / double(samples_to_add);
               })
             | rs::to_vector;
-    assert(interp_coords.size() == samples_to_add);
+    assert(std::ssize(interp_coords) == samples_to_add);
 
     const auto upsample_segment =
             [&interp_coords](const Vec3 p0, const Vec3 p1) -> Geodesic {

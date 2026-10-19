@@ -1,3 +1,5 @@
+add_compile_options(${MDV_WARNING_FLAGS})
+
 add_executable(
     s3_test
     ${CMAKE_CURRENT_LIST_DIR}/s3_test.cpp
@@ -23,6 +25,7 @@ add_executable(
 target_link_libraries(
     meshdmp_test
     mdvcpplib
+    range-v3
 )
 
 add_executable(
@@ -50,6 +53,7 @@ add_executable(
 target_link_libraries(
     mesh_rhytmic_dmp
     mdvcpplib
+    range-v3
 )
 
 add_executable(

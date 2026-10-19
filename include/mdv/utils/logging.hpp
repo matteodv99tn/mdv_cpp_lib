@@ -58,7 +58,7 @@ public:
         }                                                                              \
     }
 #endif
-// NOLINTEND(cppcoreguidelines-macro-usage)
+    // NOLINTEND(cppcoreguidelines-macro-usage)
 
     REGISTER_LOG_LEVEL(trace, Trace);
     REGISTER_LOG_LEVEL(debug, Debug);

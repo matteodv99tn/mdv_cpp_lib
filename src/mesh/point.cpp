@@ -267,6 +267,7 @@ Point::PointInFaceDescriptor::from_cartesian(const Face& f, const Vec3d& positio
 //  \____\___/|_| |_|___/\__|_|   \__,_|\___|\__\___/|_|  |___/
 //
 
+// NOLINTNEXTLINE(cppcoreguidelines-interfaces-global-init)
 Point::PointInFaceDescriptor Point::undefined_point{Face::invalid_face, Vec3d::Zero()};
 
 Point::Point() : _pt(undefined_point) {
@@ -280,13 +281,15 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
     const auto&            m_impl = mesh.cgal()._mesh;
     const CgalImpl::Point3 point{cartesian_pt(0), cartesian_pt(1), cartesian_pt(2)};
     const auto [face_id, coords] = CgalImpl::ShortestPath::locate(
-            point, mesh.cgal()._aabb_tree, m_impl,
+            point,
+            mesh.cgal()._aabb_tree,
+            m_impl,
             get(CGAL::vertex_point, internal::get_mesh_impl(mesh))
     );
     const Face& face = mesh.face(static_cast<Index>(face_id.idx()));
     const auto  f_he = CGAL::halfedge(face_id, m_impl);
 
-    const std::size_t n_zero_coords = rs::count(
+    const auto n_zero_coords = rs::count(
             coords | rv::transform([](const double b) -> bool {
                 return std::abs(b) < 1e-12;
             }),
@@ -303,11 +306,11 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
             return PointOnVertexDescriptor{Vertex(mesh, v_id)};
     }
 
-    using Segment_3 = CgalImpl::Kernel::Segment_3;
+    using Segment3 = CgalImpl::Kernel::Segment_3;
     for (const auto he : CGAL::halfedges_around_face(f_he, m_impl)) {
         const auto p0 = m_impl.point(CGAL::source(he, m_impl));
         const auto p1 = m_impl.point(CGAL::target(he, m_impl));
-        if (CGAL::squared_distance(point, Segment_3(p0, p1)) < 1e-18)
+        if (CGAL::squared_distance(point, Segment3(p0, p1)) < 1e-18)
             return PointOnEdgeDescriptor{HalfEdge(mesh, he), cartesian_pt};
     }
 
@@ -317,12 +320,12 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
 }
 
 Point
-Point::undefined(const Mesh& m) noexcept {
+Point::undefined(const Mesh& /* m */) noexcept {
     return {undefined_point};
 }
 
 Point
-Point::random(const Mesh& m) noexcept {
+Point::random(const Mesh& m) {
     static std::random_device rand_dev;
     static std::mt19937       generator(rand_dev());
 

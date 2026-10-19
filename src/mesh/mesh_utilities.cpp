@@ -7,6 +7,7 @@
 #include <fmt/format.h>
 #include <fstream>
 #include <gsl/narrow>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <vector>
@@ -17,7 +18,6 @@
 #include "mdv/mesh/mesh.hpp"
 
 namespace rs = ::ranges;
-namespace rv = ::ranges::views;
 
 // \cond DOXYGEN_IGNORE
 using FaceData   = std::vector<std::vector<long>>;
@@ -50,7 +50,7 @@ write_off(
 
 std::pair<VertexData, FaceData>
 build_surface(
-        std::function<double(double, double)>        f,
+        const std::function<double(double, double)>& f,
         const mdv::mesh::DrawableFunctionParameters& parameters,
         const std::optional<double>                  plane_z_coord = std::nullopt
 ) {
@@ -65,18 +65,23 @@ build_surface(
     logger->debug(
             "Generating surface - low corner: {:.2f}, {:.2f} - top corner: {:.2f}, "
             "{:.2f} - dimension: {}x{} vertices",
-            x_min, y_min, x_max, y_max, nx, ny
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+            nx,
+            ny
     );
 
     VertexData vertices;
-    vertices.reserve(nx * ny + 5);
+    vertices.reserve(static_cast<std::size_t>(nx * ny + 5));
     for (const double& y : ys)
         for (const double& x : xs) vertices.emplace_back(x, y, f(x, y));
 
 
     FaceData   faces;
     const long n_faces = (nx - 1) * (ny - 1) * 2 + 2;
-    faces.reserve(n_faces);
+    faces.reserve(static_cast<std::size_t>(n_faces));
 
     for (long j = 0; j < ny - 1; ++j) {
         for (long i = 0; i < nx - 1; ++i) {
@@ -109,13 +114,13 @@ build_surface(
         const Vec3 b3_vertex{max(0), max(1), z};
         const Vec3 b4_vertex{min(0), max(1), z};
 
-        const long b1_id = vertices.size();
+        const long b1_id = std::ssize(vertices);
         vertices.emplace_back(b1_vertex);
-        const long b2_id = vertices.size();
+        const long b2_id = std::ssize(vertices);
         vertices.emplace_back(b2_vertex);
-        const long b3_id = vertices.size();
+        const long b3_id = std::ssize(vertices);
         vertices.emplace_back(b3_vertex);
-        const long b4_id = vertices.size();
+        const long b4_id = std::ssize(vertices);
         vertices.emplace_back(b4_vertex);
 
         std::vector<long> f1;
@@ -159,10 +164,10 @@ build_surface(
 
 void
 mdv::mesh::create_closed_from_function(
-        const std::filesystem::path&          destination,
-        std::function<double(double, double)> f,
-        const double                          thickness,
-        const DrawableFunctionParameters&     parameters
+        const std::filesystem::path&                 destination,
+        const std::function<double(double, double)>& f,
+        const double                                 thickness,
+        const DrawableFunctionParameters&            parameters
 ) {
     Expects(thickness > 0.0);
     const auto [vertices, faces] = build_surface(f, parameters, thickness);
@@ -171,9 +176,9 @@ mdv::mesh::create_closed_from_function(
 
 std::filesystem::path
 mdv::mesh::create_closed_from_function(
-        std::function<double(double, double)> f,
-        const double                          thickness,
-        const DrawableFunctionParameters&     parameters
+        const std::function<double(double, double)>& f,
+        const double                                 thickness,
+        const DrawableFunctionParameters&            parameters
 ) {
     static int mesh_id = 0;
 
@@ -189,9 +194,9 @@ mdv::mesh::create_closed_from_function(
 
 void
 mdv::mesh::create_from_function(
-        const std::filesystem::path&          destination,
-        std::function<double(double, double)> f,
-        const DrawableFunctionParameters&     parameters
+        const std::filesystem::path&                 destination,
+        const std::function<double(double, double)>& f,
+        const DrawableFunctionParameters&            parameters
 ) {
     const auto [vertices, faces] = build_surface(f, parameters);
     write_off(destination, vertices, faces);
@@ -199,11 +204,11 @@ mdv::mesh::create_from_function(
 
 void
 mdv::mesh::create_from_function(
-        const std::filesystem::path&                  destination,
-        std::function<double(const Eigen::Vector2d&)> f,
-        const DrawableFunctionParameters&             parameters
+        const std::filesystem::path&                         destination,
+        const std::function<double(const Eigen::Vector2d&)>& f,
+        const DrawableFunctionParameters&                    parameters
 ) {
-    auto fun = [f](const double x, const double y) -> double {
+    auto fun = [&f](const double x, const double y) -> double {
         return f(Eigen::Vector2d({x, y}));
     };
 
@@ -212,8 +217,8 @@ mdv::mesh::create_from_function(
 
 std::filesystem::path
 mdv::mesh::create_from_function(
-        std::function<double(double, double)> f,
-        const DrawableFunctionParameters&     parameters
+        const std::function<double(double, double)>& f,
+        const DrawableFunctionParameters&            parameters
 ) {
     static int mesh_id = 0;
 
@@ -228,10 +233,10 @@ mdv::mesh::create_from_function(
 
 std::filesystem::path
 mdv::mesh::create_from_function(
-        std::function<double(const Eigen::Vector2d&)> f,
-        const DrawableFunctionParameters&             parameters
+        const std::function<double(const Eigen::Vector2d&)>& f,
+        const DrawableFunctionParameters&                    parameters
 ) {
-    auto fun = [f](const double x, const double y) -> double {
+    auto fun = [&f](const double x, const double y) -> double {
         return f(Eigen::Vector2d({x, y}));
     };
 
@@ -293,10 +298,13 @@ mdv::mesh::create_cone(const std::size_t n_edges, const double axis_from_angle_d
     for (const double theta : thetas)
         vertices.emplace_back(AngleAxisd(theta, Vec3::UnitZ()) * edge_dir);
 
-    FaceData faces;
-    for (std::size_t i = 0; i < n_edges - 1; ++i)
-        faces.emplace_back(std::vector<long>{0, i + 1, i + 2});
-    faces.emplace_back(std::vector<long>{0, n_edges, 1});
+    const auto n_edges_l = gsl::narrow<long>(n_edges);
+    FaceData   faces;
+    for (std::size_t i = 0; i < n_edges - 1; ++i) {
+        const auto id = static_cast<long>(i);
+        faces.emplace_back(std::vector<long>{0, id + 1, id + 2});
+    }
+    faces.emplace_back(std::vector<long>{0, n_edges_l, 1});
 
     write_off(res, vertices, faces);
     return res;
@@ -304,15 +312,14 @@ mdv::mesh::create_cone(const std::size_t n_edges, const double axis_from_angle_d
 
 std::filesystem::path
 mdv::mesh::create_flat(const double size) {
-    const std::filesystem::path res =
-            std::filesystem::temp_directory_path() / "flat.off";
-
     DrawableFunctionParameters params{
             .x_range                = std::make_pair(-size / 2, size / 2),
             .y_range                = std::make_pair(-size / 2, size / 2),
             .x_discretisation_steps = 2,
             .y_discretisation_steps = 2,
     };
-    const auto zero_func = [](const double x, const double y) -> double { return 0.0; };
+    const auto zero_func = [](const double /* x */, const double /* y */) -> double {
+        return 0.0;
+    };
     return create_from_function(zero_func, params);
 }

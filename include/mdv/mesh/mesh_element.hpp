@@ -29,7 +29,9 @@ public:
      *
      * @param mesh Owning mesh.
      */
-    MeshElement(const Mesh& mesh) noexcept : _mesh_ptr(const_cast<Mesh*>(&mesh)) {}
+    MeshElement(const Mesh& mesh) noexcept :
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+            _mesh_ptr(const_cast<Mesh*>(&mesh)) {}
 
     MeshElement(const MeshElement& other)            = default;
     MeshElement(MeshElement&& other)                 = default;
@@ -75,6 +77,8 @@ public:
     MDV_NODISCARD virtual std::string describe() const = 0;
 
 protected:
+    ~MeshElement() = default;
+
     Mesh* _mesh_ptr = nullptr;
 };
 
@@ -123,6 +127,8 @@ public:
     }
 
 protected:
+    ~IndexedMeshElement() = default;
+
     /**
      * @brief Updates the element index.
      *

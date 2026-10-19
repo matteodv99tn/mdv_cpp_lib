@@ -4,6 +4,7 @@
 #include <iterator>
 #include <string>
 
+#include <range/v3/algorithm/transform.hpp>
 #include <rerun/recording_stream.hpp>
 
 #include "mdv/dmp/learnable_function.hpp"
@@ -52,8 +53,9 @@ main() {
     const Eigen::VectorXd thetas = Eigen::VectorXd::LinSpaced(n_samples, 0, 2.0 * M_PI);
     std::vector<Point>    positions;
     positions.reserve(n_samples);
-    std::transform(
-            thetas.begin(), thetas.end(), std::back_inserter(positions),
+    ranges::transform(
+            thetas,
+            std::back_inserter(positions),
             [&fun, &mesh, cx, cy](const double theta) {
                 const double x = cx + 0.5 * std::cos(theta);
                 const double y = cy + 0.5 * std::sin(theta);
@@ -91,10 +93,9 @@ main() {
 
     Geodesic demo_path;
     demo_path.reserve(demo.size());
-    std::transform(
-            demo.begin(), demo.end(), std::back_inserter(demo_path),
-            [](const auto& sample) { return sample.y().position(); }
-    );
+    ranges::transform(demo, std::back_inserter(demo_path), [](const auto& sample) {
+        return sample.y().position();
+    });
     rec.log_static("demonstration_path", to_rr(demo_path));
     for (const auto& sample : demo) {
         rec.set_time_duration_secs("time", mdv::convert::seconds(sample.t()));
@@ -107,10 +108,9 @@ main() {
 
     Geodesic out_path;
     out_path.reserve(out.size());
-    std::transform(
-            out.begin(), out.end(), std::back_inserter(out_path),
-            [](const auto& sample) { return sample.y().position(); }
-    );
+    ranges::transform(out, std::back_inserter(out_path), [](const auto& sample) {
+        return sample.y().position();
+    });
     rec.log_static("integrated_path", to_rr(out_path));
     for (const auto& sample : out) {
         rec.set_time_duration_secs("time", mdv::convert::seconds(sample.t()));

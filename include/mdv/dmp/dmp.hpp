@@ -1,7 +1,9 @@
 #ifndef MDV_DMP_HPP
 #define MDV_DMP_HPP
 
+#include <cstddef>
 #include <gsl/assert>
+#include <iterator>
 
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/concepts.hpp"
@@ -43,13 +45,13 @@ struct DefaultManifoldEmbedding {
 
     template <typename StateType, typename GoalType>
     Output
-    embed(const Input& in, const StateType& x, const GoalType& g) const {
+    embed(const Input& in, const StateType& /* x */, const GoalType& /* g */) const {
         return _impl.embed(in);
     }
 
     template <typename StateType, typename GoalType>
     Input
-    decode(const Output& out, const StateType& x, const GoalType& g) const {
+    decode(const Output& out, const StateType& /* x */, const GoalType& /* g */) const {
         return _impl.decode(out);
     }
 
@@ -61,7 +63,9 @@ struct DefaultManifoldEmbedding {
 
     template <typename StateType, typename GoalType>
     Output
-    embed_scale(const Input& in, const StateType& x, const GoalType& g) const
+    embed_scale(
+            const Input& /* in */, const StateType& /* x */, const GoalType& /* g */
+    ) const
         requires std::same_as<M, riemann::S3>
     {
         return Output::Ones();
@@ -118,10 +122,10 @@ public:
     using MinimumGoalSample = TransformationSystem::MinimumGoalSample;
     using MinimumSample     = TransformationSystem::MinimumSample;
 
-    using basis_size_t = unsigned long;
-    using weights_t    = Eigen::MatrixXd;
+    using BasisSize = unsigned long;
+    using Weights   = Eigen::MatrixXd;
 
-    double tau;
+    double tau = 1.0;
 
     Dmp(long                          n_basis  = 12,
         const TransformationSystemPtr ts       = std::make_shared<TS>(),
@@ -132,7 +136,6 @@ public:
             _m(std::move(manifold)),
             _cs(std::move(cs)),
             _ts(std::move(ts)),
-            tau(1.0),
             _emb(std::make_shared<Embedding>(_m.get())) {
         _logger->debug("Constructing parameters for a basis of size {}", n_basis);
         const Eigen::VectorXd s_places = Eigen::VectorXd::LinSpaced(n_basis, 0.0, 1.0);
@@ -146,6 +149,7 @@ public:
     Dmp& operator=(const Dmp&) = default;
     Dmp(Dmp&&)                 = default;
     Dmp& operator=(Dmp&&)      = default;
+    ~Dmp()                     = default;
 
     template <typename Demonstration>
     MDV_NODISCARD Eigen::MatrixXd
@@ -156,11 +160,12 @@ public:
         Eigen::MatrixXd f_des(demo.size(), embedding_dimension);
         const auto      goal = demo.back();
 
-        for (long i = 0; i < demo.size(); ++i) {
+        for (std::size_t i = 0; i < demo.size(); ++i) {
+            const auto          row   = static_cast<Eigen::Index>(i);
             const TangentVector force = transf_sys().eval_forcing(demo[i], goal, tau);
 
-            if constexpr (is_scalar) f_des(i) = force;
-            else f_des.row(i) = embedding().embed(force, demo[i], goal);
+            if constexpr (is_scalar) f_des(row) = force;
+            else f_des.row(row) = embedding().embed(force, demo[i], goal);
         }
         assert(!f_des.hasNaN());
         return f_des;
@@ -179,18 +184,20 @@ public:
 
         logger().trace("Evaluating matrix Phi");
         Eigen::MatrixXd phi(demo.size(), n_basis());
-        for (auto i = 0; i < demo.size(); ++i)
-            phi.row(i) =
+        for (std::size_t i = 0; i < demo.size(); ++i) {
+            phi.row(static_cast<Eigen::Index>(i)) =
                     fun().eval_basis(time_to_s(demo[i].t())) * time_to_s(demo[i].t());
+        }
 
         const auto scale = embedding().embed_scale(
                 manifold().logarithmic_map(demo.front().y(), demo.back().y()),
-                demo.front(), demo.back()
+                demo.front(),
+                demo.back()
         );
 
-        assert(phi.rows() == demo.size());
-        assert(phi.cols() == n_basis());
-        assert(f_des.rows() == demo.size());
+        assert(phi.rows() == std::ssize(demo));
+        assert(phi.cols() == static_cast<Eigen::Index>(n_basis()));
+        assert(f_des.rows() == std::ssize(demo));
         assert(f_des.cols() == embedding_dimension);
         fun().learn(phi, f_des, scale);
         logger().info("DMP succesfully learned");
@@ -226,8 +233,9 @@ public:
         goal.y() = g;
 
         const auto dts = seconds(dt);
-        for (auto i = 0; i < n_steps - 1; ++i) {
-            const double                     s    = time_to_s(i * dt);
+        using Rep      = typename Demonstration<M>::Time::rep;
+        for (std::size_t i = 0; i < n_steps - 1; ++i) {
+            const double                     s    = time_to_s(static_cast<Rep>(i) * dt);
             const typename Embedding::Output f    = cwise_dot(fun()(s, s), scale);
             const TangentVector              f_tv = embedding().decode(f, res[i], goal);
             transf_sys().step(res[i], goal, f_tv, tau, dts, res[i + 1]);
@@ -303,7 +311,8 @@ public:
         _dmp = std::move(dmp);
         if (_dmp.tau <= min_tau) {
             _dmp.logger().debug(
-                    "Current dmp object has tau = {}, setting to default {}", _dmp.tau,
+                    "Current dmp object has tau = {}, setting to default {}",
+                    _dmp.tau,
                     min_tau
             );
             _dmp.tau = min_tau;

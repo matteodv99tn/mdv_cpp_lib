@@ -5,7 +5,6 @@
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/conditions.hpp"
 
-using mdv::mesh::Mesh;
 
 // Test deprecated:
 // Order of vertices within CGAL is different from the one used internally by the

@@ -80,7 +80,7 @@ TangentVector logarithmic_map(const Point& p, const Point& y);
  * @param geod Optional output geodesic polyline.
  * @return Point reached by the exponential map.
  */
-Point exponential_map(TangentVector v, Geodesic* geod = nullptr);
+Point exponential_map(const TangentVector& v, Geodesic* geod = nullptr);
 
 
 /**

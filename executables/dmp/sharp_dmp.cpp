@@ -2,7 +2,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-#include <fmt/base.h>
+#include <fmt/format.h>
 #include <sstream>
 #include <string>
 
@@ -37,10 +37,6 @@ to_string(const Quat& q) {
 }
 
 using namespace mdv::mesh;
-using std::filesystem::path;
-
-namespace rs = ::ranges;
-namespace rv = ::ranges::views;
 
 int
 main() {
@@ -50,8 +46,11 @@ main() {
     using Se3Dmp  = mdv::Dmp<mdv::riemann::SE3>;
     using Demo    = mdv::Demonstration<mdv::riemann::SE3>;
     using MeshDmp = mdv::Dmp<
-            M, mdv::dmp::TransformationSystem<M>, mdv::dmp::ExponentialCoordinateSystem,
-            mdv::DefaultFunction, mdv::riemann::MeshEmbedder>;
+            M,
+            mdv::dmp::TransformationSystem<M>,
+            mdv::dmp::ExponentialCoordinateSystem,
+            mdv::DefaultFunction,
+            mdv::riemann::MeshEmbedder>;
     using Mesh = mdv::mesh::Mesh;
 
     const long ns_demo  = 101;  // Demonstration samples
@@ -94,12 +93,12 @@ main() {
     dmp.tau = 1.0;
     fmt::print("Learning...\n");
     dmp.embedding().setup(y0, g);
-    const auto out = dmp.integrate(y0, g, ns_int, 1ms);
+    const auto out = dmp.integrate(y0, g, static_cast<std::size_t>(ns_int), 1ms);
 
     std::vector<Eigen::Vector3d> res_traj(out.size());
-    for (long i = 0; i < out.size(); ++i) {
+    for (std::size_t i = 0; i < out.size(); ++i) {
         // rec.set_time_duration_secs("time", mdv::convert::seconds(out[i].t()));
-        rec.set_time_sequence("tick", i);
+        rec.set_time_sequence("tick", static_cast<std::int64_t>(i));
         const Eigen::Vector3d pos = out[i].y().position();
         res_traj[i]               = pos;
         rec.log("meshdmp/trajectory/position", rr_converter(out[i].y()));
@@ -180,7 +179,7 @@ main() {
     pos_demo.emplace_back(meshdmp_demo.back());
 
     for (std::size_t i = 0; i < pos_demo.size(); ++i) {
-        rec.set_time_sequence("tick", i);
+        rec.set_time_sequence("tick", static_cast<std::int64_t>(i));
         rec.log("/pos/pose", rr_converter(pos_demo[i].pos, pos_demo[i].ori, 20.0));
     }
     const auto se3_demo = Demo::builder()
@@ -197,17 +196,17 @@ main() {
             meshdmp_demo.front(), meshdmp_demo.back(), se3_demo.size(), 1ms
     );
 
-    for (long i = 0; i < meshdmp_demo.size(); ++i) {
+    for (std::size_t i = 0; i < meshdmp_demo.size(); ++i) {
         // rec.set_time_duration_secs("time", mdv::convert::seconds(out[i].t()));
-        rec.set_time_sequence("tick", i);
+        rec.set_time_sequence("tick", static_cast<std::int64_t>(i));
         rec.log("/se3dmp/demonstration/x", rerun::Scalars(pos_demo[i].pos(0)));
         rec.log("/se3dmp/demonstration/y", rerun::Scalars(pos_demo[i].pos(1)));
         rec.log("/se3dmp/demonstration/z", rerun::Scalars(pos_demo[i].pos(2)));
     }
 
-    for (long i = 0; i < se3_res.size(); ++i) {
+    for (std::size_t i = 0; i < se3_res.size(); ++i) {
         // rec.set_time_duration_secs("time", mdv::convert::seconds(out[i].t()));
-        rec.set_time_sequence("tick", i);
+        rec.set_time_sequence("tick", static_cast<std::int64_t>(i));
         const auto& sample = se3_res[i].y();
         rec.log("/se3dmp/trajectory/x", rerun::Scalars(sample.pos(0)));
         rec.log("/se3dmp/trajectory/y", rerun::Scalars(sample.pos(1)));

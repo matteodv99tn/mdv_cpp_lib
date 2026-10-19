@@ -31,7 +31,7 @@ RosLogger::get_log_level() const {
 
 void
 RosLogger::log_message(std::string msg, LogLevel level) const {
-    if(level < _level) return;
+    if (level < _level) return;
 
     switch (level) {
         case Logger::Trace:

@@ -1,3 +1,5 @@
+add_compile_options(${MDV_WARNING_FLAGS})
+
 add_executable(
     mesh_visualiser
     ${CMAKE_CURRENT_LIST_DIR}/mesh_visualiser.cpp

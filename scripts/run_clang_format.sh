@@ -11,6 +11,7 @@ if (( $# )); then
 fi
 
 find "${ws_dir}/include" "${ws_dir}/src" "${ws_dir}/unit_tests" "${ws_dir}/executables" \
+    "${ws_dir}/ros2" "${ws_dir}/docs" \
     -type f \
     \( -name '*.cpp' -o -name '*.hpp' -o -name '*.h' \) \
     -print0 \

@@ -21,7 +21,7 @@ namespace mdv::mesh {
  *
  * Half-edges are view-types on a Mesh object.
  */
-struct HalfEdge : internal::IndexedMeshElement {
+struct HalfEdge final : internal::IndexedMeshElement {
     using Vector        = std::vector<HalfEdge>;
     using Iterator      = Vector::iterator;
     using ConstIterator = Vector::const_iterator;
@@ -173,7 +173,7 @@ private:
      * @param other Half-edge to compare.
      * @return True if opposite.
      */
-    bool is_opposite_of(const HalfEdge& other) const noexcept;
+    MDV_NODISCARD bool is_opposite_of(const HalfEdge& other) const noexcept;
 };
 
 }  // namespace mdv::mesh

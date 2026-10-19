@@ -43,11 +43,11 @@ project_along_direction(const mdv::Vec3d& vec, mdv::Vec3d dir) {
 //   | | (_| | | | | (_| |  __/ | | | |_ \ V /  __/ (__| || (_) | |
 //   |_|\__,_|_| |_|\__, |\___|_| |_|\__| \_/ \___|\___|\__\___/|_|
 //                  |___/
-TangentVector::TangentVector(const Point& app_point, const Vec3d& v, Type type) :
-        _pt(app_point), _vec(v), _type(type) {
+TangentVector::TangentVector(Point app_point, Vec3d v, Type type) :
+        _pt(std::move(app_point)), _vec(std::move(v)), _type(type) {
     using mdv::condition::are_orthogonal;
 
-    const auto point_type = location_type(app_point);
+    const auto point_type = location_type(_pt);
 
     if (point_type == LocationType::INSIDE_FACE) {
         validate_app_point_inside_face();
@@ -285,8 +285,8 @@ TangentVector::from_ambient_vector_on_vertex(
         return normal_projection(vec, HalfEdge{v.mesh(), he_id}.face().normal());
     };
 
-    const auto retrieve_vectors = [&vec, &m,
-                                   &v](const HeIndex& he_id) -> std::array<Vec3d, 3> {
+    const auto retrieve_vectors =
+            [&vec, &m, &v](const HeIndex& he_id) -> std::array<Vec3d, 3> {
         const auto     opposite_he_id = opposite(prev(he_id, m), m);
         const HalfEdge he1{v.mesh(), he_id};
         const HalfEdge he2{v.mesh(), opposite_he_id};
@@ -364,7 +364,8 @@ TangentVector::unit_random(const Point& application_point) {
                 "which is not inside the face"
         );
     }
-    return {application_point, normal_projection(Vec3d::Random(), n).normalized(),
+    return {application_point,
+            normal_projection(Vec3d::Random(), n).normalized(),
             INSIDE_FACE};
 }
 

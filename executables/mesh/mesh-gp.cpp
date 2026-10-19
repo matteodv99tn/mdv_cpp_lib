@@ -1,6 +1,6 @@
 #include <chrono>
 #include <Eigen/Core>
-#include <fmt/base.h>
+#include <fmt/format.h>
 #include <fmt/os.h>
 #include <string>
 
@@ -37,8 +37,8 @@ to_demonstration_data(
     std::vector<Point>      points;
     std::vector<mdv::Vec3d> cart_points;
     std::vector<mdv::Vec3d> velocities;
-    points.reserve(pos_data.cols());
-    cart_points.reserve(pos_data.cols());
+    points.reserve(static_cast<std::size_t>(pos_data.cols()));
+    cart_points.reserve(static_cast<std::size_t>(pos_data.cols()));
     for (long i = 0; i < pos_data.cols(); i += increment) {
         const double x = pos_data(0, i);
         const double y = pos_data(1, i);
@@ -57,8 +57,6 @@ main(int argc, char* argv[]) {
     const double ls    = 0.05;
     const double noise = 1.0;
 
-    const std::string matfile = mdv::config::letter_dataset_directory() / "C.mat";
-
     const auto letter_dataset = mdv::load_letter_dataset(0.001);
     const auto dataset        = letter_dataset.at('c');
 
@@ -68,8 +66,8 @@ main(int argc, char* argv[]) {
     auto       mesh     = Mesh::from_file(meshfile);
     MeshKernel kernel(mesh);
 
-    fmt::println("Number of faces: {}", mesh.num_faces());
-    fmt::println("Number of vertices: {}", mesh.num_vertices());
+    fmt::print("Number of faces: {}\n", mesh.num_faces());
+    fmt::print("Number of vertices: {}\n", mesh.num_vertices());
 
     // Dataset generation
     std::vector<PointVector>             point_data;
@@ -89,33 +87,34 @@ main(int argc, char* argv[]) {
     PointVector             pts  = rv::join(point_data) | rs::to_vector;
     std::vector<mdv::Vec3d> vels = rv::join(vel_data) | rs::to_vector;
 
-    fmt::println("Number of train points: {}", pts.size());
+    fmt::print("Number of train points: {}\n", pts.size());
     double max_ls = kernel.find_pointset_max_lengthscale(pts);
-    fmt::println("Max ls: {}", max_ls);
+    fmt::print("Max ls: {}\n", max_ls);
 
     Eigen::VectorXd vx(vels.size());
     Eigen::VectorXd vy(vels.size());
     Eigen::VectorXd vz(vels.size());
 
 
-    for (long i = 0; i < vels.size(); ++i) {
-        vx(i) = vels[i](0);
-        vy(i) = vels[i](1);
-        vz(i) = vels[i](2);
+    for (std::size_t i = 0; i < vels.size(); ++i) {
+        const auto k = static_cast<Eigen::Index>(i);
+        vx(k)        = vels[i](0);
+        vy(k)        = vels[i](1);
+        vz(k)        = vels[i](2);
     }
 
-    Eigen::MatrixXd V_mat(vels.size(), 3);
-    V_mat.col(0) = vx;
-    V_mat.col(1) = vy;
-    V_mat.col(2) = vz;
+    Eigen::MatrixXd v_mat(vels.size(), 3);
+    v_mat.col(0) = vx;
+    v_mat.col(1) = vy;
+    v_mat.col(2) = vz;
 
-    Expects(vx.rows() == pts.size());
+    Expects(vx.rows() == std::ssize(pts));
 
 
-    fmt::println("Creating custom Gaussian Process - Lengthscale = {}", ls);
+    fmt::print("Creating custom Gaussian Process - Lengthscale = {}\n", ls);
     InexactGaussianProcess gp(&mesh, ls, noise);
-    gp.train(pts, V_mat);
-    fmt::println("Gaussian Process initialised");
+    gp.train(pts, v_mat);
+    fmt::print("Gaussian Process initialised\n");
 
     mdv::RerunConverter    to_rerun;
     rerun::RecordingStream rec("gaussianprocess");
@@ -125,20 +124,21 @@ main(int argc, char* argv[]) {
     // PointVector test_points = pts;
     PointVector test_points;
     test_points.reserve(mesh.num_vertices());
-    for (long i = 0; i < mesh.num_vertices(); ++i)
+    for (mdv::mesh::Index i = 0; i < mesh.num_vertices(); ++i)
         test_points.emplace_back(mesh.vertex(i));
 
-    fmt::println("Predicting vector field...");
-    const Eigen::MatrixXd V_gp = gp.predict(test_points);
-    fmt::println("Prediction computed");
+    fmt::print("Predicting vector field...\n");
+    const Eigen::MatrixXd v_gp = gp.predict(test_points);
+    fmt::print("Prediction computed\n");
 
     std::vector<::rerun::components::Vector3D>   gp_vecs;
     std::vector<::rerun::components::Position3D> gp_origs;
 
-    for (long i = 0; i < test_points.size(); ++i) {
+    for (std::size_t i = 0; i < test_points.size(); ++i) {
+        const auto k   = static_cast<Eigen::Index>(i);
         const auto pos = test_points[i].position();
         gp_origs.emplace_back(pos(0), pos(1), pos(2));
-        gp_vecs.emplace_back(V_gp(i, 0), V_gp(i, 1), V_gp(i, 2));
+        gp_vecs.emplace_back(v_gp(k, 0), v_gp(k, 1), v_gp(k, 2));
     }
 
     rec.log_static(
@@ -157,7 +157,7 @@ main(int argc, char* argv[]) {
     );
     const double dt = 0.2;
 
-    fmt::println("Starting dynamics integration");
+    fmt::print("Starting dynamics integration\n");
     Geodesic path;
     path.reserve(100);
     auto start = std::chrono::high_resolution_clock::now();
@@ -185,7 +185,7 @@ main(int argc, char* argv[]) {
     auto       stop = std::chrono::high_resolution_clock::now();
     const auto time_ms =
             std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-    fmt::println("{} steps in {}ms", path.size(), time_ms);
+    fmt::print("{} steps in {}ms\n", path.size(), time_ms);
 
 
     return 0;

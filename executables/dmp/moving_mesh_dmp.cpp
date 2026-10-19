@@ -2,7 +2,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-#include <fmt/base.h>
+#include <fmt/format.h>
 #include <string>
 
 #include <range/v3/all.hpp>
@@ -22,7 +22,6 @@
 #include "mdv/utils/spdlog.hpp"
 
 using namespace mdv::mesh;
-using std::filesystem::path;
 
 namespace rs = ::ranges;
 namespace rv = ::ranges::views;
@@ -41,7 +40,7 @@ main() {
     const std::string mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     auto              mesh      = Mesh::from_file(mesh_path);
     rec.log_static("mesh", rr_converter(mesh));
-    fmt::println("Mesh loaded");
+    fmt::print("Mesh loaded\n");
 
     const auto p1 = Point::from_cartesian(mesh, {-1.0, -2.1, 3.0});
     const auto p2 = Point::from_cartesian(mesh, {0.0, -0.6, 3.0});
@@ -52,7 +51,7 @@ main() {
     const auto& geod = g1;
 
     rec.log_static("path", rr_converter(geod));
-    fmt::println("Geodesic path computed");
+    fmt::print("Geodesic path computed\n");
 
     mdv::MovingDmpParameters params{
             .dt_ms = 5, .circle_radius = 0.1, .num_centroid_steps = 30
@@ -74,8 +73,8 @@ main() {
     const auto ori =
             mdv::filter_orientation(mdv::encode_orientation(upsampled_traj), 100);
 
-    for (long i = 0; i < upsampled_traj.size(); ++i) {
-        rec.set_time_sequence("step", i);
+    for (std::size_t i = 0; i < upsampled_traj.size(); ++i) {
+        rec.set_time_sequence("step", static_cast<std::int64_t>(i));
         rec.log("tcp", rr_converter(upsampled_path[i], ori[i]));
     }
 

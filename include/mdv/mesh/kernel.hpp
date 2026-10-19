@@ -143,7 +143,7 @@ public:
     /**
      * @brief Virtual destructor.
      */
-    virtual ~MeshKernel() = default;
+    ~MeshKernel() override = default;
 
     /**
      * @brief Computes geodesic distance matrix between two point sets.
@@ -211,7 +211,7 @@ public:
     /**
      * @brief Destructor.
      */
-    ~InexactMeshKernel();
+    ~InexactMeshKernel() override;
 
     /**
      * @brief Computes geodesic distance matrix between two point sets.

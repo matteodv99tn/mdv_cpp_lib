@@ -20,7 +20,6 @@
 
 using std::filesystem::path;
 
-namespace rs = ranges;
 // \cond DOXYGEN_IGNORE
 using ::mdv::mesh::internal::CgalImpl;
 using Kernel = CgalImpl::Kernel;
@@ -28,21 +27,24 @@ using Kernel = CgalImpl::Kernel;
 // \endcond
 
 namespace mdv::mesh::internal {
+namespace {
 
-template <class... Ts>
-struct overload : Ts... {
-    using Ts::operator()...;
-};
+    template <class... Ts>
+    struct Overload : Ts... {
+        using Ts::operator()...;
+    };
 
-template <class... Ts>
-overload(Ts...) -> overload<Ts...>;
+    template <class... Ts>
+    Overload(Ts...) -> Overload<Ts...>;
 
+}  // namespace
 }  // namespace mdv::mesh::internal
 
 CgalImpl::CgalImpl(Mesh&& mesh, Logger::SharedPtr&& logger) :
-        _mesh(std::move(mesh)), _logger(std::move(logger)) {
-    _shortest_path        = std::make_unique<ShortestPath>(_mesh);
-    _geodesic_constructor = new CgalGeodesicConstructor(&_mesh);
+        _logger(std::move(logger)),
+        _mesh(std::move(mesh)),
+        _geodesic_constructor(new CgalGeodesicConstructor(&_mesh)) {
+    _shortest_path = std::make_unique<ShortestPath>(_mesh);
     this->logger().trace("Initialised geodesic constructor");
 
     _shortest_path->build_aabb_tree(_aabb_tree);
@@ -64,7 +66,8 @@ CgalImpl::CgalImpl(CgalImpl&& other) noexcept :
         _current_shortpath_source(other._current_shortpath_source) {
     other._current_shortpath_source = nullptr;
     logger().trace(
-            "Moved CgalImpl from {} to {}", static_cast<void*>(&other),
+            "Moved CgalImpl from {} to {}",
+            static_cast<void*>(&other),
             static_cast<void*>(this)
     );
 }
@@ -112,13 +115,16 @@ mdv::mesh::internal::location_from_mesh_point(
         const auto& aabb_tree = pt.mesh().cgal()._aabb_tree;
         const auto& m_impl    = internal::get_mesh_impl(pt.mesh());
         return CgalImpl::ShortestPath::locate(
-                internal::point3_from_point(pt), aabb_tree, m_impl,
+                internal::point3_from_point(pt),
+                aabb_tree,
+                m_impl,
                 get(CGAL::vertex_point, m_impl)
         );
     };
     return std::visit(
-            overload{
-                    std::move(vertex_descriptor), std::move(face_descriptor),
+            Overload{
+                    std::move(vertex_descriptor),
+                    std::move(face_descriptor),
                     std::move(edge_descriptor)
             },
             point.descriptor()
@@ -189,10 +195,10 @@ CgalImpl::yield_faces() const {
     for (const CgalImpl::Mesh::Face_index& face : _mesh.faces()) {
         const auto vertex_iter =
                 CGAL::vertices_around_face(_mesh.halfedge(face), _mesh);
-        int i = 0;
+        std::size_t i = 0;
         for (const auto& vi : vertex_iter) {
             Expects(i < 3);
-            res[static_cast<long>(face)].at(i) = vi.idx();
+            res[static_cast<std::size_t>(face)].at(i) = vi.idx();
             i++;
         }
     }

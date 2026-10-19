@@ -9,7 +9,7 @@ namespace mdv::ros2 {
 
 class RosLogger : public Logger {
 public:
-    RosLogger(rclcpp::Logger logger) : _logger(logger){};
+    RosLogger(rclcpp::Logger logger) : _logger(logger) {};
     ~RosLogger() override = default;
 
     void                   set_log_level(LogLevel level) override;

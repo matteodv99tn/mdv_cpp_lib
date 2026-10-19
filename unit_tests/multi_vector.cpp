@@ -3,10 +3,10 @@
 #include <gtest/gtest.h>
 #include <stdexcept>
 
-using mdv::multi_vector;
+using mdv::MultiVector;
 
-using test_tuple  = std::tuple<double, int, char>;    // NOLINT naming
-using test_vector = multi_vector<double, int, char>;  // NOLINT naming
+using test_tuple  = std::tuple<double, int, char>;   // NOLINT naming
+using test_vector = MultiVector<double, int, char>;  // NOLINT naming
 
 namespace {
 
@@ -96,14 +96,15 @@ TEST(MultiVectorTest, EmplaceBack) {
 
 TEST(MultiVectorTest, AccessOperator) {
     const test_vector vec = build_increasing_value();
-    for (auto i = 0; i < vec.size(); ++i)
+    for (std::size_t i = 0; i < vec.size(); ++i)
         EXPECT_EQ(static_cast<decltype(i)>(std::get<int>(vec[i])), i);
 }
 
 TEST(MultiVectorTest, AtAccessOperator) {
     const test_vector vec = build_increasing_value();
-    for (auto i = 0; i < vec.size(); ++i) EXPECT_EQ(std::get<int>(vec.at(i)), i);
-    ASSERT_THROW(vec.at(vec.size()), std::out_of_range);
+    for (std::size_t i = 0; i < vec.size(); ++i)
+        EXPECT_EQ(static_cast<std::size_t>(std::get<int>(vec.at(i))), i);
+    ASSERT_THROW(static_cast<void>(vec.at(vec.size())), std::out_of_range);
 }
 
 TEST(MultiVectorTest, ColumnIterator) {

@@ -37,7 +37,7 @@ main() {
 
 
     const Demo dem = mdv::build_quaternion_demonstration();
-    const long ns  = dem.size();
+    const long ns  = std::ssize(dem);
 
 
     Dmp dmp;
@@ -47,8 +47,8 @@ main() {
 
     const Eigen::MatrixXd f_des = dmp.evaluate_desired_forcing_term(dem);
     Eigen::MatrixXd       f_lrnd(f_des.rows(), f_des.cols());
-    for (auto i = 0; i < dem.size(); ++i)
-        f_lrnd.row(i) = dmp.fun()(dmp.time_to_s(dem[i].t()));
+    for (std::size_t i = 0; i < dem.size(); ++i)
+        f_lrnd.row(static_cast<Eigen::Index>(i)) = dmp.fun()(dmp.time_to_s(dem[i].t()));
 
 #ifdef MDV_WITH_RERUN_SDK
     //  ____  _       _   _   _
@@ -111,41 +111,42 @@ main() {
     // Other stylings
     rec.log_static("coord_system", SeriesLines().with_colors(c2).with_names("s"));
 
-    for(auto i = 0; i < dmp.n_basis(); ++i)
+    for(std::size_t i = 0; i < dmp.n_basis(); ++i)
         rec.log_static("basis/c" + std::to_string(i+1), SeriesLines().with_names(""));
 
-    for (long i{0}; i < size(dem); ++i) {
-        const double s = dmp.time_to_s(dem[i].t());
+    for (long i{0}; i < std::ssize(dem); ++i) {
+        const auto   k = static_cast<std::size_t>(i);
+        const double s = dmp.time_to_s(dem[k].t());
         // Export time
         rec.set_time_sequence("tick", i);
-        rec.set_time_duration_secs("time", mdv::convert::seconds(dem[i].t()));
+        rec.set_time_duration_secs("time", mdv::convert::seconds(dem[k].t()));
         // Export posititon
-        rec.log("demonstration/pos/qw", Scalars(dem[i].y().w()));
-        rec.log("demonstration/pos/qx", Scalars(dem[i].y().x()));
-        rec.log("demonstration/pos/qy", Scalars(dem[i].y().y()));
-        rec.log("demonstration/pos/qz", Scalars(dem[i].y().z()));
-        rec.log("execution/pos/qw", Scalars(out[i].y().w()));
-        rec.log("execution/pos/qx", Scalars(out[i].y().x()));
-        rec.log("execution/pos/qy", Scalars(out[i].y().y()));
-        rec.log("execution/pos/qz", Scalars(out[i].y().z()));
+        rec.log("demonstration/pos/qw", Scalars(dem[k].y().w()));
+        rec.log("demonstration/pos/qx", Scalars(dem[k].y().x()));
+        rec.log("demonstration/pos/qy", Scalars(dem[k].y().y()));
+        rec.log("demonstration/pos/qz", Scalars(dem[k].y().z()));
+        rec.log("execution/pos/qw", Scalars(out[k].y().w()));
+        rec.log("execution/pos/qx", Scalars(out[k].y().x()));
+        rec.log("execution/pos/qy", Scalars(out[k].y().y()));
+        rec.log("execution/pos/qz", Scalars(out[k].y().z()));
         // Export velocity
-        rec.log("demonstration/vel/v1", Scalars(dem[i].yd()(0)));
-        rec.log("demonstration/vel/v2", Scalars(dem[i].yd()(1)));
-        rec.log("demonstration/vel/v3", Scalars(dem[i].yd()(2)));
-        rec.log("demonstration/vel/v4", Scalars(dem[i].yd()(3)));
-        rec.log("execution/vel/v1", Scalars(out[i].yd()(0)));
-        rec.log("execution/vel/v2", Scalars(out[i].yd()(1)));
-        rec.log("execution/vel/v3", Scalars(out[i].yd()(2)));
-        rec.log("execution/vel/v4", Scalars(out[i].yd()(3)));
+        rec.log("demonstration/vel/v1", Scalars(dem[k].yd()(0)));
+        rec.log("demonstration/vel/v2", Scalars(dem[k].yd()(1)));
+        rec.log("demonstration/vel/v3", Scalars(dem[k].yd()(2)));
+        rec.log("demonstration/vel/v4", Scalars(dem[k].yd()(3)));
+        rec.log("execution/vel/v1", Scalars(out[k].yd()(0)));
+        rec.log("execution/vel/v2", Scalars(out[k].yd()(1)));
+        rec.log("execution/vel/v3", Scalars(out[k].yd()(2)));
+        rec.log("execution/vel/v4", Scalars(out[k].yd()(3)));
         // Export acceleration
-        rec.log("demonstration/acc/v1", Scalars(dem[i].ydd()(0)));
-        rec.log("demonstration/acc/v2", Scalars(dem[i].ydd()(1)));
-        rec.log("demonstration/acc/v3", Scalars(dem[i].ydd()(2)));
-        rec.log("demonstration/acc/v4", Scalars(dem[i].ydd()(3)));
-        rec.log("execution/acc/v1", Scalars(out[i].ydd()(0)));
-        rec.log("execution/acc/v2", Scalars(out[i].ydd()(1)));
-        rec.log("execution/acc/v3", Scalars(out[i].ydd()(2)));
-        rec.log("execution/acc/v4", Scalars(out[i].ydd()(3)));
+        rec.log("demonstration/acc/v1", Scalars(dem[k].ydd()(0)));
+        rec.log("demonstration/acc/v2", Scalars(dem[k].ydd()(1)));
+        rec.log("demonstration/acc/v3", Scalars(dem[k].ydd()(2)));
+        rec.log("demonstration/acc/v4", Scalars(dem[k].ydd()(3)));
+        rec.log("execution/acc/v1", Scalars(out[k].ydd()(0)));
+        rec.log("execution/acc/v2", Scalars(out[k].ydd()(1)));
+        rec.log("execution/acc/v3", Scalars(out[k].ydd()(2)));
+        rec.log("execution/acc/v4", Scalars(out[k].ydd()(3)));
         // Export forcing term
         rec.log("forcing/desired/f1", Scalars(f_des(i, 0)));
         rec.log("forcing/desired/f2", Scalars(f_des(i, 1)));

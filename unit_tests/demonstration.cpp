@@ -3,6 +3,8 @@
 #include <array>
 #include <gtest/gtest.h>
 
+#include <range/v3/algorithm/transform.hpp>
+
 #include "mdv/dmp/dmp.hpp"
 #include "mdv/dmp/dmp_utilities.hpp"
 #include "mdv/riemann_geometry/concepts.hpp"
@@ -15,10 +17,12 @@ using mdv::riemann::Scalar;
 static_assert(mdv::concepts::manifold<S3>);
 
 TEST(Demonstration2Assertions, Demonstration) {
-    using row = std::tuple<
-            std::chrono::steady_clock::duration, Eigen::Quaterniond, Eigen::Vector4d,
+    using Row = std::tuple<
+            std::chrono::steady_clock::duration,
+            Eigen::Quaterniond,
+            Eigen::Vector4d,
             Eigen::Vector4d>;
-    static_assert(std::is_same_v<row, Demonstration<S3>::BaseTuple>);
+    static_assert(std::is_same_v<Row, Demonstration<S3>::BaseTuple>);
 
     const Eigen::Quaterniond q  = Eigen::Quaterniond::UnitRandom();
     const Eigen::Vector4d    v1 = Eigen::Vector4d::Random();
@@ -71,17 +75,18 @@ TEST(Demonstration2Assertions, DemonstrationBuilder) {
 TEST(Demonstration, PositionRetriever) {
     const auto      demonstration = mdv::build_exact_scalar_demonstration();
     Eigen::VectorXd ts(demonstration.size());
-    std::transform(
-            demonstration.begin(), demonstration.end(), ts.begin(),
-            [](const auto& sample) -> double {
-                return mdv::convert::seconds(sample.t());
-            }
-    );
+    ranges::transform(demonstration, ts.begin(), [](const auto& sample) -> double {
+        return mdv::convert::seconds(sample.t());
+    });
     const auto dem_pos  = demonstration.get_position_vector();
     const auto poly_pos = mdv::poly_5th(ts);
 
     EXPECT_EQ(dem_pos.size(), poly_pos.size());
-    for (auto i = 0; i < dem_pos.size(); ++i) EXPECT_FLOAT_EQ(dem_pos[i], poly_pos[i]);
+    for (std::size_t i = 0; i < dem_pos.size(); ++i) {
+        EXPECT_FLOAT_EQ(
+                static_cast<float>(dem_pos[i]), static_cast<float>(poly_pos[i])
+        );
+    }
 }
 
 TEST(Demonstration, NumericDifferentiation) {
@@ -96,7 +101,7 @@ TEST(Demonstration, NumericDifferentiation) {
                     .acceleration_automatic_differentiation()
                     .create();
 
-    for (auto i = 0; i < reference_demo.size(); ++i)
+    for (std::size_t i = 0; i < reference_demo.size(); ++i)
         EXPECT_NEAR(reference_demo[i].yd(), constructed_demo[i].yd(), 1e-5);
 }
 
@@ -128,6 +133,9 @@ static_assert(
         mdv::manifold_sample<mdv::DemonstrationSample<mdv::riemann::Scalar, 2>, 1>
 );
 
-mdv::DemonstrationSample<mdv::riemann::Scalar, 1> out(
-        mdv::DemonstrationSample<mdv::riemann::Scalar, 2>{}
-);
+TEST(Demonstration, LowerOrderSampleConversion) {
+    mdv::DemonstrationSample<Scalar, 2> source{};
+    source.t() = decltype(source)::Time{1};
+    const mdv::DemonstrationSample<Scalar, 1> out(source);
+    EXPECT_EQ(out.t(), source.t());
+}

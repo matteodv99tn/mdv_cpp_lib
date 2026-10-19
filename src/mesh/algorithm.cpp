@@ -50,9 +50,8 @@ mdv::mesh::length(const Geodesic& geod) {
         return res;
     };
 
-    const double sum = rs::accumulate(
-            geod | rv::sliding(2) | rv::transform(segment_length), double{0.0}
-    );
+    const double sum =
+            rs::accumulate(geod | rv::sliding(2) | rv::transform(segment_length), 0.0);
     return sum;
 }
 
@@ -70,7 +69,7 @@ mdv::mesh::point_from_geodesic(
 
     double s_travelled = 0.0;
 
-    for (auto i = 0; i < geod.size() - 1; ++i) {
+    for (std::size_t i = 0; i < geod.size() - 1; ++i) {
         const Eigen::Vector3d delta = geod[i + 1] - geod[i];
         const double          si    = delta.norm() / (*len);
         if (s_travelled + si < s_target) {
@@ -286,7 +285,8 @@ mdv::mesh::logarithmic_map(const Point& p, const Point& y) {
     mdv::Logger& logger = *Mesh::default_logger.get();
     logger.debug(
             "Computing logarithmic map of point {} w.r.t. point {}",
-            eigen_to_str(y.position()), eigen_to_str(p.position())
+            eigen_to_str(y.position()),
+            eigen_to_str(p.position())
     );
 
     if (are_equal(p.position(), y.position())) return {p, Eigen::Vector3d::Zero()};
@@ -339,7 +339,13 @@ mdv::mesh::location_type(const TangentVector& tv) {
     return location_type(tv.application_point());
 }
 
-BS::thread_pool th_pool;
+namespace {
+BS::thread_pool<>&
+thread_pool() {
+    static BS::thread_pool<> pool;
+    return pool;
+}
+}  // namespace
 
 #ifdef RERUN_DEBUG
 
@@ -411,8 +417,9 @@ log_vectorfield(
     }
 
     rec().log(
-            path, rerun::archetypes::Arrows3D::from_vectors(std::move(directions))
-                          .with_origins(std::move(origins))
+            path,
+            rerun::archetypes::Arrows3D::from_vectors(std::move(directions))
+                    .with_origins(std::move(origins))
     );
 }
 
@@ -435,12 +442,12 @@ mdv::mesh::solve_path(
 
     std::atomic_long n_trivials = 0;
 
-    std::vector<MatPair> res(N);
+    std::vector<MatPair> res(static_cast<std::size_t>(N));
 
     auto solve_path_index = [&x0, &x1, &t, &mesh, &N, &T, &res, &n_trivials](long i) {
         const auto pt0  = Point::from_cartesian(mesh, x0.row(i));
         const auto pt1  = Point::from_cartesian(mesh, x1.row(i));
-        MatPair&   pair = res[i];
+        MatPair&   pair = res[static_cast<std::size_t>(i)];
 
         if ((pt0.position() - pt1.position()).norm() < 1e-9) {
             ++n_trivials;
@@ -469,8 +476,8 @@ mdv::mesh::solve_path(
     };
 
     for (long i = 0; i < N; ++i)
-        th_pool.detach_task([&solve_path_index, i]() { solve_path_index(i); });
-    th_pool.wait();
+        thread_pool().detach_task([&solve_path_index, i]() { solve_path_index(i); });
+    thread_pool().wait();
 
     if (n_trivials > 2) {
         std::cout << "Number of trivial paths: " << n_trivials << " / " << N << "\n"
@@ -504,7 +511,13 @@ mdv::mesh::multithreaded_exponential_map(
     std::atomic_long n_vertices_after = 0;
     constexpr long   batch_size       = 16;
 
-    auto process_row = [&res, &mesh, &xs, &vs, &n_zeroed, &n_changed, &n_vertices,
+    auto process_row = [&res,
+                        &mesh,
+                        &xs,
+                        &vs,
+                        &n_zeroed,
+                        &n_changed,
+                        &n_vertices,
                         &n_vertices_after](const long i) {
         const Vec3 pos{xs.row(i)};
         const Vec3 vec{vs.row(i)};
@@ -528,9 +541,12 @@ mdv::mesh::multithreaded_exponential_map(
         for (long i = start; i < end; ++i) process_row(i);
     };
 
-    for (long i = 0; i < xs.rows(); i += batch_size)
-        th_pool.detach_task([&process_rows_batched, i] { process_rows_batched(i); });
-    th_pool.wait();
+    for (long i = 0; i < xs.rows(); i += batch_size) {
+        thread_pool().detach_task([&process_rows_batched, i] {
+            process_rows_batched(i);
+        });
+    }
+    thread_pool().wait();
 
     if (n_zeroed > 0) std::cout << "Zeroed " << n_zeroed << " vectors\n";
 
@@ -618,7 +634,7 @@ mdv::mesh::proj_transformation(
 
     constexpr long    batch_size = 16;
     const long        N          = xs.rows();
-    std::vector<Mat3> res(N);
+    std::vector<Mat3> res(static_cast<std::size_t>(N));
 #ifdef RERUN_DEBUG
     Eigen::MatrixXd vp(N, 3);  // projected vectors -- for visualisation
 #endif
@@ -629,12 +645,12 @@ mdv::mesh::proj_transformation(
         const auto pt = Point::from_cartesian(mesh, pos);
         const auto tv = TangentVector::from_ambient_vector(pt, vec);
 
-        Mat3&       tf = res[i];
+        Mat3&       tf = res[static_cast<std::size_t>(i)];
         const Vec3& v1 = vec;
         const Vec3  v2 = tv.cartesian_vector();
         const Quat  q  = Quat::FromTwoVectors(v1, v2);
         tf             = Mat3{q} * v2.norm() / v1.norm();
-#if 1
+#ifndef NDEBUG
         const Vec3 v3 = tf * v1;
         if ((v3 - v2).norm() > 1e-9)
             throw std::runtime_error("Computed wrong transformation matrix");
@@ -649,9 +665,12 @@ mdv::mesh::proj_transformation(
         for (long i = start; i < end; ++i) process_row(i);
     };
 
-    for (long i = 0; i < xs.rows(); i += batch_size)
-        th_pool.detach_task([&process_rows_batched, i] { process_rows_batched(i); });
-    th_pool.wait();
+    for (long i = 0; i < xs.rows(); i += batch_size) {
+        thread_pool().detach_task([&process_rows_batched, i] {
+            process_rows_batched(i);
+        });
+    }
+    thread_pool().wait();
 
 #ifdef RERUN_DEBUG
     log_mesh(mesh);
@@ -689,7 +708,7 @@ mdv::mesh::proj_transformation_directions(
             d1            = e.cross(n).normalized();
             d2_mat.row(i) = d1;
         }
-#if 1
+#ifndef NDEBUG
         const Vec3 proj{tv.cartesian_vector()};
         const Vec3 tmp = vec - vec.dot(n) * n - vec.dot(d1) * d1;
         if ((proj - tmp).norm() > 1e-6) throw std::runtime_error("Invalid projection");
@@ -702,8 +721,8 @@ mdv::mesh::proj_transformation_directions(
 
     // BS::thread_pool pool;
     for (long i = 0; i < N; i += batch_size)
-        th_pool.detach_task([&process_batched, i]() { process_batched(i); });
-    th_pool.wait();
+        thread_pool().detach_task([&process_batched, i]() { process_batched(i); });
+    thread_pool().wait();
 
     return std::make_pair(d1_mat, d2_mat);
 }
@@ -756,6 +775,9 @@ mdv::mesh::validate_projx(
 
     fmt::print(
             "\rProjx | changed / valid / n. verts / tot : {} / {} / {} / {}\n",
-            n_changed, n_good_proj, n_vertices, N
+            n_changed,
+            n_good_proj,
+            n_vertices,
+            N
     );
 }

@@ -23,7 +23,9 @@ Vertex::describe() const {
     if (!is_valid()) return "Invalid Vertex";
 
     return fmt::format(
-            "Vertex ID #{} (position: {}) on mesh '{}'", id(), eigen_to_str(position()),
+            "Vertex ID #{} (position: {}) on mesh '{}'",
+            id(),
+            eigen_to_str(position()),
             mesh().name()
     );
 }

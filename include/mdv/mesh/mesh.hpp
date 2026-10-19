@@ -37,7 +37,8 @@ public:
      */
     static Logger::SharedPtr default_logger;
 
-    using CgalImpl = internal::CgalImpl;
+    using CgalImpl   = internal::CgalImpl;
+    using FaceMatrix = Eigen::Matrix<Index, Eigen::Dynamic, 3>;
 
     // Factory functions
     /**
@@ -77,7 +78,7 @@ public:
      *
      * @param other Mesh to move from.
      */
-    Mesh(Mesh&& other);
+    Mesh(Mesh&& other) noexcept;
     /**
      * @brief Mesh is non-copyable.
      */
@@ -164,7 +165,7 @@ public:
      */
     MDV_NODISCARD Vertex
     vertex(const Index& id) const {
-        return Vertex(*this, id);
+        return {*this, id};
     }
 
     /**
@@ -177,133 +178,6 @@ public:
         assert(_logger != nullptr);
         return *_logger.get();
     };
-
-    //  ___ _                 _
-    // |_ _| |_ ___ _ __ __ _| |_ ___  _ __ ___
-    //  | || __/ _ \ '__/ _` | __/ _ \| '__/ __|
-    //  | || ||  __/ | | (_| | || (_) | |  \__ \
-    // |___|\__\___|_|  \__,_|\__\___/|_|  |___/
-    //
-
-#if 0
-    // clang-format off
-    /**
-     * @brief Retrieves an iterator to the beginning of the face range.
-     *
-     * @return Face::Iterator An iterator to the first face.
-     */
-    MDV_NODISCARD Face::Iterator      faces_begin() noexcept       { return _faces.begin(); }
-
-    /**
-     * @brief Retrieves a const iterator to the beginning of the face range.
-     *
-     * @return Face::ConstIterator A const iterator to the first face.
-     */
-    MDV_NODISCARD Face::ConstIterator faces_cbegin() noexcept      { return _faces.cbegin(); }
-
-    /**
-     * @brief Retrieves a const iterator to the beginning of the face range (const version).
-     *
-     * @return Face::ConstIterator A const iterator to the first face.
-     */
-    MDV_NODISCARD Face::ConstIterator faces_begin() const noexcept { return _faces.begin(); }
-
-    /**
-     * @brief Retrieves an iterator to the end of the face range.
-     *
-     * @return Face::Iterator An iterator past the last face.
-     */
-    MDV_NODISCARD Face::Iterator      faces_end() noexcept         { return _faces.end(); }
-
-    /**
-     * @brief Retrieves a const iterator to the end of the face range.
-     *
-     * @return Face::ConstIterator A const iterator past the last face.
-     */
-    MDV_NODISCARD Face::ConstIterator faces_cend() noexcept        { return _faces.cend(); }
-
-    /**
-     * @brief Retrieves a const iterator to the end of the face range (const version).
-     *
-     * @return Face::ConstIterator A const iterator past the last face.
-     */
-    MDV_NODISCARD Face::ConstIterator faces_end() const noexcept   { return _faces.end(); }
-
-    /**
-     * @brief Retrieves a range of all faces in the mesh.
-     *
-     * @return boost::iterator_range<Face::Iterator> A range of all faces.
-     */
-    MDV_NODISCARD boost::iterator_range<Face::Iterator> faces() noexcept            { return {faces_begin(), faces_end()}; }
-
-    /**
-     * @brief Retrieves a const range of all faces in the mesh (const version).
-     *
-     * @return boost::iterator_range<Face::ConstIterator> A const range of all faces.
-     */
-    MDV_NODISCARD boost::iterator_range<Face::ConstIterator> faces() const noexcept { return {faces_begin(), faces_end()}; }
-
-    // clang-format on
-
-    // clang-format off
-    /**
-     * @brief Retrieves an iterator to the beginning of the vertex range.
-     *
-     * @return Vertex::Iterator An iterator to the first vertex.
-     */
-    MDV_NODISCARD Vertex::Iterator      vertices_begin() noexcept       { return _vertices.begin(); }
-
-    /**
-     * @brief Retrieves a const iterator to the beginning of the vertex range.
-     *
-     * @return Vertex::ConstIterator A const iterator to the first vertex.
-     */
-    MDV_NODISCARD Vertex::ConstIterator vertices_cbegin() noexcept      { return _vertices.cbegin(); }
-
-    /**
-     * @brief Retrieves a const iterator to the beginning of the vertex range (const version).
-     *
-     * @return Vertex::ConstIterator A const iterator to the first vertex.
-     */
-    MDV_NODISCARD Vertex::ConstIterator vertices_begin() const noexcept { return _vertices.begin(); }
-
-    /**
-     * @brief Retrieves an iterator to the end of the vertex range.
-     *
-     * @return Vertex::Iterator An iterator past the last vertex.
-     */
-    MDV_NODISCARD Vertex::Iterator      vertices_end() noexcept         { return _vertices.end(); }
-
-    /**
-     * @brief Retrieves a const iterator to the end of the vertex range.
-     *
-     * @return Vertex::ConstIterator A const iterator past the last vertex.
-     */
-    MDV_NODISCARD Vertex::ConstIterator vertices_cend() noexcept        { return _vertices.cend(); }
-
-    /**
-     * @brief Retrieves a const iterator to the end of the vertex range (const version).
-     *
-     * @return Vertex::ConstIterator A const iterator past the last vertex.
-     */
-    MDV_NODISCARD Vertex::ConstIterator vertices_end() const noexcept   { return _vertices.end(); }
-
-    /**
-     * @brief Retrieves a range of all vertices in the mesh.
-     *
-     * @return boost::iterator_range<Vertex::Iterator> A range of all vertices.
-     */
-    MDV_NODISCARD boost::iterator_range<Vertex::Iterator> vertices() noexcept            { return {vertices_begin(), vertices_end()}; }
-
-    /**
-     * @brief Retrieves a const range of all vertices in the mesh (const version).
-     *
-     * @return boost::iterator_range<Vertex::ConstIterator> A const range of all vertices.
-     */
-    MDV_NODISCARD boost::iterator_range<Vertex::ConstIterator> vertices() const noexcept { return {vertices_begin(), vertices_end()}; }
-
-    // clang-format on
-#endif
 
     /**
      * @brief Access CGAL implementation (mutable).
@@ -346,7 +220,7 @@ public:
      *
      * @return Face index matrix (N x 3).
      */
-    MDV_NODISCARD Eigen::MatrixXi get_face_matrix() const;
+    MDV_NODISCARD FaceMatrix get_face_matrix() const;
 
     /**
      * @brief Constructs an Nx3 matrix of face indices as doubles.
@@ -373,7 +247,7 @@ private:
      * @param data CGAL backend pointer.
      * @param name Mesh name.
      */
-    Mesh(gsl::owner<CgalImpl*> data, const std::string& name);
+    Mesh(gsl::owner<CgalImpl*> data, std::string name);
 
     /**
      * @brief Logger associated with the mesh instance.

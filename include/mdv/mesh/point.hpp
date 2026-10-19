@@ -329,7 +329,7 @@ public:
      * @param m Mesh to sample from.
      * @return Random point on the mesh.
      */
-    static Point random(const Mesh& m) noexcept;
+    static Point random(const Mesh& m);
 
     /**
      * @brief True if this point is undefined.
@@ -405,6 +405,7 @@ public:
     Point(Point&& other)                 = default;
     Point& operator=(const Point& other) = default;
     Point& operator=(Point&& other)      = default;
+    ~Point()                             = default;
 
     /**
      * @brief Returns the underlying point descriptor.

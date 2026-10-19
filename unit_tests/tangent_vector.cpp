@@ -4,6 +4,7 @@
 #include <Eigen/Geometry>
 #include <filesystem>
 #include <gtest/gtest.h>
+#include <numbers>
 #include <stdexcept>
 
 #include "mdv/config.hpp"
@@ -324,7 +325,7 @@ TEST(MdvMesh, ExponentialMap) {
         const Vec3 p2_value{-50, -50, 50};
         const Vec3 p3_value{-50, -50, 0};
 
-        const Vec3 tv_value{0, 0, 100 + 100 * std::sqrt(2)};
+        const Vec3 tv_value{0, 0, 100 + 100 * std::numbers::sqrt2};
 
         const auto p0 = Point::from_cartesian(mesh, p0_value);
         const auto p1 = Point::from_cartesian(mesh, p1_value);
@@ -361,7 +362,7 @@ TEST(MdvMesh, ExponentialMap) {
         const Vec3 p3_value{-50, 50, 50};
         const Vec3 p4_value{-50, 50, 0};
 
-        const Vec3 tv_value{0, 0, 100 + 100 * std::sqrt(2)};
+        const Vec3 tv_value{0, 0, 100 + 100 * std::numbers::sqrt2};
 
         const auto p0 = Point::from_cartesian(mesh, p0_value);
         const auto p1 = Point::from_cartesian(mesh, p1_value);

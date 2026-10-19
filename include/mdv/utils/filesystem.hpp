@@ -5,12 +5,12 @@
 
 namespace mdv::utils {
 
-using Path_t = std::filesystem::path;
+using Path = std::filesystem::path;
 
-std::string file_extension(const Path_t& file);
-std::string file_name(const Path_t& file);
-std::string file_name_we(const Path_t& file);
-std::string parent_folder(const Path_t& file);
+std::string file_extension(const Path& file);
+std::string file_name(const Path& file);
+std::string file_name_we(const Path& file);
+std::string parent_folder(const Path& file);
 
 }  // namespace mdv::utils
 

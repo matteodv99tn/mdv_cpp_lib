@@ -1,7 +1,8 @@
 #include <CGAL/boost/graph/graph_traits_Surface_mesh.h>
+#include <CGAL/iterator.h>
 #include <CGAL/Polygon_mesh_processing/border.h>
 #include <CGAL/Polygon_mesh_processing/triangulate_hole.h>
-#include <fmt/base.h>
+#include <fmt/format.h>
 
 #include <range/v3/algorithm.hpp>
 
@@ -59,7 +60,16 @@ Mesh::fill_holes(const Mesh& mesh) {
 
     // Fill all except last borders
     for (std::size_t i = 0; i < border_cycles.size() - 1; ++i) {
+#if MDV_CGAL_VERSION < 6
+        pmp::triangulate_and_refine_hole(
+                m,
+                border_cycles[i],
+                CGAL::Emptyset_iterator(),
+                CGAL::Emptyset_iterator()
+        );
+#else
         pmp::triangulate_and_refine_hole(m, border_cycles[i]);
+#endif
     }
 
 

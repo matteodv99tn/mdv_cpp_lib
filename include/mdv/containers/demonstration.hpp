@@ -63,19 +63,19 @@ concept copiable_sample = requires {
 
 namespace internal {
     template <typename TTangentVector, std::size_t NTangentVector, typename... Args>
-    struct sample;
+    struct Sample;
 
     template <std::size_t Index, typename BaseIterator>
     struct DemonstrationElementIterator;
 
     template <std::size_t Index, typename BaseIter>
-    DemonstrationElementIterator<Index, BaseIter> make_element_iterator(BaseIter);
+    DemonstrationElementIterator<Index, BaseIter> make_element_iterator(BaseIter it);
 
     template <typename T>
     struct tuple_lazy_function;
 
     template <typename T>
-    using tuple_lazy_function_t = typename tuple_lazy_function<T>::type;
+    using TupleLazyFunctionT = typename tuple_lazy_function<T>::type;
 
 }  // namespace internal
 
@@ -96,7 +96,7 @@ public:
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
     using Manifold  = M;
     using Time      = ClockT;
-    using BaseTuple = internal::sample<TangentVector, Order, Time, Point>::type;
+    using BaseTuple = internal::Sample<TangentVector, Order, Time, Point>::type;
 
     template <typename... Args>
     DemonstrationSample(Args... args) : _data(std::forward<Args>(args)...) {}
@@ -135,7 +135,9 @@ private:
     template <typename SourceTpl, typename TargetTpl, std::size_t... Idx>
     static void
     copy_tpl_impl(
-            const SourceTpl& source, TargetTpl& target, std::index_sequence<Idx...>
+            const SourceTpl& source,
+            TargetTpl&       target,
+            std::index_sequence<Idx...> /* indices */
     ) {
         ((std::get<Idx>(target) = std::get<Idx>(source)), ...);
     }
@@ -237,6 +239,7 @@ public:
     SampleBuilder(SampleBuilder&&)                 = delete;
     SampleBuilder& operator=(const SampleBuilder&) = delete;
     SampleBuilder& operator=(SampleBuilder&&)      = delete;
+    ~SampleBuilder()                               = default;
 
     // clang-format off
     SampleBuilder&& time(const Time& t) &&                   { _sample->t() = t;              return std::move(*this); }
@@ -285,7 +288,7 @@ public:
 
         const std::size_t data_size = data().size();
         if (_vel_autodiff) {
-            for (long i = 0; i < data_size - 1; ++i) {
+            for (std::size_t i = 0; i < data_size - 1; ++i) {
                 auto&        curr = data(i);
                 const auto&  next = data(i + 1);
                 const double dt   = seconds(next.t() - curr.t());
@@ -300,7 +303,7 @@ public:
         }
 
         if (_acc_autodiff) {
-            for (long i = 0; i < data_size - 1; ++i) {
+            for (std::size_t i = 0; i < data_size - 1; ++i) {
                 auto&        curr    = data(i);
                 const auto&  next    = data(i + 1);
                 const auto&  next_y  = next.y();
@@ -400,11 +403,11 @@ protected:
     // clang-format on
 
 private:
-    mutable Demonstration                      _dem;
-    internal::tuple_lazy_function_t<BaseTuple> _lazy_funcs;
-    bool                                       _vel_autodiff = false;
-    bool                                       _acc_autodiff = false;
-    std::shared_ptr<M>                         _m            = nullptr;
+    mutable Demonstration                   _dem;
+    internal::TupleLazyFunctionT<BaseTuple> _lazy_funcs;
+    bool                                    _vel_autodiff = false;
+    bool                                    _acc_autodiff = false;
+    std::shared_ptr<M>                      _m            = nullptr;
 
     template <std::size_t Index>
     using ElementIterator =
@@ -445,7 +448,9 @@ private:
                             "provided container size ({}) for {} component, and no "
                             "default "
                             "value constructor",
-                            data().size(), content.size(), comp_desc
+                            data().size(),
+                            content.size(),
+                            comp_desc
                     )
             );
         }
@@ -464,8 +469,8 @@ private:
 namespace internal {
 
     template <typename TTangentVector, std::size_t NTangentVector, typename... Args>
-    struct sample {
-        using type = typename sample<
+    struct Sample {
+        using type = typename Sample<
                 TTangentVector,
                 NTangentVector - 1,
                 Args...,
@@ -473,7 +478,7 @@ namespace internal {
     };
 
     template <typename TTangentVector, typename... Args>
-    struct sample<TTangentVector, 0, Args...> {
+    struct Sample<TTangentVector, 0, Args...> {
         using type = std::tuple<Args...>;
     };
 

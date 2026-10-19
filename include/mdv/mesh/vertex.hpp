@@ -17,7 +17,7 @@ namespace mdv::mesh {
  *
  * Vertices are view-types on a Mesh object.
  */
-class Vertex : public internal::IndexedMeshElement {
+class Vertex final : public internal::IndexedMeshElement {
 public:
     using Vector        = std::vector<Vertex>;
     using Iterator      = Vector::iterator;
@@ -29,7 +29,7 @@ public:
      * @param mesh Owning mesh.
      * @param id Vertex index.
      */
-    Vertex(const Mesh& mesh, const long id) : IndexedMeshElement(mesh, id) {}
+    Vertex(const Mesh& mesh, const Index id) : IndexedMeshElement(mesh, id) {}
 
     /**
      * @brief Vertex position in 3D.

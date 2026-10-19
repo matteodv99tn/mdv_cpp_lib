@@ -18,7 +18,7 @@ namespace mdv::mesh {
  *
  * Faces are view-types on a Mesh object.
  */
-class Face : public internal::IndexedMeshElement {
+class Face final : public internal::IndexedMeshElement {
 public:
     using Vector        = std::vector<Face>;
     using Iterator      = Vector::iterator;
@@ -86,7 +86,7 @@ public:
      * @param other Face to test adjacency with.
      * @return Shared half-edge if adjacent, otherwise empty.
      */
-    std::optional<HalfEdge> adjacent_to(const Face& other) const;
+    MDV_NODISCARD std::optional<HalfEdge> adjacent_to(const Face& other) const;
 
     /**
      * @brief Vertex indices of this triangle.

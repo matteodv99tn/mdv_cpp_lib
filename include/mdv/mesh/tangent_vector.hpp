@@ -138,7 +138,7 @@ private:
      * @param v Cartesian vector in 3D.
      * @param type Tangent vector type.
      */
-    TangentVector(const Point& app_point, const Eigen::Vector3d& v, Type type);
+    TangentVector(Point app_point, Eigen::Vector3d v, Type type);
 
     /**
      * @brief Validates a vector applied inside a face.
@@ -183,8 +183,6 @@ private:
      * @brief Initializes the half-edge associated with the application point.
      */
     void fill_halfedge();
-
-    friend Point exponential_map(TangentVector, Geodesic*);
 
     Point                   _pt;
     Vec3d                   _vec;

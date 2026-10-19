@@ -3,7 +3,9 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstddef>
 #include <Eigen/Dense>
+#include <iterator>
 #include <type_traits>
 #include <vector>
 
@@ -21,11 +23,12 @@ public:
     static Vector
     create_from_centers(const Eigen::VectorXd& cs) {
         // cs: set of desired base centers
-        Vector basis(cs.size());
-        for (long i = 0; i < cs.size(); ++i) {
-            basis[i]._c = cs(i);
-            if (i < cs.size() - 1) basis[i]._h = 1 / SQUARE(cs(i + 1) - cs(i));
-            else basis[i]._h = basis[i - 1]._h;
+        Vector basis(static_cast<std::size_t>(cs.size()));
+        for (Eigen::Index i = 0; i < cs.size(); ++i) {
+            const auto k = static_cast<std::size_t>(i);
+            basis[k]._c  = cs(i);
+            if (i < cs.size() - 1) basis[k]._h = 1 / SQUARE(cs(i + 1) - cs(i));
+            else basis[k]._h = basis[k - 1]._h;
         }
 
         return basis;
@@ -52,8 +55,8 @@ public:
     create_equispaced(const long n_basis) {
         // cs: set of desired base centers
         const double h = 200.0 / double(n_basis);
-        Vector       basis(n_basis);
-        for (long i = 0; i < n_basis; ++i) {
+        Vector       basis(static_cast<std::size_t>(n_basis));
+        for (std::size_t i = 0; i < basis.size(); ++i) {
             basis[i]._c = 2.0 * M_PI * double(i) / double(n_basis);
             basis[i]._h = h;
         }
@@ -91,7 +94,7 @@ public:
 
     LearnableFunction(std::vector<BaseFunction>&& basis) :
             _bs(std::move(basis)),
-            _ws(WeightsMatrix::Zero(_bs.size(), FunctionDimension)) {}
+            _ws(WeightsMatrix::Zero(std::ssize(_bs), FunctionDimension)) {}
 
     template <typename Scale>
     void
@@ -100,7 +103,7 @@ public:
           const Scale&           phi_weights)
         requires std::same_as<Scale, double>
     {
-        assert(phi.cols() == n_basis());
+        assert(phi.cols() == static_cast<Eigen::Index>(n_basis()));
         assert(phi.rows() == fdes.rows());
         assert(fdes.cols() == FunctionDimension);
         _ws = (phi_weights * phi).fullPivHouseholderQr().solve(fdes);
@@ -116,7 +119,7 @@ public:
     learn(const Eigen::MatrixXd& phi,
           const Eigen::MatrixXd& fdes,
           const Scale&           phi_weights) {
-        assert(phi.cols() == n_basis());
+        assert(phi.cols() == static_cast<Eigen::Index>(n_basis()));
         assert(phi.rows() == fdes.rows());
         assert(fdes.cols() == FunctionDimension);
         for (long i = 0; i < FunctionDimension; ++i) {
@@ -132,9 +135,9 @@ public:
         else return scale * (b.transpose() * _ws).transpose();
     };
 
-    Eigen::VectorXd
-    eval_basis(const double s) const {
-        Eigen::VectorXd basis(_bs.size());
+    MDV_NODISCARD Eigen::VectorXd
+                  eval_basis(const double s) const {
+        Eigen::VectorXd basis(std::ssize(_bs));
         auto            basis_eval = [&s](const BaseFunction& b) { return b(s); };
 
         std::transform(_bs.begin(), _bs.end(), basis.begin(), basis_eval);

@@ -56,7 +56,7 @@ struct FlatParameterisation::FlatParameterisationImpl {
     using Aabb          = CGAL::AABB_tree<AabbTraits>;
 #endif
 
-    FlatParameterisationImpl(::mdv::mesh::Mesh* mesh) : m(mesh->cgal()._mesh) {
+    FlatParameterisationImpl(::mdv::mesh::Mesh* mesh) : _m(mesh->cgal()._mesh) {
         setup_uv_parameterisation();
         setup_aabb_tree();
     }
@@ -83,15 +83,19 @@ struct FlatParameterisation::FlatParameterisationImpl {
 #elif MDV_CGAL_VERSION == 6
         const K2::Point_2 q{query(0), query(1)};
 #endif
-        const auto [qclose, tri] = aabb.closest_point_and_primitive(q);
+        const auto [qclose, tri] = _aabb.closest_point_and_primitive(q);
 
-        assert(std::distance(tris.begin(), tri)
-               < std::distance(tris.begin(), tris.end()));
-        const FaceIndex f(std::distance(tris.begin(), tri));
+        assert(std::distance(_tris.begin(), tri)
+               < std::distance(_tris.begin(), _tris.end()));
+        const FaceIndex f(
+                static_cast<FaceIndex::size_type>(std::distance(_tris.begin(), tri))
+        );
 
         const auto [v0, v1, v2] = get_vertices(f);
         const auto bs           = construct_barycentric<Eigen::Vector2d>(
-                {qclose.x(), qclose.y()}, get_vertex2(v0), get_vertex2(v1),
+                {qclose.x(), qclose.y()},
+                get_vertex2(v0),
+                get_vertex2(v1),
                 get_vertex2(v2)
         );
         return bs(0) * get_vertex3(v0) + bs(1) * get_vertex3(v1)
@@ -100,7 +104,7 @@ struct FlatParameterisation::FlatParameterisationImpl {
 
     MDV_NODISCARD bool
     is_one_to_one() const {
-        return Parameteriser{}.is_one_to_one_mapping(m, bhe, uv_map);
+        return Parameteriser{}.is_one_to_one_mapping(_m, _bhe, _uv_map);
     }
 
     MDV_NODISCARD bool
@@ -110,68 +114,68 @@ struct FlatParameterisation::FlatParameterisationImpl {
 #elif MDV_CGAL_VERSION == 6
         const K2::Point_2 q{uv(0), uv(1)};
 #endif
-        const auto qc = aabb.closest_point(q);
+        const auto qc = _aabb.closest_point(q);
         return CGAL::squared_distance(q, qc) < 1e-18;
     }
 
     MDV_NODISCARD Eigen::Vector2d
                   min_uv() const {
-        return {aabb.bbox().min(0), aabb.bbox().min(1)};
+        return {_aabb.bbox().min(0), _aabb.bbox().min(1)};
     }
 
     MDV_NODISCARD Eigen::Vector2d
                   max_uv() const {
-        return {aabb.bbox().max(0), aabb.bbox().max(1)};
+        return {_aabb.bbox().max(0), _aabb.bbox().max(1)};
     }
 
 private:
     MDV_NODISCARD K2::Point_2
                   get_uv(const VertexIndex& v) const {
-        const auto pt = uv_map[v];
+        const auto pt = _uv_map[v];
         return {pt.x(), pt.y()};
     }
 
     MDV_NODISCARD std::array<VertexIndex, 3>
                   get_vertices(const FaceIndex& f) const {
-        auto       he = halfedge(f, m);
-        const auto v0 = target(he, m);
-        he            = next(he, m);
-        const auto v1 = target(he, m);
-        he            = next(he, m);
-        const auto v2 = target(he, m);
+        auto       he = halfedge(f, _m);
+        const auto v0 = target(he, _m);
+        he            = next(he, _m);
+        const auto v1 = target(he, _m);
+        he            = next(he, _m);
+        const auto v2 = target(he, _m);
         return {v0, v1, v2};
     }
 
     MDV_NODISCARD Eigen::Vector3d
                   get_vertex3(const VertexIndex& v) const {
-        return internal::convert(m.point(v));
+        return internal::convert(_m.point(v));
     }
 
     MDV_NODISCARD Eigen::Vector2d
                   get_vertex2(const VertexIndex& v) const {
-        const auto pt = uv_map[v];
+        const auto pt = _uv_map[v];
         return {pt.x(), pt.y()};
     }
 
 #if MDV_CGAL_VERSION == 5
     MDV_NODISCARD K3::Point_3
                   get_point2(const VertexIndex& v) const {
-        const auto pt = uv_map[v];
+        const auto pt = _uv_map[v];
         return {pt.x(), pt.y(), 0.0};
     }
 #elif MDV_CGAL_VERSION == 6
     MDV_NODISCARD K2::Point_2
                   get_point2(const VertexIndex& v) const {
-        const auto pt = uv_map[v];
+        const auto pt = _uv_map[v];
         return {pt.x(), pt.y()};
     }
 #endif
 
     void
     setup_uv_parameterisation() {
-        uv_map   = m.add_property_map<VertexIndex, K3::Point_2>("v:uv").first;
-        bhe      = CGAL::Polygon_mesh_processing::longest_border(m).first;
-        auto err = smp::parameterize(m, Parameteriser{}, bhe, uv_map);
+        _uv_map  = _m.add_property_map<VertexIndex, K3::Point_2>("v:uv").first;
+        _bhe     = CGAL::Polygon_mesh_processing::longest_border(_m).first;
+        auto err = smp::parameterize(_m, Parameteriser{}, _bhe, _uv_map);
         if (err != smp::OK) {
             std::cerr << "Error: " << smp::get_error_message(err) << "\n";
             throw std::runtime_error("Unable to construct parameterisation!");
@@ -202,20 +206,20 @@ private:
 
     void
     setup_aabb_tree() {
-        tris.reserve(m.number_of_faces());
-        for (const auto f : m.faces()) {
+        _tris.reserve(_m.number_of_faces());
+        for (const auto f : _m.faces()) {
             const auto [v0, v1, v2] = get_vertices(f);
-            tris.emplace_back(get_point2(v0), get_point2(v1), get_point2(v2));
+            _tris.emplace_back(get_point2(v0), get_point2(v1), get_point2(v2));
         }
-        aabb = Aabb(tris.begin(), tris.end());
+        _aabb = Aabb(_tris.begin(), _tris.end());
     }
 
-    Mesh3&   m;
-    UvMap    uv_map;
-    Aabb     aabb;
-    HalfEdge bhe;
+    Mesh3&   _m;
+    UvMap    _uv_map;
+    Aabb     _aabb;
+    HalfEdge _bhe;
 
-    Triangle2List tris;
+    Triangle2List _tris;
 };
 
 FlatParameterisation::FlatParameterisation(Mesh& mesh) :

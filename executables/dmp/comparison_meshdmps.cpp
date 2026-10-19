@@ -2,7 +2,8 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-#include <fmt/base.h>
+#include <fmt/format.h>
+#include <gsl/pointers>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -40,7 +41,6 @@ to_string(const Quat& q) {
 }
 
 using namespace mdv::mesh;
-using std::filesystem::path;
 
 template <typename T>
 std::vector<double>
@@ -67,10 +67,10 @@ void
 write_matrix(
         FILE* file, const std::string& varname, const std::vector<Eigen::Vector3d>& data
 ) {
-    fmt::println(file, "\n{} = np.array([", varname);
+    fmt::print(file, "\n{} = np.array([\n", varname);
     for (const auto& v : data)
-        fmt::println(file, "    [{}, {}, {}],", v(0), v(1), v(2));
-    fmt::println(file, "])");
+        fmt::print(file, "    [{}, {}, {}],\n", v(0), v(1), v(2));
+    fmt::print(file, "])\n");
 }
 
 std::vector<Eigen::Vector3d>
@@ -93,8 +93,8 @@ main() {
         return {2 * std::cos(t), 0.9 * std::sin(2.0 * t + 0.1)};
     };
 
-    auto* file = fopen("data.py", "w");
-    fmt::println(file, "import numpy as np\n");
+    gsl::owner<FILE*> file = fopen("data.py", "w");
+    fmt::print(file, "import numpy as np\n\n");
 
     // Rerun setup
     rerun::RecordingStream rec("meshdmp_comparison");
@@ -106,7 +106,9 @@ main() {
     using rerun::components::LineStrip2D, rerun::archetypes::LineStrips2D;
     auto path = LineStrip2D(
             demo_3d | rv::transform([](const auto& v) {
-                return rerun::datatypes::Vec2D(v(0), v(1));
+                return rerun::datatypes::Vec2D(
+                        static_cast<float>(v(0)), static_cast<float>(v(1))
+                );
             })
             | rs::to_vector
     );
@@ -156,7 +158,11 @@ main() {
     const auto tmp           = get_integrated_position();
     auto       original_path = LineStrip3D(
             tmp | rv::transform([](const auto& p) {
-                return rerun::datatypes::Vec3D(p(0), p(1), p(2));
+                return rerun::datatypes::Vec3D(
+                        static_cast<float>(p(0)),
+                        static_cast<float>(p(1)),
+                        static_cast<float>(p(2))
+                );
             })
             | rs::to_vector
     );
@@ -179,7 +185,11 @@ main() {
     auto bunny_path = LineStrip3D(
             new_path | rv::transform([](const auto& sample) {
                 const auto p = sample.y().position();
-                return rerun::datatypes::Vec3D(p(0), p(1), p(2));
+                return rerun::datatypes::Vec3D(
+                        static_cast<float>(p(0)),
+                        static_cast<float>(p(1)),
+                        static_cast<float>(p(2))
+                );
             })
             | rs::to_vector
     );
@@ -191,7 +201,8 @@ main() {
             | rs::to_vector;
 
     write_matrix(
-            file, "OLD_MESHDMP_PATH",
+            file,
+            "OLD_MESHDMP_PATH",
             move_outward(target_mesh, get_integrated_position())
     );
     write_matrix(file, "NEW_MESHDMP_PATH", move_outward(target_mesh, new_position));

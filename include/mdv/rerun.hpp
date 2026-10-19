@@ -70,7 +70,7 @@ protected:
     MDV_NODISCARD
     ::rerun::datatypes::Vec3D operator()(const Eigen::Vector3d&) const;
 
-    static Logger::SharedPtr _logger;
+    static Logger::SharedPtr _logger;  // NOLINT(readability-identifier-naming)
 };
 
 class MeshRerunConverter : public RerunConverter {};

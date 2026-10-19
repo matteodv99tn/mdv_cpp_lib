@@ -3,7 +3,6 @@
 #include <cmath>
 #include <Eigen/Dense>
 #include <gsl/assert>
-#include <math.h>
 
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/dmp_utilities.hpp"
@@ -29,9 +28,10 @@ mdv::build_scalar_demonstration(const long n_samples) {
             poly_5th(Eigen::VectorXd::LinSpaced(n_samples, 0.0, 1.0));
 
     std::vector<double> pos_traj;
+    pos_traj.reserve(ts.size());
     for (const auto& t : ts) pos_traj.emplace_back(2 + 3 * t);
 
-    return Demonstration<Scalar>::builder(n_samples)
+    return Demonstration<Scalar>::builder(static_cast<std::size_t>(n_samples))
             .set_sampling_period(5ms)
             .assign_position(pos_traj)
             .velocity_automatic_differentiation()
@@ -53,7 +53,9 @@ mdv::build_position_demonstration(const long n_samples) {
     const Vec3 delta(2.0, 0.0, -5.0);
     for (const auto& t : ts) pos_traj.emplace_back(start + delta * t);
 
-    return Demonstration<mdv::riemann::Rn<3>>::builder(n_samples)
+    return Demonstration<mdv::riemann::Rn<3>>::builder(
+                   static_cast<std::size_t>(n_samples)
+    )
             .set_sampling_period(5ms)
             .assign_position(pos_traj)
             .velocity_automatic_differentiation()
@@ -88,7 +90,9 @@ mdv::build_r2_demonstration(
 ) {
     using namespace std::chrono_literals;
 
-    return Demonstration<mdv::riemann::Rn<2>>::builder(n_samples)
+    return Demonstration<mdv::riemann::Rn<2>>::builder(
+                   static_cast<std::size_t>(n_samples)
+    )
             .set_sampling_period(5ms)
             .assign_position(build_r2_position(n_samples, y0, g))
             .velocity_automatic_differentiation()
@@ -120,12 +124,13 @@ mdv::build_quaternion_demonstration(const long n_samples) {
     using namespace std::chrono_literals;
     using Quat = Eigen::Quaterniond;
 
-#if 0
+#if 0  // NOLINT(readability-avoid-unconditional-preprocessor-if)
     const std::vector<double> ts =
             poly_5th(Eigen::VectorXd::LinSpaced(n_samples, 0.0, 1.0));
 #else
     std::vector<double> ts;
     const auto          tdata = Eigen::VectorXd::LinSpaced(n_samples - 10, 0.0, 1.0);
+    ts.reserve(static_cast<std::size_t>(tdata.size()) + 10);
     for (auto i = 0; i < 5; ++i) ts.push_back(0.0);
     for (auto i = 0; i < n_samples - 10; ++i) ts.push_back(tdata(i));
     for (auto i = 0; i < 5; ++i) ts.push_back(1.0);
@@ -142,10 +147,10 @@ mdv::build_quaternion_demonstration(const long n_samples) {
 
 
     std::vector<Eigen::Quaterniond> pos_traj;
-    pos_traj.reserve(n_samples);
+    pos_traj.reserve(static_cast<std::size_t>(n_samples));
     for (const auto& t : ts) pos_traj.emplace_back(q1.slerp(t, q2));
 
-    return Demonstration<S3>::builder(n_samples)
+    return Demonstration<S3>::builder(static_cast<std::size_t>(n_samples))
             .set_sampling_period(1ms)
             .assign_position(pos_traj)
             .velocity_automatic_differentiation()
@@ -167,7 +172,7 @@ mdv::build_se3_demonstration(const long n_samples) {
     for (std::size_t i = 0; i < s3_dem.size(); ++i)
         pos_traj.emplace_back(r3_dem[i].y(), s3_dem[i].y());
 
-    return Demonstration<SE3>::builder(n_samples)
+    return Demonstration<SE3>::builder(static_cast<std::size_t>(n_samples))
             .set_sampling_period(5ms)
             .assign_position(pos_traj)
             .velocity_automatic_differentiation()
@@ -187,7 +192,7 @@ mdv::poly_5th(const Eigen::VectorXd& ts) {
     using std::pow;
 
     std::vector<double> p;
-    p.reserve(ts.size());
+    p.reserve(static_cast<std::size_t>(ts.size()));
     for (const auto& t : ts)
         p.emplace_back(10.0 * pow(t, 3) - 15.0 * pow(t, 4) + 6 * pow(t, 5));
     return p;
@@ -200,7 +205,7 @@ poly_5th_1st_derivative(const Eigen::VectorXd& ts) {
     using std::pow;
 
     std::vector<double> p;
-    p.reserve(ts.size());
+    p.reserve(static_cast<std::size_t>(ts.size()));
     for (const auto& t : ts)
         p.emplace_back(30.0 * pow(t, 2) - 60.0 * pow(t, 3) + 30 * pow(t, 4));
     return p;
@@ -211,7 +216,7 @@ poly_5th_2nd_derivative(const Eigen::VectorXd& ts) {
     using std::pow;
 
     std::vector<double> p;
-    p.reserve(ts.size());
+    p.reserve(static_cast<std::size_t>(ts.size()));
     for (const auto& t : ts)
         p.emplace_back(60.0 * pow(t, 1) - 180.0 * pow(t, 2) + 60 * pow(t, 3));
     return p;
