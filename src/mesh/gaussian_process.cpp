@@ -5,8 +5,6 @@
 #include <vector>
 
 #include "mdv/mesh/algorithm.hpp"
-#include "mdv/mesh/cgal_geodesic.hpp"
-#include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/kernel.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/point.hpp"
@@ -14,7 +12,6 @@
 namespace mdv::mesh {
 
 struct InexactGaussianProcess::GpData {
-    using ShortestPath = internal::CgalImpl::ShortestPath;
     PointVector       train_points;
     Eigen::MatrixXd   y_true;
     Eigen::MatrixXd   Kxx_inv;
@@ -73,8 +70,6 @@ InexactGaussianProcess::train(
 
 Eigen::MatrixXd
 InexactGaussianProcess::predict(const PointVector& test_points) {
-    using internal::CgalGeodesicConstructor;
-
     if (_data == nullptr)
         throw std::runtime_error("Can't predict from uninitialised gaussian process!");
 

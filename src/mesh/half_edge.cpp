@@ -5,6 +5,7 @@
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/mesh_element.hpp"
 #include "mdv/utils/conditions.hpp"
+#include "mdv/utils/eigen_solvers.hpp"
 
 // \cond DOXYGEN_IGNORE
 using mdv::mesh::Face;
@@ -88,7 +89,7 @@ HalfEdge::aligning_rotation() const {
     assert(mdv::condition::are_orthogonal(x_this, e));
     assert(mdv::condition::are_orthogonal(x_other, e));
 
-    const Quat res = Quat::FromTwoVectors(-x_this, x_other);
+    const Quat res = quaternion_from_two_vectors(-x_this, x_other);
     assert(mdv::condition::are_equal(res * (-x_this), x_other));
     assert(mdv::condition::are_equal(res * e, e));
     return res;

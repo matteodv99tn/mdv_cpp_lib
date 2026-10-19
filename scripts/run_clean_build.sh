@@ -6,7 +6,7 @@ ws_dir=$(realpath "$script_dir/..")
 build_dir=$(mktemp -d)
 trap 'rm -rf "$build_dir"' EXIT
 
-cmake -S "$ws_dir" -B "$build_dir" \
+cmake -S "$ws_dir" -B "$build_dir" -G Ninja \
   -DBUILD_TESTING=ON -DBUILD_EXECUTABLES=ON -DUSE_RERUN=ON -DCMAKE_BUILD_TYPE=Release
-cmake --build "$build_dir" --parallel
+cmake --build "$build_dir" --parallel "${MDV_JOBS:-8}"
 ctest --test-dir "$build_dir" --output-on-failure --no-tests=error

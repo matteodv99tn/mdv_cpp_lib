@@ -8,6 +8,7 @@ option(BUILD_TESTING "" OFF)
 option(BUILD_EXECUTABLES "" OFF)
 option(BUILD_BINDINGS "" OFF)
 option(USE_RERUN "" OFF)
+option(CGAL_DO_NOT_USE_BOOST_MP "Use CGAL's GMP fallback instead of Boost.Multiprecision/CORE" ON)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -88,12 +89,12 @@ configure_file(
 )
 
 
-#  __  __       _         _     _ _                          
-# |  \/  | __ _(_)_ __   | |   (_) |__  _ __ __ _ _ __ _   _ 
+#  __  __       _         _     _ _
+# |  \/  | __ _(_)_ __   | |   (_) |__  _ __ __ _ _ __ _   _
 # | |\/| |/ _` | | '_ \  | |   | | '_ \| '__/ _` | '__| | | |
 # | |  | | (_| | | | | | | |___| | |_) | | | (_| | |  | |_| |
 # |_|  |_|\__,_|_|_| |_| |_____|_|_.__/|_|  \__,_|_|   \__, |
-#                                                      |___/ 
+#                                                      |___/
 add_library(
     mdvcpplib
     SHARED
@@ -101,6 +102,7 @@ add_library(
     ${CMAKE_CURRENT_BINARY_DIR}/src/config.cpp
 
     # General purpose
+    ${CMAKE_CURRENT_LIST_DIR}/src/utils/eigen_solvers.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/logging.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/logging_extras.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/utils/spdlog.cpp
@@ -148,7 +150,7 @@ set_source_files_properties(
 if(rerun_sdk_FOUND AND USE_RERUN)
     target_link_libraries(
         mdvcpplib
-        PUBLIC 
+        PUBLIC
         rerun_sdk
     )
     target_sources(
@@ -164,7 +166,7 @@ if(rerun_sdk_FOUND AND USE_RERUN)
 endif()
 target_include_directories(
     mdvcpplib
-    PUBLIC 
+    PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
@@ -175,28 +177,29 @@ target_include_directories(
 )
 target_link_libraries(
     mdvcpplib
-    PUBLIC 
+    PUBLIC
     Eigen3::Eigen
     CGAL::CGAL
     Microsoft.GSL::GSL
     spdlog::spdlog
-    PRIVATE 
+    fmt::fmt
+    PRIVATE
     range-v3
     matioCpp::matioCpp
 )
-target_compile_definitions(
-    mdvcpplib
-    PUBLIC -DFMT_HEADER_ONLY=1
-)
+if(CGAL_DO_NOT_USE_BOOST_MP)
+    # Preserve the backend choice in exported targets as well as this build.
+    target_compile_definitions(mdvcpplib PUBLIC CGAL_DO_NOT_USE_BOOST_MP)
+endif()
 target_compile_options(mdvcpplib PRIVATE ${MDV_WARNING_FLAGS})
 
 
-#  ____   ___  ____ ____  
-# |  _ \ / _ \/ ___|___ \ 
+#  ____   ___  ____ ____
+# |  _ \ / _ \/ ___|___ \
 # | |_) | | | \___ \ __) |
-# |  _ <| |_| |___) / __/ 
+# |  _ <| |_| |___) / __/
 # |_| \_\\___/|____/_____|
-#                         
+#
 find_package(rclcpp             QUIET)
 find_package(tf2_ros            QUIET)
 find_package(geometry_msgs      QUIET)
@@ -212,7 +215,7 @@ if(rclcpp_FOUND AND geometry_msgs_FOUND AND tf2_ros_FOUND)
     )
     target_include_directories(
         mdvcpplib
-        PUBLIC 
+        PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/ros2/include>
     )
     ament_target_dependencies(
@@ -230,12 +233,12 @@ if(rclcpp_FOUND AND geometry_msgs_FOUND AND tf2_ros_FOUND)
 endif()
 
 
-#  _____                     _        _     _           
-# | ____|_  _____  ___ _   _| |_ __ _| |__ | | ___  ___ 
+#  _____                     _        _     _
+# | ____|_  _____  ___ _   _| |_ __ _| |__ | | ___  ___
 # |  _| \ \/ / _ \/ __| | | | __/ _` | '_ \| |/ _ \/ __|
 # | |___ >  <  __/ (__| |_| | || (_| | |_) | |  __/\__ \
 # |_____/_/\_\___|\___|\__,_|\__\__,_|_.__/|_|\___||___/
-#                                                       
+#
 if(BUILD_EXECUTABLES)
     if(NOT USE_RERUN)
         message(FATAL_ERROR "BUILD_EXECUTABLES requires USE_RERUN=ON")
@@ -245,12 +248,12 @@ if(BUILD_EXECUTABLES)
 endif()
 
 
-#  _   _       _ _     _____         _       
-# | | | |_ __ (_) |_  |_   _|__  ___| |_ ___ 
+#  _   _       _ _     _____         _
+# | | | |_ __ (_) |_  |_   _|__  ___| |_ ___
 # | | | | '_ \| | __|   | |/ _ \/ __| __/ __|
 # | |_| | | | | | |_    | |  __/\__ \ |_\__ \
 #  \___/|_| |_|_|\__|   |_|\___||___/\__|___/
-#                                            
+#
 if(BUILD_TESTING)
     find_and_log_required(GTest)
     file(GLOB UNIT_TEST_SRCS unit_tests/*.cpp)
@@ -270,12 +273,12 @@ if(BUILD_TESTING)
 endif()
 
 
-#  ____   ___  ____ ____    ___           _        _ _ 
+#  ____   ___  ____ ____    ___           _        _ _
 # |  _ \ / _ \/ ___|___ \  |_ _|_ __  ___| |_ __ _| | |
 # | |_) | | | \___ \ __) |  | || '_ \/ __| __/ _` | | |
 # |  _ <| |_| |___) / __/   | || | | \__ \ || (_| | | |
 # |_| \_\\___/|____/_____| |___|_| |_|___/\__\__,_|_|_|
-#                                                      
+#
 find_package(ament_cmake QUIET)
 if(ament_cmake_FOUND)
     install(
@@ -317,12 +320,12 @@ else()
 endif()
 
 
-#  ____                                   
-# |  _ \  _____  ___   _  __ _  ___ _ __  
-# | | | |/ _ \ \/ / | | |/ _` |/ _ \ '_ \ 
+#  ____
+# |  _ \  _____  ___   _  __ _  ___ _ __
+# | | | |/ _ \ \/ / | | |/ _` |/ _ \ '_ \
 # | |_| | (_) >  <| |_| | (_| |  __/ | | |
 # |____/ \___/_/\_\\__, |\__, |\___|_| |_|
-#                  |___/ |___/            
+#                  |___/ |___/
 
 find_package(Doxygen)
 if(Doxygen_FOUND)
@@ -331,22 +334,22 @@ if(Doxygen_FOUND)
         Doxyfile.in
         ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
     )
-    add_custom_target( 
+    add_custom_target(
         docs
         COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Generating API documentation with Doxygen"
-        VERBATIM 
+        VERBATIM
     )
 endif()
 
 
-#  ____  _           _ _                 
-# | __ )(_)_ __   __| (_)_ __   __ _ ___ 
+#  ____  _           _ _
+# | __ )(_)_ __   __| (_)_ __   __ _ ___
 # |  _ \| | '_ \ / _` | | '_ \ / _` / __|
 # | |_) | | | | | (_| | | | | | (_| \__ \
 # |____/|_|_| |_|\__,_|_|_| |_|\__, |___/
-#                              |___/     
+#                              |___/
 if(BUILD_BINDINGS)
     add_subdirectory(bindings)
 endif()

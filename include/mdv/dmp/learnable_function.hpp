@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "mdv/macros.hpp"
+#include "mdv/utils/eigen_solvers.hpp"
 
 #define SQUARE(x) ((x) * (x))
 
@@ -106,7 +107,7 @@ public:
         assert(phi.cols() == static_cast<Eigen::Index>(n_basis()));
         assert(phi.rows() == fdes.rows());
         assert(fdes.cols() == FunctionDimension);
-        _ws = (phi_weights * phi).fullPivHouseholderQr().solve(fdes);
+        _ws = fullpiv_qr_solve(phi_weights * phi, fdes);
     }
 
     void
@@ -123,8 +124,7 @@ public:
         assert(phi.rows() == fdes.rows());
         assert(fdes.cols() == FunctionDimension);
         for (long i = 0; i < FunctionDimension; ++i) {
-            _ws.col(i) =
-                    (phi_weights(i) * phi).fullPivHouseholderQr().solve(fdes.col(i));
+            _ws.col(i) = fullpiv_qr_solve(phi_weights(i) * phi, fdes.col(i));
         }
     }
 
