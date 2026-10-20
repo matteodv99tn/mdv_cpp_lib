@@ -52,8 +52,8 @@ struct RhytmicDmp {
     using FunctionPtr             = std::shared_ptr<Function>;
 
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
-    using MinimumGoalSample = TransformationSystem::MinimumGoalSample;
-    using MinimumSample     = TransformationSystem::MinimumSample;
+    using MinimumGoalSample = typename TransformationSystem::MinimumGoalSample;
+    using MinimumSample     = typename TransformationSystem::MinimumSample;
 
     double tau = 1.0;
 
@@ -101,7 +101,7 @@ struct RhytmicDmp {
         using Quat      = Eigen::Quaterniond;
         using Vec7      = Eigen::Vector<double, 7>;
         Vec7       zero = Vec7::Zero();
-        const auto add  = [](Vec7 sum, const Demo::Sample& sample) -> Vec7 {
+        const auto add  = [](Vec7 sum, const typename Demo::Sample& sample) -> Vec7 {
             sum.head<3>() = sample.y().pos;
             sum.tail<4>() = sample.y().ori.coeffs();
             return sum;
@@ -158,7 +158,7 @@ struct RhytmicDmp {
     ) const {
         const Point g = goal.value_or(compute_average(demo));
         const auto  compute_distance =
-                [this, g](const Demonstration::Sample& sample) -> double {
+                [this, g](const typename Demonstration::Sample& sample) -> double {
             return tv_norm(m().logarithmic_map(sample.y(), g));
         };
 
@@ -208,12 +208,12 @@ struct RhytmicDmp {
 
     Demonstration<M>
     integrate(
-            const Point&                 y0,
-            const TangentVector&         v0,
-            const Point&                 g,
-            const double                 r,
-            std::size_t                  n_steps,
-            const Demonstration<M>::Time dt
+            const Point&                          y0,
+            const TangentVector&                  v0,
+            const Point&                          g,
+            const double                          r,
+            std::size_t                           n_steps,
+            const typename Demonstration<M>::Time dt
     ) const {
         using mdv::condition::are_orthogonal;
         using mdv::convert::seconds;
@@ -240,12 +240,12 @@ struct RhytmicDmp {
 
     std::pair<Point, TangentVector>
     integrate_once(
-            const Point&                 y0,
-            const TangentVector&         v0,
-            const Point&                 g,
-            const double                 r,
-            const Demonstration<M>::Time dt,
-            const Demonstration<M>::Time t
+            const Point&                          y0,
+            const TangentVector&                  v0,
+            const Point&                          g,
+            const double                          r,
+            const typename Demonstration<M>::Time dt,
+            const typename Demonstration<M>::Time t
     ) const {
         using mdv::condition::are_orthogonal;
         using mdv::convert::seconds;
@@ -280,7 +280,7 @@ struct RhytmicDmp {
 
     // clang-format off
     MDV_NODISCARD std::size_t                 n_basis() const    { return fun().n_basis(); }
-    MDV_NODISCARD const Function::WeightsMatrix& weights() const { return fun().weights(); }
+    MDV_NODISCARD const typename Function::WeightsMatrix& weights() const { return fun().weights(); }
     MDV_NODISCARD Logger&                     logger() const     { return *(_logger.get()); }
     MDV_NODISCARD Manifold&                   manifold()         { assert(_m); return *_m; }
     MDV_NODISCARD const Manifold&             manifold() const   { assert(_m); return *_m; }

@@ -108,13 +108,27 @@ TEST(MultiVectorTest, AtAccessOperator) {
 }
 
 TEST(MultiVectorTest, ColumnIterator) {
-    const test_vector vec      = build_increasing_value(50);  // NOLINT magic numbers
-    double            double_v = 0.0;
-    int               int_v    = 0;
-    char              char_v   = 'a';
+    test_vector vec      = build_increasing_value(50);  // NOLINT magic numbers
+    double      double_v = 0.0;
+    int         int_v    = 0;
+    char        char_v   = 'a';
     for (const auto& it : vec.column_iterator<0>()) ASSERT_EQ(it, double_v++);
     for (const auto& it : vec.column_iterator<1>()) ASSERT_EQ(it, int_v++);
     for (const auto& it : vec.column_iterator<2>()) ASSERT_EQ(it, char_v++);
+
+    for (auto& it : vec.column_iterator<1>()) it += 1;
+    for (std::size_t i = 0; i < vec.size(); ++i)
+        EXPECT_EQ(std::get<int>(vec[i]), static_cast<int>(i) + 1);
+}
+
+TEST(MultiVectorTest, ExplicitConstColumnIterator) {
+    test_vector vec      = build_increasing_value(3);
+    int         expected = 0;
+    for (const auto& value : vec.ccolumn_iterator<1>()) {
+        static_assert(std::is_same_v<decltype(value), const int&>);
+        EXPECT_EQ(value, expected++);
+    }
+    EXPECT_EQ(expected, 3);
 }
 
 TEST(MultiVectorTest, ConstColumnIterator) {

@@ -32,7 +32,10 @@ concept manifold_demonstration = requires {
     requires std::is_same_v<M, typename Demo::Manifold>;
 };
 
-template <typename Sample, std::size_t MinSize = 0, typename M = Sample::Manifold>
+template <
+        typename Sample,
+        std::size_t MinSize = 0,
+        typename M          = typename Sample::Manifold>
 concept manifold_sample = requires(Sample sample, const Sample csample) {
     // Manifold check
     typename Sample::Manifold;
@@ -95,9 +98,10 @@ public:
     static constexpr std::size_t diff_order = Order;
 
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
-    using Manifold  = M;
-    using Time      = ClockT;
-    using BaseTuple = internal::Sample<TangentVector, Order, Time, Point>::type;
+    using Manifold = M;
+    using Time     = ClockT;
+    using BaseTuple =
+            typename internal::Sample<TangentVector, Order, Time, Point>::type;
 
     template <typename... Args>
     DemonstrationSample(Args... args) : _data(std::forward<Args>(args)...) {}
@@ -165,7 +169,7 @@ public:
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
     using Manifold  = M;
     using Time      = ClockT;
-    using BaseTuple = Sample::BaseTuple;
+    using BaseTuple = typename Sample::BaseTuple;
     using Container = std::vector<Sample>;
 
     MDV_NODISCARD static Demonstration
@@ -503,7 +507,7 @@ namespace internal {
     template <std::size_t Index, typename BaseIter>
     DemonstrationElementIterator<Index, BaseIter>
     make_element_iterator(BaseIter it) {
-        return DemonstrationElementIterator<Index, BaseIter>(it);
+        return DemonstrationElementIterator<Index, BaseIter>{it};
     }
 
     template <typename... Args>

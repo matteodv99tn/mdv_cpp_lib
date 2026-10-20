@@ -38,8 +38,8 @@ cwise_dot<double>(const double& x1, const double& x2) {
 template <concepts::trivially_embeddable_manifold M>
 struct DefaultManifoldEmbedding {
     using TrivialEmbedder = riemann::TrivialTypeEmbedding<typename M::TangentVector>;
-    using Input           = TrivialEmbedder::Input;
-    using Output          = TrivialEmbedder::Output;
+    using Input           = typename TrivialEmbedder::Input;
+    using Output          = typename TrivialEmbedder::Output;
 
     DefaultManifoldEmbedding(const M* manifold) : _m(manifold) {};
 
@@ -119,8 +119,8 @@ public:
 
     MDV_MANIFOLD_TYPENAMES_IMPORT(M);
 
-    using MinimumGoalSample = TransformationSystem::MinimumGoalSample;
-    using MinimumSample     = TransformationSystem::MinimumSample;
+    using MinimumGoalSample = typename TransformationSystem::MinimumGoalSample;
+    using MinimumSample     = typename TransformationSystem::MinimumSample;
 
     using BasisSize = unsigned long;
     using Weights   = Eigen::MatrixXd;
@@ -205,10 +205,10 @@ public:
 
     Demonstration<M>
     integrate(
-            const Point&                 y0,
-            const Point&                 g,
-            std::size_t                  n_steps,
-            const Demonstration<M>::Time dt
+            const Point&                          y0,
+            const Point&                          g,
+            std::size_t                           n_steps,
+            const typename Demonstration<M>::Time dt
     ) const {
         using mdv::condition::are_orthogonal;
         using mdv::convert::seconds;
@@ -256,8 +256,8 @@ public:
 
     // clang-format off
     MDV_NODISCARD std::size_t                 n_basis() const    { return fun().n_basis(); }
-    MDV_NODISCARD const Function::WeightsMatrix& weights() const { return fun().weights(); }
-    MDV_NODISCARD Function::WeightsMatrix&     weights() { return fun().weights(); }
+    MDV_NODISCARD const typename Function::WeightsMatrix& weights() const { return fun().weights(); }
+    MDV_NODISCARD typename Function::WeightsMatrix&     weights() { return fun().weights(); }
     MDV_NODISCARD Logger&                     logger() const     { return *(_logger.get()); }
     MDV_NODISCARD Manifold&                   manifold()         { assert(_m); return *_m; }
     MDV_NODISCARD const Manifold&             manifold() const   { assert(_m); return *_m; }

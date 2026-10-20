@@ -10,17 +10,20 @@
 namespace mdv::concepts {
 
 template <typename M>
-concept manifold = requires(const M m, M::Point x, M::TangentVector v) {
-    typename M::Point;
-    typename M::TangentVector;
+concept manifold =
+        requires(const M m, typename M::Point x, typename M::TangentVector v) {
+            typename M::Point;
+            typename M::TangentVector;
 
-    { m.logarithmic_map(x, x) } -> std::same_as<typename M::TangentVector>;
-    { m.exponential_map(x, v) } -> std::same_as<typename M::Point>;
-    { m.covariant_derivative(x, v) } -> std::same_as<typename M::TangentVector>;
-    { m.parallel_transport(x, x, v) } -> std::same_as<typename M::TangentVector>;
-    { m.default_point() } -> std::same_as<typename M::Point>;
-    { m.default_tangent_vector() } -> std::same_as<typename M::TangentVector>;
-};
+            { m.logarithmic_map(x, x) } -> std::same_as<typename M::TangentVector>;
+            { m.exponential_map(x, v) } -> std::same_as<typename M::Point>;
+            { m.covariant_derivative(x, v) } -> std::same_as<typename M::TangentVector>;
+            {
+                m.parallel_transport(x, x, v)
+            } -> std::same_as<typename M::TangentVector>;
+            { m.default_point() } -> std::same_as<typename M::Point>;
+            { m.default_tangent_vector() } -> std::same_as<typename M::TangentVector>;
+        };
 
 template <typename T>
 concept euclidean_type = requires {

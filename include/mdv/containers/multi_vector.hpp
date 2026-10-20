@@ -7,6 +7,7 @@
 #include <gsl/pointers>
 #include <tuple>
 #include <type_traits>
+#include <vector>
 
 #include "mdv/macros.hpp"
 
@@ -74,8 +75,8 @@ public:
     // |___|\__\___|_|  \__,_|\__\___/|_|  |___/
     //
     // clang-format off
-    using row_iterator       = vector::iterator;       // NOLINT 
-    using const_row_iterator = vector::const_iterator; // NOLINT 
+    using row_iterator       = typename vector::iterator;       // NOLINT
+    using const_row_iterator = typename vector::const_iterator; // NOLINT
 
     MDV_NODISCARD row_iterator       begin() noexcept       { return _vec.begin();  }
     MDV_NODISCARD row_iterator       end() noexcept         { return _vec.end();    }
@@ -85,13 +86,13 @@ public:
     MDV_NODISCARD const_row_iterator cend() noexcept        { return _vec.cend();   }
 
     template <std::size_t Index>
-    MDV_NODISCARD auto column_iterator() { return ColumnIterable<Index, row_iterator, MultiVector>(this); }
+    MDV_NODISCARD auto column_iterator() { return ColumnIterable<Index, row_iterator, MultiVector>{this}; }
 
     template <std::size_t Index>
-    MDV_NODISCARD auto ccolumn_iterator() { return ColumnIterable<Index, const_row_iterator, const MultiVector>(this); }
+    MDV_NODISCARD auto ccolumn_iterator() { return ColumnIterable<Index, const_row_iterator, const MultiVector>{this}; }
 
     template <std::size_t Index>
-    MDV_NODISCARD auto column_iterator() const { return ColumnIterable<Index, const_row_iterator, const MultiVector>(this); }
+    MDV_NODISCARD auto column_iterator() const { return ColumnIterable<Index, const_row_iterator, const MultiVector>{this}; }
 
     // clang-format on
 
