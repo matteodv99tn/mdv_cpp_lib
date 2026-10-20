@@ -69,26 +69,32 @@ RerunConverter::operator()(const mdv::mesh::Geodesic& geod) const {
 }
 
 rra::Points3D
-RerunConverter::operator()(const mesh::Point& pt) const {
+RerunConverter::operator()(const mesh::Mesh& mesh, const mesh::Point& pt) const {
     _logger->debug(
-            "Exporting point on a mesh at position {}", eigen_to_str(pt.position())
+            "Exporting point on a mesh at position {}",
+            eigen_to_str(mesh::position(mesh, pt))
     );
-    return rra::Points3D((*this)(pt.position()));
+    return rra::Points3D((*this)(mesh::position(mesh, pt)));
 }
 
 rra::Points3D
-RerunConverter::operator()(const std::vector<mesh::Point>& pts) const {
+RerunConverter::operator()(
+        const mesh::Mesh& mesh, const std::vector<mesh::Point>& pts
+) const {
     _logger->info("Exporting {} points on a mesh", pts.size());
 
     std::vector<rrc::Position3D> positions;
     positions.reserve(pts.size());
-    for (const auto& p : pts) positions.emplace_back(operator()(p.position()));
+    for (const auto& p : pts)
+        positions.emplace_back(operator()(mesh::position(mesh, p)));
 
     return rra::Points3D(std::move(positions));
 }
 
 rra::Arrows3D
-RerunConverter::operator()(const std::vector<mesh::TangentVector>& vecs) const {
+RerunConverter::operator()(
+        const mesh::Mesh& mesh, const std::vector<mesh::TangentVector>& vecs
+) const {
     _logger->info("Exporting {} vectors tangent to a mesh", vecs.size());
     std::vector<rrc::Position3D> origins;
     std::vector<rrc::Vector3D>   tips;
@@ -96,7 +102,7 @@ RerunConverter::operator()(const std::vector<mesh::TangentVector>& vecs) const {
     origins.reserve(vecs.size());
     tips.reserve(vecs.size());
     for (const auto& v : vecs) {
-        origins.emplace_back(operator()(v.application_point().position()));
+        origins.emplace_back(operator()(mesh::position(mesh, v.application_point())));
         tips.emplace_back(operator()(v.cartesian_vector()));
     }
 

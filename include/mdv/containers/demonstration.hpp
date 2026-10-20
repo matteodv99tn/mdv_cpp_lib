@@ -7,6 +7,7 @@
 #include <fmt/format.h>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <tuple>
 #include <type_traits>
 
@@ -177,6 +178,13 @@ public:
     MDV_NODISCARD static DemonstrationBuilder
     builder(std::size_t initial_size = 0) {
         return DemonstrationBuilder(std::make_shared<M>(), initial_size);
+    }
+
+    MDV_NODISCARD static DemonstrationBuilder
+    builder(std::shared_ptr<M> manifold, std::size_t initial_size = 0) {
+        if (!manifold)
+            throw std::invalid_argument("Demonstration builder requires a manifold");
+        return DemonstrationBuilder(std::move(manifold), initial_size);
     }
 
     SampleBuilder

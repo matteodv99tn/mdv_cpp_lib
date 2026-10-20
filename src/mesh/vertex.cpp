@@ -18,12 +18,6 @@ namespace mdv::mesh {
 namespace rs = ::ranges;
 
 std::string
-Vertex::describe() const {
-    if (!is_valid()) return "Invalid Vertex";
-    return mesh::describe(mesh(), VertexId{id()});
-}
-
-std::string
 describe(const Mesh& mesh, VertexId v) {
     if (!v.is_valid()) return "Invalid Vertex";
 

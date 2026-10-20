@@ -366,7 +366,7 @@ class Mesh:
             Geodesic path between the two points.
         """
         return Geodesic(
-            self._mesh_impl.build_geodesic(
+            _impl.build_geodesic(self._mesh_impl,
                 from_point._point_impl,  # type: ignore[attr-defined]
                 to_point._point_impl,  # type: ignore[attr-defined]
             )

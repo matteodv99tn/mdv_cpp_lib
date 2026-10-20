@@ -25,19 +25,6 @@ namespace mdv::mesh {
 class Mesh;
 
 /**
- * @brief Mesh vertex.
- */
-class Vertex;
-/**
- * @brief Mesh face.
- */
-class Face;
-/**
- * @brief Mesh half-edge.
- */
-class HalfEdge;
-
-/**
  * @brief Point on a mesh (vertex/edge/face).
  */
 class Point;

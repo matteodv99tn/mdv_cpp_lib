@@ -5,8 +5,11 @@
 #include <string>
 
 #include "mdv/config.hpp"
+#include "mdv/mesh/face.hpp"
 #include "mdv/mesh/flat_parameterisation.hpp"
 #include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/point.hpp"
+#include "mdv/mesh/vertex.hpp"
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 #include "mdv/utils/spdlog.hpp"
@@ -29,12 +32,12 @@ main(int argc, char* argv[]) {
     // const std::string mesh_path =
     //         mdv::config::meshes_directory() / "fender_low_res.stl";
     // auto        mesh     = Mesh::from_file(mesh_path);
-    // const Point p0       = mesh.vertex(3884);  // NOLINT: extracted from meshlab
+    // const Point p0 = PointOnVertex{VertexId{3884}}; // extracted from meshlab
     // auto        sub_mesh = Mesh::extract_normal_bounded_surface(mesh, p0, 20.0);
 
     const std::string mesh_path = mdv::config::meshes_directory() / "bunny_simple.off";
     auto              mesh      = Mesh::from_file(mesh_path);
-    const Point       p0        = mesh.vertex(0);  // NOLINT: extracted from meshlab
+    const Point       p0        = PointOnVertex{VertexId{0}};  // extracted from meshlab
     auto              sub_mesh  = Mesh::extract_normal_bounded_surface(mesh, p0, 50.0);
     auto              filled_mesh = Mesh::fill_holes(sub_mesh);
 
@@ -44,12 +47,12 @@ main(int argc, char* argv[]) {
     std::vector<Eigen::Vector2d> projs;
     projs.reserve(sub_mesh.num_vertices());
     for (mdv::mesh::Index i = 0; i < sub_mesh.num_vertices(); ++i)
-        projs.emplace_back(param.project(sub_mesh.vertex(i)));
+        projs.emplace_back(param.project(PointOnVertex{VertexId{i}}));
 
     std::vector<Eigen::Vector3d> reconstructed;
     reconstructed.reserve(sub_mesh.num_vertices());
     for (const auto& uv : projs)
-        reconstructed.emplace_back(param.retrieve(uv).position());
+        reconstructed.emplace_back(position(filled_mesh, param.retrieve(uv)));
 
 #ifdef MDV_WITH_RERUN_SDK
     mdv::RerunConverter    to_rerun;
@@ -100,10 +103,10 @@ main(int argc, char* argv[]) {
 
     double max_err = 0.0;
     for (long i = 0; i < 2000; ++i) {
-        const auto   pt  = Point::random(sub_mesh);
+        const auto   pt  = random_point(sub_mesh);
         const auto   uv  = param.project(pt);
         const auto   rev = param.retrieve(uv);
-        const double e   = (pt.position() - rev.position()).norm();
+        const double e   = (position(sub_mesh, pt) - position(filled_mesh, rev)).norm();
         max_err          = std::max(max_err, e);
     }
     fmt::print("Maximum reconstruction error: {}\n", max_err);
@@ -111,12 +114,13 @@ main(int argc, char* argv[]) {
     max_err            = 0.0;
     constexpr double b = 1.0 / 3.0;
     for (mdv::mesh::Index i = 0; i < sub_mesh.num_faces(); ++i) {
-        const auto pt = Point::PointInFaceDescriptor(
-                sub_mesh.face(i), Eigen::Vector3d{b, b, b}
-        );
+        const Point pt = PointInFace{
+                .f = FaceId{i},
+                  .bary = {b, b, b}
+        };
         const auto   uv  = param.project(pt);
         const auto   rev = param.retrieve(uv);
-        const double e   = (pt.position() - rev.position()).norm();
+        const double e   = (position(sub_mesh, pt) - position(filled_mesh, rev)).norm();
         max_err          = std::max(max_err, e);
         if (e > 1e-6) { fmt::print("Err at face {} = {}\n", i, e); }
     }
@@ -143,10 +147,8 @@ main(int argc, char* argv[]) {
     }
 
     for (mdv::mesh::Index i = 0; i < sub_mesh.num_faces(); ++i) {
-        const auto f1  = sub_mesh.face(i);
-        const auto f2  = filled_mesh.face(i);
-        const auto v1s = vertices(sub_mesh, FaceId{f1.id()});
-        const auto v2s = vertices(filled_mesh, FaceId{f2.id()});
+        const auto v1s = vertices(sub_mesh, FaceId{i});
+        const auto v2s = vertices(filled_mesh, FaceId{i});
 
         if ((v1s[0] != v2s[0]) || (v1s[1] != v2s[1]) || (v1s[2] != v2s[2])) {
             throw std::runtime_error("Faces have been changed");

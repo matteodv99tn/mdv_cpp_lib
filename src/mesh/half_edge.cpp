@@ -70,15 +70,4 @@ twin(const Mesh& mesh, HalfEdgeId h) {
     );
 }
 
-std::string
-HalfEdge::describe() const {
-    const auto& m = internal::cgal_mesh(mesh());
-    const auto  h = internal::to_cgal(HalfEdgeId{id()});
-    return fmt::format(
-            "HalfEdge on face #{} with origin vertex #{}",
-            CGAL::face(h, m).idx(),
-            CGAL::source(h, m).idx()
-    );
-}
-
 }  // namespace mdv::mesh

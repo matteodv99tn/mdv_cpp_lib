@@ -16,28 +16,24 @@
 #include "mdv/riemann_geometry/utils.hpp"
 #include "mdv/utils/conditions.hpp"
 
+namespace mdv {
 
-using mdv::concepts::euclidean_space;
-using mdv::concepts::trivially_embeddable_manifold;
-using mdv::riemann::space_dimension_v;
-
-static_assert(space_dimension_v<mdv::riemann::Scalar::TangentVector> == 1);
-static_assert(space_dimension_v<mdv::riemann::S3::TangentVector> == 4);
+static_assert(riemann::space_dimension_v<riemann::Scalar::TangentVector> == 1);
+static_assert(riemann::space_dimension_v<riemann::S3::TangentVector> == 4);
 // static_assert(mdv::riemann::space_dimension_v<mdv::riemann::SE3::TangentVector> ==
 // 7);
 
-static_assert(euclidean_space<mdv::riemann::Scalar>);
-static_assert(trivially_embeddable_manifold<mdv::riemann::Scalar>);
-static_assert(trivially_embeddable_manifold<mdv::riemann::Rn<3>>);
-static_assert(trivially_embeddable_manifold<mdv::riemann::S3>);
-static_assert(trivially_embeddable_manifold<mdv::riemann::SE3>);
+static_assert(concepts::euclidean_space<riemann::Scalar>);
+static_assert(concepts::trivially_embeddable_manifold<riemann::Scalar>);
+static_assert(concepts::trivially_embeddable_manifold<riemann::Rn<3>>);
+static_assert(concepts::trivially_embeddable_manifold<riemann::S3>);
+static_assert(concepts::trivially_embeddable_manifold<riemann::SE3>);
 
 static_assert(mdv::concepts::transformation_system<
               mdv::dmp::TransformationSystem<mdv::riemann::Scalar>,
               mdv::riemann::Scalar>);
 
 TEST(Dmp, ScalarDmp) {
-    using mdv::Dmp;
     using mdv::riemann::Scalar;
     using Demonstration = mdv::Demonstration<Scalar>;
     using namespace std::chrono_literals;
@@ -240,7 +236,10 @@ TEST(Dmp, R2MeshDmpComparison) {
 
     const auto fun       = [](const double x, const double y) -> double { return 0.0; };
     const auto file_path = mdv::mesh::create_from_function(fun);
-    const auto mesh      = mdv::mesh::Mesh::from_file(file_path);
+    const auto mesh_owner =
+            std::make_shared<mesh::Mesh>(mesh::Mesh::from_file(file_path));
+    const auto& mesh = *mesh_owner;
+    auto        m    = std::make_shared<MeshMan>(mesh_owner);
 
     // TODO: fix numeric issue when using this initial conditions
     // const R2::Point y0{-0.5, -0.5};
@@ -255,9 +254,7 @@ TEST(Dmp, R2MeshDmpComparison) {
     std::vector<MeshMan::Point> mesh_positions;
     mesh_positions.reserve(r2_positions.size());
     for (const Vec2& p : r2_positions) {
-        mesh_positions.emplace_back(
-                MeshMan::Point::from_cartesian(mesh, {p(0), p(1), 0})
-        );
+        mesh_positions.emplace_back(mesh::from_cartesian(mesh, {p(0), p(1), 0}));
     }
 
 
@@ -267,7 +264,7 @@ TEST(Dmp, R2MeshDmpComparison) {
                                        .velocity_automatic_differentiation()
                                        .acceleration_automatic_differentiation()
                                        .create();
-    const MeshDemo mesh_demo = MeshDemo::builder(mesh_positions.size())
+    const MeshDemo mesh_demo = MeshDemo::builder(m, mesh_positions.size())
                                        .set_sampling_period(5ms)
                                        .assign_position(mesh_positions)
                                        .velocity_automatic_differentiation()
@@ -277,12 +274,19 @@ TEST(Dmp, R2MeshDmpComparison) {
     for (std::size_t i = 0; i < r2_demo.size(); ++i) {
         const Vec2 r2_p = r2_demo[i].y();
         const Vec3 r2pos_in_r3{r2_p(0), r2_p(1), 0.0};
-        const Vec3 mesh_pos = mesh_demo[i].y().position();
+        const Vec3 mesh_pos = mesh::position(mesh, mesh_demo[i].y());
         ASSERT_TRUE(mdv::condition::are_equal(r2pos_in_r3, mesh_pos));
     };
 
     R2Dmp   r2_dmp;
-    MeshDmp mesh_dmp;
+    auto    ts = std::make_shared<MeshDmp::TransformationSystem>(48.0, 12.0, m);
+    MeshDmp mesh_dmp(
+            12,
+            ts,
+            std::make_shared<MeshDmp::CoordinateSystem>(),
+            get_default_logger(),
+            m
+    );
     mesh_dmp.embedding().setup(mesh_demo.front().y(), mesh_demo.back().y());
     r2_dmp.learn(r2_demo);
     mesh_dmp.learn(mesh_demo);
@@ -299,7 +303,9 @@ TEST(Dmp, R2MeshDmpComparison) {
     for (std::size_t i = 0; i < r2_res.size(); ++i) {
         const Vec2 r2_p = r2_res[i].y();
         const Vec3 r2pos_in_r3{r2_p(0), r2_p(1), 0.0};
-        const Vec3 mesh_pos = mesh_res[i].y().position();
+        const Vec3 mesh_pos = mesh::position(mesh, mesh_res[i].y());
         ASSERT_TRUE(mdv::condition::are_equal(r2pos_in_r3, mesh_pos));
     };
 }
+
+}  // namespace mdv

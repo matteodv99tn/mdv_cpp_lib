@@ -1,6 +1,8 @@
 #ifndef MDV_MOVING_DMP_HPP
 #define MDV_MOVING_DMP_HPP
 
+#include <memory>
+
 #include "mdv/mesh/fwd.hpp"
 
 namespace mdv {
@@ -14,10 +16,15 @@ struct MovingDmpParameters {
     long   print_every        = 500;
 };
 
+/**
+ * @brief Train on a flat mesh and generate a trajectory on the owned target mesh.
+ * @note Retain the target mesh owner while interpreting the returned mesh-free points.
+ * @throws std::invalid_argument if the target owner is null.
+ */
 std::vector<mdv::mesh::Point> generate_trajectory(
-        MovingDmpParameters   params,
-        mesh::Mesh&           mesh,
-        const mesh::Geodesic& centroid_path
+        MovingDmpParameters               params,
+        std::shared_ptr<const mesh::Mesh> mesh,
+        const mesh::Geodesic&             centroid_path
 );
 
 std::vector<mdv::mesh::Point> upsample_to_1khz(
@@ -27,7 +34,9 @@ std::vector<mdv::mesh::Point> upsample_to_1khz(
 );
 
 std::vector<Eigen::Quaterniond> encode_orientation(
-        const std::vector<mesh::Point>& in_path, bool flip_orientation = false
+        const mesh::Mesh&               mesh,
+        const std::vector<mesh::Point>& in_path,
+        bool                            flip_orientation = false
 );
 
 std::vector<Eigen::Quaterniond> filter_orientation(

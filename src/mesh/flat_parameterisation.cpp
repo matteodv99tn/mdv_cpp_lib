@@ -20,10 +20,8 @@
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/mesh.hpp"
 
-namespace smp = CGAL::Surface_mesh_parameterization;
-
 namespace mdv::mesh {
-
+namespace smp = CGAL::Surface_mesh_parameterization;
 
 struct FlatParameterisation::FlatParameterisationImpl {
     // For the 2D mesh, we require a different kernel because the EPICK fails in
@@ -250,15 +248,16 @@ FlatParameterisation::project(const Point& pt) const {
     using VertexIndex = FlatParameterisationImpl::VertexIndex;
     using FaceIndex   = FlatParameterisationImpl::FaceIndex;
 
-    const auto* v_desc = pt.get_as<Point::PointOnVertexDescriptor>();
-    if (v_desc != nullptr)
-        return _impl->mesh_to_plane(VertexIndex{v_desc->vertex().id()});
-    return _impl->mesh_to_plane(pt.position(), FaceIndex{pt.face().id()});
+    const auto* v_desc = pt.get_as<PointOnVertex>();
+    if (v_desc != nullptr) return _impl->mesh_to_plane(internal::to_cgal(v_desc->v));
+    return _impl->mesh_to_plane(
+            position(*_mesh, pt), internal::to_cgal(face(*_mesh, pt))
+    );
 }
 
 Point
 FlatParameterisation::retrieve(const Eigen::Vector2d& uv) const {
-    return Point::from_cartesian(*_mesh, _impl->plane_to_mesh(uv));
+    return from_cartesian(*_mesh, _impl->plane_to_mesh(uv));
 }
 
 bool

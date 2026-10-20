@@ -60,7 +60,7 @@ Eigen::MatrixXd geodesic_resample(
  * @param p Destination point on the mesh.
  * @return Transported tangent vector.
  */
-TangentVector parallel_transport(const TangentVector& v, const Point& p);
+TangentVector parallel_transport(const Mesh&, const TangentVector& v, const Point& p);
 
 /**
  * @brief Logarithmic map of y at p.
@@ -69,7 +69,7 @@ TangentVector parallel_transport(const TangentVector& v, const Point& p);
  * @param y Target point on the mesh.
  * @return Tangent vector at p pointing toward y.
  */
-TangentVector logarithmic_map(const Point& p, const Point& y);
+TangentVector logarithmic_map(const Mesh&, const Point& p, const Point& y);
 
 /**
  * @brief Exponential map of a tangent vector on the mesh.
@@ -80,7 +80,7 @@ TangentVector logarithmic_map(const Point& p, const Point& y);
  * @param geod Optional output geodesic polyline.
  * @return Point reached by the exponential map.
  */
-Point exponential_map(const TangentVector& v, Geodesic* geod = nullptr);
+Point exponential_map(const Mesh&, const TangentVector& v, Geodesic* geod = nullptr);
 
 
 /**
@@ -90,7 +90,7 @@ Point exponential_map(const TangentVector& v, Geodesic* geod = nullptr);
  * @param p2 Second point on the mesh.
  * @return Euclidean distance in 3D.
  */
-double distance(const Point& p1, const Point& p2);
+double distance(const Mesh&, const Point& p1, const Point& p2);
 
 /**
  * @brief Checks if UV lies in the unit right triangle.

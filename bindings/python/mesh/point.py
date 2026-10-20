@@ -32,6 +32,7 @@ except ImportError:  # pragma: no cover - generated at build time
 
 
 from .vertex import Vertex
+from . import _mesh_impl as _impl
 from ._validation import as_vector
 
 if TYPE_CHECKING:
@@ -115,7 +116,7 @@ class Point:
         np.ndarray
             3D position vector ``[x, y, z]``.
         """
-        return np.asarray(self._point_impl.position()).reshape(-1)
+        return np.asarray(_impl.point_position(self._mesh._mesh_impl, self._point_impl)).reshape(-1)
 
     @property
     def face(self) -> "Face":
@@ -128,7 +129,7 @@ class Point:
         """
         from .face import Face
 
-        return Face(self._mesh, self._point_impl.face())
+        return Face(self._mesh, _impl.point_face(self._mesh._mesh_impl, self._point_impl))
 
     def describe(self) -> str:
         """Get a string description of the point.
@@ -138,7 +139,7 @@ class Point:
         str
             Description of the point.
         """
-        return self._point_impl.describe()
+        return _impl.point_describe(self._mesh._mesh_impl, self._point_impl)
 
     @staticmethod
     def from_cartesian(mesh: "Mesh", position: ArrayLike) -> "Point":
@@ -157,7 +158,7 @@ class Point:
             New point created from cartesian coordinates.
         """
         position_vec = as_vector(position, size=3, name="position")
-        return Point(_PointImpl.from_cartesian(mesh._mesh_impl, position_vec), mesh=mesh)
+        return Point(_impl.from_cartesian(mesh._mesh_impl, position_vec), mesh=mesh)
 
     @staticmethod
     def random(mesh: "Mesh") -> "Point":
@@ -173,4 +174,4 @@ class Point:
         Point
             Random point on the mesh.
         """
-        return Point(_PointImpl.random(mesh._mesh_impl), mesh=mesh)
+        return Point(_impl.random_point(mesh._mesh_impl), mesh=mesh)

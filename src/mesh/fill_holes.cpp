@@ -9,18 +9,17 @@
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/mesh.hpp"
 
-namespace pmp = CGAL::Polygon_mesh_processing;
-namespace rs  = ::ranges;
-
 // #define DEBUG_ALGORITHM
 
 namespace mdv::mesh {
+namespace pmp = CGAL::Polygon_mesh_processing;
+namespace rs  = ::ranges;
 
 Mesh
 Mesh::fill_holes(const Mesh& mesh) {
     using HalfedgeId = CgalImpl::CgalHalfEdgeIndex;
     static_assert(std::same_as<CgalImpl::Mesh::Halfedge_index, HalfedgeId>);
-    auto m = internal::get_mesh_impl(mesh);
+    auto m = internal::cgal_mesh(mesh);
 
     auto get_boarder_length = [&m](HalfedgeId start_he) -> double {
         double len = 0.0;

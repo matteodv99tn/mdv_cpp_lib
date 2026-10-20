@@ -20,15 +20,10 @@
 #include "mdv/utils/eigen_solvers.hpp"
 #include "mdv/utils/logging.hpp"
 
-using std::filesystem::path;
-
-// \cond DOXYGEN_IGNORE
-using ::mdv::mesh::internal::CgalImpl;
+namespace mdv::mesh::internal {
+namespace fs = std::filesystem;
 using Kernel = CgalImpl::Kernel;
 
-// \endcond
-
-namespace mdv::mesh::internal {
 namespace {
 
     template <class... Ts>
@@ -40,12 +35,11 @@ namespace {
     Overload(Ts...) -> Overload<Ts...>;
 
 }  // namespace
-}  // namespace mdv::mesh::internal
 
 CgalImpl::CgalImpl(Mesh&& mesh, Logger::SharedPtr&& logger) :
         _logger(std::move(logger)),
         _mesh(std::move(mesh)),
-        _geodesic_constructor(new CgalGeodesicConstructor(&_mesh)) {
+        _geodesic_constructor(new CgalGeodesicConstructor(&_mesh, &_aabb_tree)) {
     _shortest_path = std::make_unique<ShortestPath>(_mesh);
     this->logger().trace("Initialised geodesic constructor");
 
@@ -80,7 +74,7 @@ CgalImpl::CgalImpl(CgalImpl&& other) :
 }
 
 gsl::owner<CgalImpl*>
-CgalImpl::from_file(const path& file_path, Logger::SharedPtr&& logger) {
+CgalImpl::from_file(const fs::path& file_path, Logger::SharedPtr&& logger) {
     assert(logger != nullptr);
     CgalImpl::Mesh mesh;
     logger->info("Loading mesh from file {}", file_path.string());
@@ -97,20 +91,21 @@ CgalImpl::from_file(const path& file_path, Logger::SharedPtr&& logger) {
 }
 
 CgalImpl::FaceLocation
-mdv::mesh::internal::location_from_mesh_point(
-        const ::mdv::mesh::Point& point
-) noexcept {
-    auto vertex_descriptor =
-            [](const Point::PointOnVertexDescriptor& pt) -> CgalImpl::FaceLocation {
-        const auto& m    = get_mesh_impl(pt.vertex());
-        const auto  v_id = static_cast<CgalImpl::VertexDescriptor>(pt.vertex().id());
+face_location(
+        const CgalImpl::Mesh& m, const Point& point, const CgalImpl::AabbTree* tree
+) {
+    auto vertex_descriptor = [&m](const PointOnVertex& pt) -> CgalImpl::FaceLocation {
+        const auto v_id = to_cgal(pt.v);
+        if (!pt.v.is_valid() || !m.has_valid_index(v_id) || m.is_removed(v_id))
+            throw std::runtime_error("Invalid point vertex");
         return CgalImpl::ShortestPath::face_location(v_id, m);
     };
 
-    auto face_descriptor =
-            [](const Point::PointInFaceDescriptor& pt) -> CgalImpl::FaceLocation {
-        const auto f_id = to_face_impl(pt.face());
-        const auto b    = pt.coords();
+    auto face_descriptor = [&m](const PointInFace& pt) -> CgalImpl::FaceLocation {
+        const auto f_id = to_cgal(pt.f);
+        if (!m.has_valid_index(f_id) || m.is_removed(f_id))
+            throw std::runtime_error("Invalid point face");
+        const auto b = pt.coords();
 
         return {
                 f_id, {b(0), b(1), b(2)}
@@ -118,14 +113,21 @@ mdv::mesh::internal::location_from_mesh_point(
     };
 
     auto edge_descriptor =
-            [](const Point::PointOnEdgeDescriptor& pt) -> CgalImpl::FaceLocation {
-        const auto& aabb_tree = pt.mesh().cgal()._aabb_tree;
-        const auto& m_impl    = internal::get_mesh_impl(pt.mesh());
+            [&m, tree](const PointOnEdge& pt) mutable -> CgalImpl::FaceLocation {
+        // Preserve the old AABB location, including its choice of edge side.
+        const auto h = to_cgal(pt.he);
+        if (!pt.he.is_valid() || !m.has_valid_index(h) || m.is_removed(h))
+            throw std::runtime_error("Invalid point halfedge");
+        CgalImpl::AabbTree fallback_tree;
+        if (tree == nullptr) {
+            CgalImpl::ShortestPath::build_aabb_tree(
+                    m, fallback_tree, get(CGAL::vertex_point, m)
+            );
+            tree = &fallback_tree;
+        }
+        const Kernel::Ray_3 ray(m.point(source(h, m)), m.point(target(h, m)));
         return CgalImpl::ShortestPath::locate(
-                internal::point3_from_point(pt),
-                aabb_tree,
-                m_impl,
-                get(CGAL::vertex_point, m_impl)
+                ray.point(pt.t), *tree, m, get(CGAL::vertex_point, m)
         );
     };
     return std::visit(
@@ -136,6 +138,47 @@ mdv::mesh::internal::location_from_mesh_point(
             },
             point.descriptor()
     );
+}
+
+CgalImpl::FaceLocation
+face_location(const CgalImpl::Mesh& m, const Point& point, FaceId preferred) {
+    const auto f = to_cgal(preferred);
+    if (!preferred.is_valid() || !m.has_valid_index(f) || m.is_removed(f))
+        throw std::runtime_error("Invalid preferred face");
+    const auto       h = halfedge(f, m);
+    const std::array vs{source(h, m), target(h, m), target(next(h, m), m)};
+    if (const auto* v = point.get_as<PointOnVertex>()) {
+        for (std::size_t i = 0; i < 3; ++i) {
+            if (vs[i] != to_cgal(v->v)) continue;
+            CgalImpl::ShortestPath::Barycentric_coordinates b{0, 0, 0};
+            b[i] = 1;
+            return {f, b};
+        }
+    } else if (const auto* e = point.get_as<PointOnEdge>()) {
+        const auto he = to_cgal(e->he);
+        if (!m.has_valid_index(he) || m.is_removed(he))
+            throw std::runtime_error("Invalid point halfedge");
+        CgalImpl::ShortestPath::Barycentric_coordinates b{0, 0, 0};
+        bool                                            found_source = false;
+        bool                                            found_target = false;
+        for (std::size_t i = 0; i < 3; ++i) {
+            if (vs[i] == source(he, m)) {
+                b[i]         = 1 - e->t;
+                found_source = true;
+            }
+            if (vs[i] == target(he, m)) {
+                b[i]         = e->t;
+                found_target = true;
+            }
+        }
+        if (found_source && found_target) return {f, b};
+    } else if (
+            const auto* p = point.get_as<PointInFace>();
+            p != nullptr && p->f == preferred
+    ) {
+        return {f, p->bary};
+    }
+    throw std::runtime_error("Preferred face does not contain point");
 }
 
 void
@@ -225,7 +268,7 @@ CgalImpl::yield_faces() const {
 // |_| |_|\___|_| .__/ \___|_|  |___/
 //              |_|
 Eigen::Quaterniond
-mdv::mesh::internal::relative_face_rotation(
+relative_face_rotation(
         const CgalImpl::CgalHalfEdgeIndex& he, const CgalImpl::Mesh& mesh
 ) {
     using namespace mdv::condition;
@@ -255,9 +298,7 @@ mdv::mesh::internal::relative_face_rotation(
 }
 
 std::optional<Kernel::Point_3>
-mdv::mesh::internal::edge_ray_intersection(
-        const Kernel::Segment_3& edge, const Kernel::Ray_3& ray
-) {
+edge_ray_intersection(const Kernel::Segment_3& edge, const Kernel::Ray_3& ray) {
     using namespace mdv::condition;
 
     constexpr double tol = 1e-9;
@@ -300,9 +341,7 @@ mdv::mesh::internal::edge_ray_intersection(
 }
 
 double
-mdv::mesh::internal::total_curvature_deg(
-        const CgalImpl::Mesh& m, const CgalImpl::VertexDescriptor& v
-) {
+total_curvature_deg(const CgalImpl::Mesh& m, const CgalImpl::VertexDescriptor& v) {
     const auto v_pos = m.point(v);
 
     double res = 0.0;
@@ -319,8 +358,7 @@ mdv::mesh::internal::total_curvature_deg(
 }
 
 double
-mdv::mesh::internal::total_curvature_rad(
-        const CgalImpl::Mesh& m, const CgalImpl::VertexDescriptor& v
-) {
+total_curvature_rad(const CgalImpl::Mesh& m, const CgalImpl::VertexDescriptor& v) {
     return total_curvature_deg(m, v) * M_PI / 180.0;
 }
+}  // namespace mdv::mesh::internal

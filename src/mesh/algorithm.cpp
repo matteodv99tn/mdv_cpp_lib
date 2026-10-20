@@ -131,18 +131,20 @@ geodesic_resample(const Geodesic& geod, const Eigen::VectorXd& coordinates) {
 };
 
 TangentVector
-parallel_transport(const TangentVector& tangent_vector, const Point& dest_point) {
+parallel_transport(
+        const Mesh& mesh, const TangentVector& tangent_vector, const Point& dest_point
+) {
     using namespace mdv::condition;
     using Mat3 = Eigen::Matrix3d;
 
-    auto choose_face_normal = [](const Point& pt, const Vec3d& dir) -> Vec3d {
+    auto choose_face_normal = [&mesh](const Point& pt, const Vec3d& dir) -> Vec3d {
         const auto loc_type = location_type(pt);
         if (loc_type == INSIDE_FACE) [[likely]]
-            return mesh::normal(pt.mesh(), FaceId{pt.face().id()});
+            return mesh::normal(mesh, face(mesh, pt));
         if (loc_type == ON_VERTEX) {
-            const auto* v_pt = pt.get_as<Point::PointOnVertexDescriptor>();
-            const auto& m    = internal::get_mesh_impl(v_pt->face());
-            const auto v_id = internal::CgalImpl::VertexDescriptor{v_pt->vertex().id()};
+            const auto* v_pt = pt.get_as<PointOnVertex>();
+            const auto& m    = internal::cgal_mesh(mesh);
+            const auto  v_id = internal::to_cgal(v_pt->v);
 
             for (const auto he : CGAL::halfedges_around_target(v_id, m)) {
                 const auto n =
@@ -156,16 +158,12 @@ parallel_transport(const TangentVector& tangent_vector, const Point& dest_point)
         }
 
         // Definitely on edge
-        const auto* edge_pt = pt.get_as<Point::PointOnEdgeDescriptor>();
+        const auto* edge_pt = pt.get_as<PointOnEdge>();
         assert(edge_pt != nullptr);
 
-        Vec3d n =
-                mesh::normal(edge_pt->halfedge().mesh(), FaceId{edge_pt->face().id()});
+        Vec3d n = mesh::normal(mesh, face(mesh, edge_pt->he));
         if (!are_orthogonal(n, dir)) {
-            n = mesh::normal(
-                    edge_pt->halfedge().mesh(),
-                    FaceId{edge_pt->display_in_opposite_halfedge().face().id()}
-            );
+            n = mesh::normal(mesh, face(mesh, flip(mesh, *edge_pt).he));
             if (!are_orthogonal(n, dir)) {
                 throw std::runtime_error(
                         "Given direction is not orthogonal to neigher "
@@ -201,38 +199,45 @@ parallel_transport(const TangentVector& tangent_vector, const Point& dest_point)
             "Computing parallel transport of vector {} applied in {} to target "
             "point "
             "{}",
-            eigen_to_str(tangent_vector.application_point().position()),
+            eigen_to_str(position(mesh, tangent_vector.application_point())),
             eigen_to_str(tangent_vector.cartesian_vector()),
-            eigen_to_str(dest_point.position())
+            eigen_to_str(position(mesh, dest_point))
     );
 
-    const bool on_same_face =
-            tangent_vector.application_point().face() == dest_point.face();
+    const bool on_same_face     = tangent_vector.face() == face(mesh, dest_point);
     const bool on_same_position = are_equal(
-            tangent_vector.application_point().position(), dest_point.position()
+            position(mesh, tangent_vector.application_point()),
+            position(mesh, dest_point)
     );
-    if (on_same_face || on_same_position)
-        return {dest_point, tangent_vector.cartesian_vector()};
+    if (on_same_face || on_same_position) {
+        // Preserve the stored vertex frame only for the very same descriptor.
+        // Numerically coincident points may belong to different adjacent faces.
+        if (dest_point == tangent_vector.application_point()) {
+            return {mesh,
+                    dest_point,
+                    tangent_vector.cartesian_vector(),
+                    tangent_vector.face()};
+        }
+        return {mesh, dest_point, tangent_vector.cartesian_vector()};
+    }
 
     const Point& start_point = tangent_vector.application_point();
 
-    const Geodesic geod = start_point.face().mesh().build_geodesic(
-            tangent_vector.application_point(), dest_point
-    );
+    const Geodesic geod =
+            build_geodesic(mesh, tangent_vector.application_point(), dest_point);
 
 
     const std::size_t n       = geod.size();
     const Vec3d       x_start = (geod[1] - geod[0]).normalized();
     const Vec3d       x_dest  = (geod[n - 1] - geod[n - 2]).normalized();
 
-    const Vec3d pt_start = start_point.position();
-    const Vec3d pt_dest  = dest_point.position();
+    const Vec3d pt_start = position(mesh, start_point);
+    const Vec3d pt_dest  = position(mesh, dest_point);
     const Vec3d n_start  = choose_face_normal(start_point, x_start);
     const Vec3d n_dest   = choose_face_normal(dest_point, x_dest);
 
     const Vec3d vec_start = [&]() {
-        const auto fn =
-                mesh::normal(start_point.mesh(), FaceId{start_point.face().id()});
+        const auto fn = mesh::normal(mesh, tangent_vector.face());
         if (are_equal(n_start, fn)) [[likely]]
             return tangent_vector.cartesian_vector();
 
@@ -254,13 +259,10 @@ parallel_transport(const TangentVector& tangent_vector, const Point& dest_point)
     const Vec3d vec_dest = Rot * vec_start;
     assert(are_orthogonal(vec_start, n_start));
     if (!mdv::condition::are_orthogonal(
-                vec_dest,
-                mesh::normal(dest_point.mesh(), FaceId{dest_point.face().id()})
+                vec_dest, mesh::normal(mesh, face(mesh, dest_point))
         )) {
-        const Vec3d nf =
-                mesh::normal(start_point.mesh(), FaceId{start_point.face().id()});
-        const Vec3d nt =
-                mesh::normal(dest_point.mesh(), FaceId{dest_point.face().id()});
+        const Vec3d  nf = mesh::normal(mesh, tangent_vector.face());
+        const Vec3d  nt = mesh::normal(mesh, face(mesh, dest_point));
         const Vec3d  vf = tangent_vector.cartesian_vector();
         const double s1 = nf.dot(vf);
         const double s2 = nt.dot(vec_dest);
@@ -274,35 +276,37 @@ parallel_transport(const TangentVector& tangent_vector, const Point& dest_point)
     // return TangentVector::from_tip_position(
     //         dest_point, dest_point.position() + vec_dest
     // );
-    const TangentVector res(dest_point, vec_dest);
+    const TangentVector res(mesh, dest_point, vec_dest);
     assert(are_parallel(res.cartesian_vector(), vec_dest));
     return res;
 }
 
 TangentVector
-logarithmic_map(const Point& p, const Point& y) {
+logarithmic_map(const Mesh& mesh, const Point& p, const Point& y) {
     using mdv::condition::are_equal;
 
     assert(Mesh::default_logger);
     mdv::Logger& logger = *Mesh::default_logger.get();
     logger.debug(
             "Computing logarithmic map of point {} w.r.t. point {}",
-            eigen_to_str(y.position()),
-            eigen_to_str(p.position())
+            eigen_to_str(position(mesh, y)),
+            eigen_to_str(position(mesh, p))
     );
 
-    if (are_equal(p.position(), y.position())) return {p, Eigen::Vector3d::Zero()};
-    if (p.face() == y.face()) return {p, y.position() - p.position()};
+    if (are_equal(position(mesh, p), position(mesh, y)))
+        return {mesh, p, Eigen::Vector3d::Zero()};
+    if (face(mesh, p) == face(mesh, y))
+        return {mesh, p, position(mesh, y) - position(mesh, p)};
 
-    const auto geod        = p.face().mesh().build_geodesic(p, y);
+    const auto geod        = build_geodesic(mesh, p, y);
     auto       log_map_dir = (geod[1] - geod[0]).normalized();
     auto       log_map_len = length(geod);
-    return {p, Vec3d(log_map_len * log_map_dir)};
+    return {mesh, p, Vec3d(log_map_len * log_map_dir)};
 }
 
 double
-distance(const Point& p1, const Point& p2) {
-    return (p1.position() - p2.position()).norm();
+distance(const Mesh& mesh, const Point& p1, const Point& p2) {
+    return (position(mesh, p1) - position(mesh, p2)).norm();
 }
 
 bool
@@ -312,12 +316,8 @@ uv_in_unitary_triangle(const Eigen::Vector2d& uv) {
 
 LocationType
 location_type(const Point& pt) {
-    if (std::holds_alternative<Point::PointInFaceDescriptor>(pt.descriptor())) {
-        return INSIDE_FACE;
-    }
-    if (std::holds_alternative<Point::PointOnEdgeDescriptor>(pt.descriptor())) {
-        return ON_EDGE;
-    }
+    if (std::holds_alternative<PointInFace>(pt.descriptor())) { return INSIDE_FACE; }
+    if (std::holds_alternative<PointOnEdge>(pt.descriptor())) { return ON_EDGE; }
     return ON_VERTEX;
 }
 
@@ -434,19 +434,20 @@ solve_path(
     std::vector<MatPair> res(static_cast<std::size_t>(N));
 
     auto solve_path_index = [&x0, &x1, &t, &mesh, &N, &T, &res, &n_trivials](long i) {
-        const auto pt0  = Point::from_cartesian(mesh, x0.row(i));
-        const auto pt1  = Point::from_cartesian(mesh, x1.row(i));
+        const auto pt0  = from_cartesian(mesh, x0.row(i));
+        const auto pt1  = from_cartesian(mesh, x1.row(i));
         MatPair&   pair = res[static_cast<std::size_t>(i)];
 
-        if ((pt0.position() - pt1.position()).norm() < 1e-9) {
+        if ((position(mesh, pt0) - position(mesh, pt1)).norm() < 1e-9) {
             ++n_trivials;
-            pair.first  = pt0.position().transpose().replicate(T, 1);
+            pair.first  = position(mesh, pt0).transpose().replicate(T, 1);
             pair.second = Eigen::MatrixXd::Zero(T, 3);
             return;
         }
 
-        const auto geod =
-                internal::CgalGeodesicConstructor::threadlocal_geodesic(pt0, pt1);
+        const auto geod = internal::CgalGeodesicConstructor::threadlocal_geodesic(
+                internal::cgal_mesh(mesh), pt0, pt1, &mesh.cgal()._aabb_tree
+        );
         const double len = length(geod);
         pair.first       = geodesic_resample(geod, t);
         pair.second      = Eigen::MatrixXd(T, 3);
@@ -510,18 +511,18 @@ multithreaded_exponential_map(
                         &n_vertices_after](const long i) {
         const Vec3 pos{xs.row(i)};
         const Vec3 vec{vs.row(i)};
-        const auto pt = Point::from_cartesian(mesh, pos);
-        const auto tv = TangentVector::from_ambient_vector(pt, vec);
+        const auto pt = from_cartesian(mesh, pos);
+        const auto tv = TangentVector::from_ambient_vector(mesh, pt, vec);
 
         if (!mdv::condition::is_zero_norm(vec) && tv.cartesian_vector().isZero())
             ++n_zeroed;
 
         if ((tv.cartesian_vector() - vec).norm() > 1e-6) ++n_changed;
 
-        if (pt.get_as<Point::PointOnVertexDescriptor>() != nullptr) ++n_vertices;
+        if (pt.get_as<PointOnVertex>() != nullptr) ++n_vertices;
 
-        const auto exp = exponential_map(tv);
-        res.row(i)     = exp.position();
+        const auto exp = exponential_map(mesh, tv);
+        res.row(i)     = position(mesh, exp);
         if (location_type(exp) == ON_VERTEX) ++n_vertices_after;
     };
 
@@ -556,8 +557,8 @@ num_points_on_mesh(const Mesh& mesh, const Eigen::MatrixXd& xs) {
     long       on_mesh = 0;
     for (long i = 0; i < N; ++i) {
         const Vec3 pos{xs.row(i)};
-        const auto pt = Point::from_cartesian(mesh, pos);
-        if ((pt.position() - pos).norm() < 1e-6) ++on_mesh;
+        const auto pt = from_cartesian(mesh, pos);
+        if ((position(mesh, pt) - pos).norm() < 1e-6) ++on_mesh;
     }
     return on_mesh;
 }
@@ -579,8 +580,8 @@ projx(const Mesh& mesh, const Eigen::MatrixXd& xs) {
             continue;
         }
 
-        const auto pt = Point::from_cartesian(mesh, xo);
-        res.row(i)    = pt.position();
+        const auto pt = from_cartesian(mesh, xo);
+        res.row(i)    = position(mesh, pt);
         if (location_type(pt) == ON_VERTEX) ++on_v;
     }
 
@@ -602,9 +603,10 @@ proju(const Mesh& mesh, const Eigen::MatrixXd& xs, const Eigen::MatrixXd& vs) {
     if (xs.cols() != 3) throw std::runtime_error("projx require xs to have 3 columns");
     Eigen::MatrixXd res(xs.rows(), xs.cols());
     for (long i = 0; i < xs.rows(); ++i) {
-        const auto pt = Point::from_cartesian(mesh, xs.row(i));
-        res.row(i) =
-                TangentVector::from_ambient_vector(pt, vs.row(i)).cartesian_vector();
+        const auto pt = from_cartesian(mesh, xs.row(i));
+        res.row(
+                i
+        ) = TangentVector::from_ambient_vector(mesh, pt, vs.row(i)).cartesian_vector();
     }
     return res;
 }
@@ -629,8 +631,8 @@ proj_transformation(
     const auto process_row = [&](const long i) {
         const Vec3 pos{xs.row(i)};
         const Vec3 vec{vs.row(i)};
-        const auto pt = Point::from_cartesian(mesh, pos);
-        const auto tv = TangentVector::from_ambient_vector(pt, vec);
+        const auto pt = from_cartesian(mesh, pos);
+        const auto tv = TangentVector::from_ambient_vector(mesh, pt, vec);
 
         Mat3&       tf = res[static_cast<std::size_t>(i)];
         const Vec3& v1 = vec;
@@ -684,14 +686,14 @@ proj_transformation_directions(
     auto process_row = [&](const long i) {
         const Vec3 pos{xs.row(i)};
         const Vec3 vec{vs.row(i)};
-        const auto pt = Point::from_cartesian(mesh, pos);
-        const auto tv = TangentVector::from_ambient_vector(pt, vec);
+        const auto pt = from_cartesian(mesh, pos);
+        const auto tv = TangentVector::from_ambient_vector(mesh, pt, vec);
 
-        const Vec3 n  = mesh::normal(mesh, FaceId{tv.application_point().face().id()});
+        const Vec3 n  = mesh::normal(mesh, tv.face());
         Vec3       d1 = Vec3::Zero();
         d1_mat.row(i) = n;
         if (tv.type() == TangentVector::ALONG_EDGE) {
-            const Vec3 e  = direction(mesh, HalfEdgeId{tv.halfedge().id()});
+            const Vec3 e  = direction(mesh, *tv.halfedge());
             d1            = e.cross(n).normalized();
             d2_mat.row(i) = d1;
         }
@@ -726,9 +728,9 @@ closest_face_normal_and_vertex(const Mesh& mesh, const Eigen::MatrixXd& xs) {
 
     long n_singular = 0;
     for (long i = 0; i < xs.rows(); ++i) {
-        const auto pt = Point::from_cartesian(mesh, xs.row(i));
-        ns.row(i)     = mesh::normal(mesh, FaceId{pt.face().id()});
-        vs.row(i)     = position(mesh, vertices(mesh, FaceId{pt.face().id()})[0]);
+        const auto pt = from_cartesian(mesh, xs.row(i));
+        ns.row(i)     = mesh::normal(mesh, face(mesh, pt));
+        vs.row(i)     = position(mesh, vertices(mesh, face(mesh, pt))[0]);
         if (location_type(pt) != LocationType::INSIDE_FACE) ++n_singular;
     }
     // if (n_singular > 0)
@@ -749,14 +751,14 @@ validate_projx(
 
     for (long i = 0; i < N; ++i) {
         const Vec3 pos{xs.row(i)};
-        const auto pt = Point::from_cartesian(mesh, pos);
+        const auto pt = from_cartesian(mesh, pos);
         const Vec3 proj{xs_proj.row(i)};
 
-        if ((pt.position() - proj).norm() > 1e-6) ++n_changed;
-        if (pt.get_as<Point::PointOnVertexDescriptor>() != nullptr) ++n_vertices;
+        if ((position(mesh, pt) - proj).norm() > 1e-6) ++n_changed;
+        if (pt.get_as<PointOnVertex>() != nullptr) ++n_vertices;
 
-        const auto pp = Point::from_cartesian(mesh, proj);
-        if ((pp.position() - proj).norm() < 1e-6) ++n_good_proj;
+        const auto pp = from_cartesian(mesh, proj);
+        if ((position(mesh, pp) - proj).norm() < 1e-6) ++n_good_proj;
     }
 
     fmt::print(

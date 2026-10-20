@@ -1,5 +1,8 @@
 #include "mdv/dmp/moving_dmp.hpp"
 
+#include <stdexcept>
+#include <utility>
+
 #include <range/v3/all.hpp>
 
 #include "mdv/containers/demonstration.hpp"
@@ -30,14 +33,16 @@ namespace {
     std::vector<mesh::Point>
     eigen_to_meshpt(const mesh::Mesh& mesh, const mesh::Geodesic& geod) {
         return geod | rv::transform([&mesh](const Vec3 pt) {
-                   return mesh::Point::from_cartesian(mesh, pt);
+                   return mesh::from_cartesian(mesh, pt);
                })
                | rs::to_vector;
     }
 
     mesh::Geodesic
-    meshpt_to_eigen(const std::vector<mesh::Point>& geod) {
-        return geod | rv::transform([](const mesh::Point& pt) { return pt.position(); })
+    meshpt_to_eigen(const mesh::Mesh& mesh, const std::vector<mesh::Point>& geod) {
+        return geod | rv::transform([&mesh](const mesh::Point& pt) {
+                   return mesh::position(mesh, pt);
+               })
                | rs::to_vector;
     }
 
@@ -67,23 +72,29 @@ namespace {
 
 std::vector<mesh::Point>
 generate_trajectory(
-        const MovingDmpParameters params,
-        mesh::Mesh&               mesh,
-        const mesh::Geodesic&     centroid_path
+        const MovingDmpParameters         params,
+        std::shared_ptr<const mesh::Mesh> mesh_owner,
+        const mesh::Geodesic&             centroid_path
 ) {
+    if (!mesh_owner)
+        throw std::invalid_argument("Trajectory generation requires a mesh owner");
+    const auto& mesh   = *mesh_owner;
     const auto& logger = *get_default_logger();
 
     logger.info("Generating and learning simple circular demonstration");
-    const auto flat_mesh = mesh::Mesh::from_file(mesh::create_flat(5.0));
+    const auto flat_owner =
+            std::make_shared<mesh::Mesh>(mesh::Mesh::from_file(mesh::create_flat(5.0)));
+    const auto& flat_mesh = *flat_owner;
+    auto        m         = std::make_shared<M>(flat_owner);
 
     const auto generate_pos = [&flat_mesh](const double theta) -> mesh::Point {
         Vec3 pos{-std::sin(theta), std::cos(theta), 0.0};
-        return mesh::Point::from_cartesian(flat_mesh, pos);
+        return mesh::from_cartesian(flat_mesh, pos);
     };
 
     const auto thetas = create_equispaced(100, 0.0, 2 * M_PI, true);
     const auto path   = thetas | rv::transform(generate_pos) | rs::to_vector;
-    const auto demo   = MeshDemo::builder(path.size())
+    const auto demo   = MeshDemo::builder(m, path.size())
                                 .assign_position(path)
                                 .velocity_automatic_differentiation()
                                 .acceleration_automatic_differentiation()
@@ -91,14 +102,18 @@ generate_trajectory(
                                 .create();
     logger.debug("Demonstration created");
 
-    MeshDmp dmp;
+    auto    ts = std::make_shared<MeshDmp::TransformationSystem>(48.0, 12.0, m);
+    MeshDmp dmp(20, ts, get_default_logger(), m);
     dmp.tau     = 1.0;
-    auto origin = mesh::Point::from_cartesian(flat_mesh, Vec3::Zero());
+    auto origin = mesh::from_cartesian(flat_mesh, Vec3::Zero());
     dmp.embedding().setup_from_point_and_direction(origin, Vec3::UnitY());
     logger.debug("Embedding setup");
 
     dmp.learn(demo, 1.0, origin);
     logger.info("Dmp on plane learned");
+
+    // Keep the TS and embedder attached to the same manifold object.
+    *m = M(std::move(mesh_owner));
 
 
     const double len       = mesh::length(centroid_path);
@@ -163,11 +178,13 @@ generate_trajectory(
             params.circle_radius
     );
     const auto& g0 = g_pt_path.front();
-    const Vec3  n0 = mesh::normal(mesh, mesh::FaceId{g0.face().id()});
+    const Vec3  n0 = mesh::normal(mesh, mesh::face(mesh, g0));
     const Vec3  v0 = normal_projection(get_direction(0), n0);
     const Vec3  d0 = n0.cross(v0).normalized() * params.circle_radius;
 
-    auto y = mesh::exponential_map(mesh::TangentVector::from_ambient_vector(g0, d0));
+    auto y = mesh::exponential_map(
+            mesh, mesh::TangentVector::from_ambient_vector(mesh, g0, d0)
+    );
     M::TangentVector v = Vec3::Zero();
     update_embedding(0);
 
@@ -227,8 +244,9 @@ upsample_to_1khz(
     };
 
     const mesh::Geodesic downsampled_path =
-            in_path
-            | rv::transform([](const auto& pt) -> Vec3 { return pt.position(); })
+            in_path | rv::transform([&mesh](const auto& pt) -> Vec3 {
+                return mesh::position(mesh, pt);
+            })
             | rs::to_vector;
 
     const auto upsampled_path =
@@ -240,19 +258,21 @@ upsample_to_1khz(
     const mesh::Geodesic vec = rv::join(upsampled_path) | rs::to_vector;
 
     return vec | rv::transform([&mesh](const Vec3& pos) -> mesh::Point {
-               return mesh::Point::from_cartesian(mesh, pos);
+               return mesh::from_cartesian(mesh, pos);
            })
            | rs::to_vector;
 }
 
 std::vector<Quat>
 encode_orientation(
-        const std::vector<mesh::Point>& in_path, const bool flip_orientation
+        const mesh::Mesh&               mesh,
+        const std::vector<mesh::Point>& in_path,
+        const bool                      flip_orientation
 ) {
     const double z_mult             = flip_orientation ? -1.0 : 1.0;
-    const auto   compute_quaternion = [z_mult](const mesh::Point& pt) -> Quat {
+    const auto   compute_quaternion = [&mesh, z_mult](const mesh::Point& pt) -> Quat {
         const Vec3 dx = Vec3::UnitX();
-        const Vec3 vz = z_mult * mesh::normal(pt.mesh(), mesh::FaceId{pt.face().id()});
+        const Vec3 vz = z_mult * mesh::normal(mesh, mesh::face(mesh, pt));
         const Vec3 vx = (dx - dx.dot(vz) * vz).normalized();
         const Vec3 vy = vz.cross(vx);
         Mat3d      rot;

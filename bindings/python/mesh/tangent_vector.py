@@ -49,6 +49,7 @@ except ImportError:  # pragma: no cover - generated at build time
 
 from ._validation import as_vector
 from .point import Point
+from . import _mesh_impl as _impl
 
 if TYPE_CHECKING:
     from .mesh import Mesh
@@ -69,6 +70,7 @@ class TangentVector:
         self._mesh = application_point._mesh
         vector = as_vector(vector, size=3, name="vector")
         self._tv_impl = _TangentVectorImpl(
+            self._mesh._mesh_impl,
             application_point._point_impl,  # type: ignore[attr-defined]
             vector,
         )
@@ -93,6 +95,7 @@ class TangentVector:
         """
         vector = as_vector(vector, size=3, name="vector")
         tv_impl = _TangentVectorImpl.from_ambient_vector(
+            application_point._mesh._mesh_impl,
             application_point._point_impl,  # type: ignore[attr-defined]
             vector,
         )
@@ -116,6 +119,7 @@ class TangentVector:
         """
         tip_vec = as_vector(tip, size=3, name="tip")
         tv_impl = _TangentVectorImpl.from_tip_position(
+            application_point._mesh._mesh_impl,
             application_point._point_impl,  # type: ignore[attr-defined]
             tip_vec,
         )
@@ -136,6 +140,7 @@ class TangentVector:
             Unit tangent vector.
         """
         tv_impl = _TangentVectorImpl.unit_random(
+            application_point._mesh._mesh_impl,
             application_point._point_impl  # type: ignore[attr-defined]
         )
         return TangentVector.from_impl(tv_impl, mesh=application_point._mesh)
@@ -156,7 +161,7 @@ class TangentVector:
         np.ndarray
             Tip position as a 1D vector of shape (3,).
         """
-        return np.asarray(self._tv_impl.tip()).reshape(-1)
+        return np.asarray(_impl.tip(self._mesh._mesh_impl, self._tv_impl)).reshape(-1)
 
     def cartesian_vector(self) -> NDArray[np.float64]:
         """Return the ambient Cartesian vector.

@@ -1,354 +1,263 @@
 #include "mdv/mesh/point.hpp"
 
-#include <CGAL/boost/graph/graph_traits_Surface_mesh.h>
-#include <cstdlib>
-#include <Eigen/Core>
+#include <cmath>
 #include <random>
+#include <stdexcept>
 
 #include <range/v3/all.hpp>
 
-#include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
-#include "mdv/mesh/fwd.hpp"
+#include "mdv/mesh/face.hpp"
+#include "mdv/mesh/half_edge.hpp"
 #include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/vertex.hpp"
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
 
 namespace mdv::mesh {
-
 namespace rs = ::ranges;
-namespace rv = ::ranges::views;
-
-//  ____  _                  __     __        _
-// |  _ \| |_    ___  _ __   \ \   / /__ _ __| |_ _____  __
-// | |_) | __|  / _ \| '_ \   \ \ / / _ \ '__| __/ _ \ \/ /
-// |  __/| |_  | (_) | | | |   \ V /  __/ |  | ||  __/>  <
-// |_|    \__|  \___/|_| |_|    \_/ \___|_|   \__\___/_/\_\
-//
-std::string
-Point::PointOnVertexDescriptor::describe() const {
-    return fmt::format(
-            "Point on vertex #{} located at {}",
-            _v.id(),
-            eigen_to_str(mesh::position(_v.mesh(), VertexId{_v.id()}))
-    );
-};
-
-Face
-Point::PointOnVertexDescriptor::face() const {
-    auto default_face = [this]() -> Face {
-        const auto& m    = internal::get_mesh_impl(_v);
-        const auto  v_id = static_cast<internal::CgalImpl::CgalVertexIndex>(_v.id());
-        const auto  he   = CGAL::halfedge(v_id, m);
-        static bool warn_printed = false;
-        if (!warn_printed) {
-            std::cerr
-                    << "Warning: Point::face() called from point described on vertex\n";
-            warn_printed = true;
-        }
-        return {_v.mesh(), CGAL::face(he, m)};
-    };
-
-    if (_f.has_value()) return _f.value();
-    return default_face();
-};
-
-void
-Point::PointOnVertexDescriptor::assign_face(const Face& f) {
-    const auto& m     = internal::get_mesh_impl(f.mesh());
-    const auto  f_id  = internal::to_face_impl(f);
-    const auto  he_id = CGAL::halfedge(f_id, m);
-    const auto  v_id  = internal::CgalImpl::CgalVertexIndex{_v.id()};
-
-    const auto face_vertices =
-            CGAL::vertices_around_face(he_id, internal::get_mesh_impl(f.mesh()))
-            | rs::to_vector;
-    if (!rs::contains(face_vertices, v_id)) {
-        const std::string msg = fmt::format(
-                "Face {} does not contain vertex #{}", f_id.idx(), v_id.idx()
-        );
-        throw std::runtime_error(msg.c_str());
-    }
-
-    _f = f;
-}
-
-//  ____  _                   _____    _
-// |  _ \| |_    ___  _ __   | ____|__| | __ _  ___
-// | |_) | __|  / _ \| '_ \  |  _| / _` |/ _` |/ _ \
-// |  __/| |_  | (_) | | | | | |__| (_| | (_| |  __/
-// |_|    \__|  \___/|_| |_| |_____\__,_|\__, |\___|
-//                                       |___/
-
-std::string
-Point::PointOnEdgeDescriptor::describe() const {
-    return fmt::format(
-            "Point on halfedge #{} located at {}", _he.id(), eigen_to_str(position())
-    );
-};
-
-Point::PointOnEdgeDescriptor::PointOnEdgeDescriptor(
-        HalfEdge he, const CartesianPoint& position
-) :
-        _he(std::move(he)) {
-    using Kernel      = internal::CgalImpl::Kernel;
-    const auto& m     = internal::get_mesh_impl(he);
-    const auto  he_id = internal::to_halfedge_impl(_he);
-
-    const Kernel::Point_3 he_origin = m.point(source(he_id, m));
-    const Kernel::Point_3 he_end    = m.point(target(he_id, m));
-    const Kernel::Point_3 pt        = internal::point3_from_eigen(position);
-
-    const Kernel::Segment_3 edge(he_origin, he_end);
-    assert(CGAL::squared_distance(edge, pt) < 1e-18);
-
-    const double squared_d = CGAL::squared_distance(he_origin, pt)
-                             / CGAL::squared_distance(he_origin, he_end);
-    _c                     = std::sqrt(squared_d);
-    assert((_c >= 0.0) && (_c <= 1.0));
-    assert(mdv::condition::are_equal(position, this->position()));
-    if (_c <= 0.0 || _c >= 1.0)
-        throw std::runtime_error("Point falls outside the edge!");
-}
-
-Point::PointOnEdgeDescriptor
-Point::PointOnEdgeDescriptor::from_face(const Face& f, const CartesianPoint& position) {
-    using Point   = internal::CgalImpl::Kernel::Point_3;
-    using Segment = internal::CgalImpl::Kernel::Segment_3;
-    using Line    = internal::CgalImpl::Kernel::Line_3;
-    using HeIndex = internal::CgalImpl::CgalHalfEdgeIndex;
-
-    const auto& m    = internal::get_mesh_impl(f);
-    const auto  f_id = internal::to_face_impl(f);
-    const auto  he_f = CGAL::halfedge(f_id, m);
-    const auto  p    = internal::point3_from_eigen(position);
-
-    std::vector<HeIndex> hes;
-    for (const auto he : CGAL::halfedges_around_face(he_f, m)) hes.push_back(he);
-
-    const auto build_edge = [&](const HeIndex& he) -> Segment {
-        const auto v0 = m.point(source(he, m));
-        const auto v1 = m.point(target(he, m));
-        return Segment{v0, v1};
-    };
-    const auto edge_distance = [&](const HeIndex& he) {
-        const Segment e = build_edge(he);
-        return CGAL::squared_distance(e, p);
-    };
-
-    // Retrieve closest edge -> project on closest edge -> construct point descriptor
-    const HeIndex he = rs::min(hes, std::less{}, edge_distance);
-    const Segment ed = build_edge(he);
-    const Line    line{ed};
-    const Point   proj_pt = line.projection(p);
-
-    return {HalfEdge(f.mesh(), he), internal::convert(proj_pt)};
-}
-
-CartesianPoint
-Point::PointOnEdgeDescriptor::position() const noexcept {
-    using Kernel = internal::CgalImpl::Kernel;
-
-    const auto& m     = internal::get_mesh_impl(_he);
-    const auto  he_id = internal::to_halfedge_impl(_he);
-
-    const Kernel::Point_3 he_origin = m.point(source(he_id, m));
-    const Kernel::Point_3 he_dest   = m.point(target(he_id, m));
-    const Kernel::Ray_3   ray(he_origin, he_dest);
-    return internal::convert(ray.point(_c));
-}
-
-Face
-Point::PointOnEdgeDescriptor::face() const {
-    const auto& m     = internal::get_mesh_impl(_he);
-    const auto  he_id = internal::to_halfedge_impl(_he);
-    return {_he.mesh(), CGAL::face(he_id, m)};
-}
-
-Point::PointOnEdgeDescriptor
-Point::PointOnEdgeDescriptor::display_in_opposite_halfedge() const {
-    const auto& m     = internal::get_mesh_impl(_he);
-    const auto  he_id = internal::to_halfedge_impl(_he);
-    return {
-            HalfEdge{_he.mesh(), CGAL::opposite(he_id, m)},
-            1.0 - _c
-    };
-}
-
-Point::PointOnEdgeDescriptor
-Point::PointOnEdgeDescriptor::random(const Mesh& mesh) {
-    static std::random_device rand_dev;
-    static std::mt19937       generator(rand_dev());
-
-    const auto& m = internal::get_mesh_impl(mesh);
-    m.num_halfedges();
-    std::uniform_int_distribution<unsigned> id_distr(0, m.num_halfedges() - 1);
-    std::uniform_real_distribution<double>  c_distr(0.0, 1.0);
-
-    return {HalfEdge(mesh, id_distr(generator)), c_distr(generator)};
-}
-
-//  ____  _     _         _____
-// |  _ \| |_  (_)_ __   |  ___|_ _  ___ ___
-// | |_) | __| | | '_ \  | |_ / _` |/ __/ _ \
-// |  __/| |_  | | | | | |  _| (_| | (_|  __/
-// |_|    \__| |_|_| |_| |_|  \__,_|\___\___|
-//
-
-Point::PointInFaceDescriptor::PointInFaceDescriptor(
-        Face face, Vec3d barycentric_coords
-) :
-        _f(std::move(face)), _b(std::move(barycentric_coords)) {
-    using mdv::condition::is_zero;
-    const double sum = _b.sum();
-    const bool   describes_interior_point =
-            is_zero(sum - 1.0) && _b(0) > 0.0 && _b(1) > 0.0 && _b(2) > 0.0;
-
-    std::size_t zero_bs = 0;
-    if (std::abs(_b(0)) < 1e-13) ++zero_bs;
-    if (std::abs(_b(1)) < 1e-13) ++zero_bs;
-    if (std::abs(_b(2)) < 1e-13) ++zero_bs;
-
-    if (zero_bs > 0) fmt::print("\rBs {} {} {}\n", _b(0), _b(1), _b(2));
-    if (zero_bs == 1) throw std::runtime_error("Should have been edge descriptor");
-    if (zero_bs == 2) throw std::runtime_error("Should have been vertex descriptor");
-
-    if (is_undefined()) std::cerr << "Undefined face!\n";
-    if (!describes_interior_point && face.id() != invalid_index) {
-        std::cerr << "b1 = " << _b(0) << "\n";
-        std::cerr << "b2 = " << _b(1) << "\n";
-        std::cerr << "b3 = " << _b(2) << "\n";
-        std::cerr << "sum = " << _b.sum() << "\n";
-    }
-
-    assert(is_undefined() || describes_interior_point);
-}
-
-std::string
-Point::PointInFaceDescriptor::describe() const {
-    return fmt::format(
-            "Point on face #{} located at {}", _f.id(), eigen_to_str(position())
-    );
-};
-
-CartesianPoint
-Point::PointInFaceDescriptor::position() const noexcept {
-    const internal::CgalImpl::ShortestPath::Barycentric_coordinates bs{
-            _b(0), _b(1), _b(2)
-    };
-    return internal::convert(
-            internal::CgalImpl::ShortestPath::point(
-                    internal::to_face_impl(_f), bs, internal::get_mesh_impl(_f)
-            )
-    );
-}
-
-//   ____                _                   _
-//  / ___|___  _ __  ___| |_ _ __ _   _  ___| |_ ___  _ __ ___
-// | |   / _ \| '_ \/ __| __| '__| | | |/ __| __/ _ \| '__/ __|
-// | |__| (_) | | | \__ \ |_| |  | |_| | (__| || (_) | |  \__ \
-//  \____\___/|_| |_|___/\__|_|   \__,_|\___|\__\___/|_|  |___/
-//
-
-// NOLINTNEXTLINE(cppcoreguidelines-interfaces-global-init)
-Point::PointInFaceDescriptor Point::undefined_point{Face::invalid_face, Vec3d::Zero()};
-
-Point::Point() : _pt(undefined_point) {
-}
-
-Point
-Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
-    // TODO: handle the case in which the provided cartesian position is outside the
-    // actual surface, and closest point lies on edge/vertex
-
-    const auto&                      m_impl = mesh.cgal()._mesh;
-    const internal::CgalImpl::Point3 point{
-            cartesian_pt(0), cartesian_pt(1), cartesian_pt(2)
-    };
-    const auto [face_id, coords] = internal::CgalImpl::ShortestPath::locate(
-            point,
-            mesh.cgal()._aabb_tree,
-            m_impl,
-            get(CGAL::vertex_point, internal::get_mesh_impl(mesh))
-    );
-    const Face& face = mesh.face(static_cast<Index>(face_id.idx()));
-    const auto  f_he = CGAL::halfedge(face_id, m_impl);
-
-    const auto n_zero_coords = rs::count(
-            coords | rv::transform([](const double b) -> bool {
-                return std::abs(b) < 1e-12;
-            }),
-            true
-    );
-
-    if (n_zero_coords == 2) {
-        return PointOnVertexDescriptor{
-                Vertex{mesh, closest_vertex(mesh, cartesian_pt).value}
-        };
-    }
-
-    if (n_zero_coords == 1) return PointOnEdgeDescriptor::from_face(face, cartesian_pt);
-
-    for (const auto v_id : CGAL::vertices_around_face(f_he, m_impl)) {
-        if (CGAL::squared_distance(point, m_impl.point(v_id)) < 1e-15)
-            return PointOnVertexDescriptor{Vertex(mesh, v_id)};
-    }
-
-    using Segment3 = internal::CgalImpl::Kernel::Segment_3;
-    for (const auto he : CGAL::halfedges_around_face(f_he, m_impl)) {
-        const auto p0 = m_impl.point(CGAL::source(he, m_impl));
-        const auto p1 = m_impl.point(CGAL::target(he, m_impl));
-        if (CGAL::squared_distance(point, Segment3(p0, p1)) < 1e-18)
-            return PointOnEdgeDescriptor{HalfEdge(mesh, he), cartesian_pt};
-    }
-
-    return PointInFaceDescriptor{
-            face, {coords[0], coords[1], coords[2]}
-    };
-}
-
-Point
-Point::random(const Mesh& m) {
-    static std::random_device rand_dev;
-    static std::mt19937       generator(rand_dev());
-
-    const Face                             face{m, random_face(m).value};
-    std::uniform_real_distribution<double> distribution(0.1, 0.9);
-
-    const double b0 = distribution(generator);
-    const double b1 = 0.95 * (1.0 - b0) * distribution(generator);
-    const double b2 = 1.0 - b0 - b1;
-
-    return PointInFaceDescriptor{
-            face, {b0, b1, b2}
-    };
-}
 
 namespace {
-    bool
-    operator==(
-            const Point::PointInFaceDescriptor& p1,
-            const Point::PointInFaceDescriptor& p2
-    ) {
-        return (p1.face() == p2.face())
-               && mdv::condition::is_zero_norm(p1.coords() - p2.coords());
+    template <typename Id>
+    void
+    require_member(const Mesh& mesh, Id id) {
+        const auto& m = internal::cgal_mesh(mesh);
+        const auto  i = internal::to_cgal(id);
+        if (!id.is_valid() || !m.has_valid_index(i) || m.is_removed(i))
+            throw std::runtime_error("Invalid point mesh handle");
+    }
+
+    void
+    require_bary(const Vec3d& b) {
+        if (!b.allFinite() || (b.array() < 0.0).any()
+            || !condition::is_zero(b.sum() - 1.0))
+            throw std::runtime_error("Invalid barycentric coordinates");
     }
 }  // namespace
 
+Point::Point(PointOnVertex d) : _d(d) {
+}
+
+Point::Point(PointOnEdge d) : _d(d) {
+    if (!d.he.is_valid() || !std::isfinite(d.t) || d.t <= 0.0 || d.t >= 1.0)
+        throw std::runtime_error("Invalid edge point descriptor");
+}
+
+Point::Point(PointInFace d) : _d(d) {
+    const Vec3d b = d.coords();
+    require_bary(b);
+    if (!d.f.is_valid() || (b.array() < 1e-13).any())
+        throw std::runtime_error("Expected strict face interior coordinates");
+}
+
+Point::Point(const Mesh& mesh, FaceId f, Vec3d b, bool classify_boundary) {
+    require_member(mesh, f);
+    require_bary(b);
+    if (!classify_boundary) {
+        *this = PointInFace{
+                .f = f, .bary = {b[0], b[1], b[2]}
+        };
+        return;
+    }
+    const auto& m = internal::cgal_mesh(mesh);
+    const auto  h = CGAL::halfedge(internal::to_cgal(f), m);
+    // CGAL barycentrics follow source(h), target(h), target(next(h)).
+    const std::array vs{
+            CGAL::source(h, m), CGAL::target(h, m), CGAL::target(CGAL::next(h, m), m)
+    };
+    const auto zeros = (b.array().abs() < 1e-12).count();
+    if (zeros == 2) {
+        Eigen::Index i = 0;
+        b.maxCoeff(&i);
+        *this = PointOnVertex{internal::from_cgal(vs[static_cast<std::size_t>(i)])};
+    } else if (zeros == 1) {
+        const auto p = internal::convert(
+                internal::CgalImpl::ShortestPath::point(
+                        internal::to_cgal(f), {b[0], b[1], b[2]}, m
+                )
+        );
+        *this = make_on_edge(mesh, f, p);
+    } else {
+        *this = PointInFace{
+                .f = f, .bary = {b[0], b[1], b[2]}
+        };
+    }
+}
+
 bool
 Point::is_undefined() const noexcept {
-    return std::holds_alternative<PointInFaceDescriptor>(_pt)
-           && (std::get<PointInFaceDescriptor>(_pt) == undefined_point);
+    const auto* v = get_as<PointOnVertex>();
+    return v != nullptr && !v->v.is_valid();
+}
+
+CartesianPoint
+position(const Mesh& mesh, const Point& p) {
+    if (p.is_undefined()) throw std::runtime_error("Undefined point has no position");
+    if (const auto* v = p.get_as<PointOnVertex>()) {
+        require_member(mesh, v->v);
+        return position(mesh, v->v);
+    }
+    const auto& m = internal::cgal_mesh(mesh);
+    if (const auto* e = p.get_as<PointOnEdge>()) {
+        require_member(mesh, e->he);
+        const auto                              h = internal::to_cgal(e->he);
+        const internal::CgalImpl::Kernel::Ray_3 ray(
+                m.point(CGAL::source(h, m)), m.point(CGAL::target(h, m))
+        );
+        return internal::convert(ray.point(e->t));
+    }
+    const auto& f = *p.get_as<PointInFace>();
+    require_member(mesh, f.f);
+    return internal::convert(
+            internal::CgalImpl::ShortestPath::point(internal::to_cgal(f.f), f.bary, m)
+    );
+}
+
+FaceId
+face(const Mesh& mesh, const Point& p) {
+    if (p.is_undefined()) throw std::runtime_error("Undefined point has no face");
+    if (const auto* f = p.get_as<PointInFace>()) {
+        require_member(mesh, f->f);
+        return f->f;
+    }
+    if (const auto* e = p.get_as<PointOnEdge>()) {
+        require_member(mesh, e->he);
+        return face(mesh, e->he);
+    }
+    const auto v = p.get_as<PointOnVertex>()->v;
+    require_member(mesh, v);
+    const auto& m = internal::cgal_mesh(mesh);
+    return internal::from_cgal(CGAL::face(CGAL::halfedge(internal::to_cgal(v), m), m));
+}
+
+PointOnEdge
+make_on_edge(const Mesh& mesh, HalfEdgeId he, const CartesianPoint& pos) {
+    require_member(mesh, he);
+    if (!pos.allFinite()) throw std::runtime_error("Nonfinite edge position");
+    using Kernel  = internal::CgalImpl::Kernel;
+    const auto& m = internal::cgal_mesh(mesh);
+    const auto  h = internal::to_cgal(he);
+    const auto  a = m.point(CGAL::source(h, m));
+    const auto  b = m.point(CGAL::target(h, m));
+    const auto  p = internal::point3_from_eigen(pos);
+    if (CGAL::squared_distance(Kernel::Segment_3(a, b), p) >= 1e-18)
+        throw std::runtime_error("Point does not lie on edge");
+    const double t =
+            std::sqrt(CGAL::squared_distance(a, p) / CGAL::squared_distance(a, b));
+    PointOnEdge d{.he = he, .t = t};
+    (void)Point{d};
+    return d;
+}
+
+PointOnEdge
+make_on_edge(const Mesh& mesh, FaceId f, const CartesianPoint& pos) {
+    require_member(mesh, f);
+    if (!pos.allFinite()) throw std::runtime_error("Nonfinite edge position");
+    using Kernel  = internal::CgalImpl::Kernel;
+    const auto& m = internal::cgal_mesh(mesh);
+    const auto  p = internal::point3_from_eigen(pos);
+    std::vector<internal::CgalImpl::CgalHalfEdgeIndex> hes;
+    for (const auto h :
+         CGAL::halfedges_around_face(CGAL::halfedge(internal::to_cgal(f), m), m))
+        hes.push_back(h);
+    const auto segment = [&](auto h) {
+        return Kernel::Segment_3(
+                m.point(CGAL::source(h, m)), m.point(CGAL::target(h, m))
+        );
+    };
+    const auto h = rs::min(hes, std::less{}, [&](auto he) {
+        return CGAL::squared_distance(segment(he), p);
+    });
+    return make_on_edge(
+            mesh,
+            internal::from_cgal(h),
+            internal::convert(Kernel::Line_3(segment(h)).projection(p))
+    );
+}
+
+PointOnEdge
+flip(const Mesh& mesh, const PointOnEdge& e) {
+    require_member(mesh, e.he);
+    (void)Point{e};
+    return {.he = twin(mesh, e.he), .t = 1.0 - e.t};
+}
+
+PointOnEdge
+PointOnEdge::random(const Mesh& mesh) {
+    static std::random_device rd;
+    static std::mt19937       generator(rd());
+    const auto&               m = internal::cgal_mesh(mesh);
+    if (m.num_halfedges() == 0) throw std::runtime_error("Cannot sample empty mesh");
+    std::uniform_int_distribution<unsigned> ids(0, m.num_halfedges() - 1);
+    std::uniform_real_distribution<double>  coords(0.0, 1.0);
+    PointOnEdge d{.he = HalfEdgeId{ids(generator)}, .t = coords(generator)};
+    require_member(mesh, d.he);
+    (void)Point{d};
+    return d;
+}
+
+Point
+from_cartesian(const Mesh& mesh, const CartesianPoint& pos) {
+    if (!pos.allFinite() || mesh.num_faces() == 0)
+        throw std::runtime_error("Cannot project point onto mesh");
+    const auto& m     = internal::cgal_mesh(mesh);
+    const auto  p     = internal::point3_from_eigen(pos);
+    const auto [f, b] = internal::CgalImpl::ShortestPath::locate(
+            p, mesh.cgal()._aabb_tree, m, get(CGAL::vertex_point, m)
+    );
+    const auto h     = CGAL::halfedge(f, m);
+    const auto zeros = rs::count_if(b, [](double x) { return std::abs(x) < 1e-12; });
+    if (zeros == 2) return PointOnVertex{closest_vertex(mesh, pos)};
+    if (zeros == 1) return make_on_edge(mesh, internal::from_cgal(f), pos);
+    for (const auto v : CGAL::vertices_around_face(h, m)) {
+        if (CGAL::squared_distance(p, m.point(v)) < 1e-15) {
+            return PointOnVertex{internal::from_cgal(v)};
+        }
+    }
+    using Segment = internal::CgalImpl::Kernel::Segment_3;
+    for (const auto he : CGAL::halfedges_around_face(h, m)) {
+        if (CGAL::squared_distance(
+                    p,
+                    Segment(m.point(CGAL::source(he, m)), m.point(CGAL::target(he, m)))
+            )
+            < 1e-18) {
+            return make_on_edge(mesh, internal::from_cgal(he), pos);
+        }
+    }
+    return PointInFace{
+            .f = internal::from_cgal(f), .bary = {b[0], b[1], b[2]}
+    };
+}
+
+Point
+random_point(const Mesh& mesh) {
+    if (mesh.num_faces() == 0) throw std::runtime_error("Cannot sample empty mesh");
+    static std::random_device rd;
+    static std::mt19937       generator(rd());
+    const auto                f = random_face(mesh);
+    require_member(mesh, f);
+    std::uniform_real_distribution<double> distribution(0.1, 0.9);
+    const double                           b0 = distribution(generator);
+    const double b1 = 0.95 * (1.0 - b0) * distribution(generator);
+    return PointInFace{
+            .f = f, .bary = {b0, b1, 1.0 - b0 - b1}
+    };
 }
 
 bool
-Point::operator==(const Point& other) const noexcept {
-    return condition::is_zero_norm(this->position() - other.position());
+same_location(const Mesh& mesh, const Point& a, const Point& b) {
+    return condition::is_zero_norm(position(mesh, a) - position(mesh, b));
 }
 
-bool
-Point::operator!=(const Point& other) const noexcept {
-    return !(*this == other);
+std::string
+describe(const Mesh& mesh, const Point& p) {
+    const auto pos = eigen_to_str(position(mesh, p));
+    if (const auto* v = p.get_as<PointOnVertex>())
+        return fmt::format("Point on vertex #{} located at {}", v->v.value, pos);
+    if (const auto* e = p.get_as<PointOnEdge>())
+        return fmt::format("Point on halfedge #{} located at {}", e->he.value, pos);
+    return fmt::format(
+            "Point on face #{} located at {}", p.get_as<PointInFace>()->f.value, pos
+    );
 }
-
 }  // namespace mdv::mesh

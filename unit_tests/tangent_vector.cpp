@@ -21,9 +21,9 @@ TEST(MdvMesh, TangentVectorUnitRandomInitialisation) {
     const auto     mesh      = Mesh::from_file(mesh_path);
 
     for (int i{0}; i < 256; ++i) {
-        const auto pt  = Point::random(mesh);
-        const auto vec = TangentVector::unit_random(pt);
-        ASSERT_TRUE(mdv::condition::is_unit_norm(vec.tip() - pt.position()));
+        const auto pt  = random_point(mesh);
+        const auto vec = TangentVector::unit_random(mesh, pt);
+        ASSERT_TRUE(mdv::condition::is_unit_norm(tip(mesh, vec) - position(mesh, pt)));
     }
 }
 
@@ -35,15 +35,15 @@ TEST(MdvMesh, TangentVectorFromTipInitialisation) {
     const auto     pref_dir  = Vec3::UnitX();
 
     for (int i{0}; i < 256; ++i) {
-        const auto pt    = Point::random(mesh);
-        const auto n     = normal(mesh, FaceId{pt.face().id()});
+        const auto pt    = random_point(mesh);
+        const auto n     = normal(mesh, face(mesh, pt));
         const Vec3 delta = (Mat3::Identity() - n * n.transpose()) * pref_dir;
-        const Vec3 tip   = pt.position() + delta;
+        const Vec3 tip   = position(mesh, pt) + delta;
 
-        const auto vec = TangentVector::from_tip_position(pt, tip);
+        const auto vec = TangentVector::from_tip_position(mesh, pt, tip);
         ASSERT_TRUE(mdv::condition::are_orthogonal(n, delta));
         ASSERT_TRUE(mdv::condition::is_zero_norm(vec.cartesian_vector() - delta));
-        ASSERT_TRUE(mdv::condition::is_zero_norm(vec.tip() - tip));
+        ASSERT_TRUE(mdv::condition::is_zero_norm(mesh::tip(mesh, vec) - tip));
     }
 }
 
@@ -55,18 +55,18 @@ TEST(MdvMesh, TangentVectorDifference) {
     const auto     pref_dir  = Vec3::UnitX();
 
     for (int i{0}; i < 256; ++i) {
-        const auto pt = Point::random(mesh);
-        const auto v1 = TangentVector::unit_random(pt);
-        const auto v2 = TangentVector::unit_random(pt);
+        const auto pt = random_point(mesh);
+        const auto v1 = TangentVector::unit_random(mesh, pt);
+        const auto v2 = TangentVector::unit_random(mesh, pt);
 
-        const auto n     = normal(mesh, FaceId{pt.face().id()});
+        const auto n     = normal(mesh, face(mesh, pt));
         const Vec3 delta = (Mat3::Identity() - n * n.transpose()) * pref_dir;
-        const Vec3 tip   = pt.position() + delta;
+        const Vec3 tip   = position(mesh, pt) + delta;
 
-        const auto vec = TangentVector::from_tip_position(pt, tip);
+        const auto vec = TangentVector::from_tip_position(mesh, pt, tip);
         ASSERT_TRUE(mdv::condition::are_orthogonal(n, delta));
         ASSERT_TRUE(mdv::condition::is_zero_norm(vec.cartesian_vector() - delta));
-        ASSERT_TRUE(mdv::condition::is_zero_norm(vec.tip() - tip));
+        ASSERT_TRUE(mdv::condition::is_zero_norm(mesh::tip(mesh, vec) - tip));
     }
 }
 
@@ -121,58 +121,63 @@ TEST(MdvMesh, TangentVectorConstructor) {
     const fs::path mesh_path = mdv::config::meshes_directory() / "cube.stl";
     const auto     mesh      = Mesh::from_file(mesh_path);
 
-    const auto p_v = Point::from_cartesian(mesh, {-50, -50, -50});
+    const auto p_v = from_cartesian(mesh, {-50, -50, -50});
     ASSERT_EQ(location_type(p_v), LocationType::ON_VERTEX);
     {
-        const auto tv = TangentVector::from_ambient_vector(p_v, {0, 0, 10.0});
+        const auto tv = TangentVector::from_ambient_vector(mesh, p_v, {0, 0, 10.0});
         ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 0, 10.0}));
     }
     {
-        const auto tv = TangentVector::from_ambient_vector(p_v, {0.0, -5.0, 10.0});
+        const auto tv =
+                TangentVector::from_ambient_vector(mesh, p_v, {0.0, -5.0, 10.0});
         ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 0, 10.0}));
     }
     {
-        const auto tv = TangentVector::from_ambient_vector(p_v, {-5.0, -5.0, 10.0});
+        const auto tv =
+                TangentVector::from_ambient_vector(mesh, p_v, {-5.0, -5.0, 10.0});
         ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 0, 10.0}));
     }
     {
-        const auto tv = TangentVector::from_ambient_vector(p_v, {0, 10.0, 10.0});
+        const auto tv = TangentVector::from_ambient_vector(mesh, p_v, {0, 10.0, 10.0});
         ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 10.0}));
     }
     {
-        const auto tv = TangentVector::from_ambient_vector(p_v, {-5.0, 10.0, 10.0});
+        const auto tv =
+                TangentVector::from_ambient_vector(mesh, p_v, {-5.0, 10.0, 10.0});
         ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 10.0}));
     }
 
-    const auto p_he = Point::from_cartesian(mesh, {-50, 0.0, -50});
+    const auto p_he = from_cartesian(mesh, {-50, 0.0, -50});
     ASSERT_EQ(location_type(p_he), LocationType::ON_EDGE);
     {
-        const auto tv = TangentVector::from_ambient_vector(p_he, {0, 0, 10.0});
+        const auto tv = TangentVector::from_ambient_vector(mesh, p_he, {0, 0, 10.0});
         ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 0, 10.0}));
     }
     {
-        const auto tv = TangentVector::from_ambient_vector(p_he, {0, 10.0, 10.0});
+        const auto tv = TangentVector::from_ambient_vector(mesh, p_he, {0, 10.0, 10.0});
         ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 10.0}));
     }
     {
-        const auto tv = TangentVector::from_ambient_vector(p_he, {0, 10.0, 0});
+        const auto tv = TangentVector::from_ambient_vector(mesh, p_he, {0, 10.0, 0});
         ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 0}));
     }
     {
-        const auto tv = TangentVector::from_ambient_vector(p_he, {0, 10.0, -10.0});
+        const auto tv =
+                TangentVector::from_ambient_vector(mesh, p_he, {0, 10.0, -10.0});
         ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 0}));
     }
     {
-        const auto tv = TangentVector::from_ambient_vector(p_he, {-10.0, 10.0, -10.0});
+        const auto tv =
+                TangentVector::from_ambient_vector(mesh, p_he, {-10.0, 10.0, -10.0});
         ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), Eigen::Vector3d{0, 10.0, 0}));
     }
@@ -194,17 +199,17 @@ TEST(MdvMesh, ExponentialMap) {
         const Vec3 p0_value{50, 0, 0};
         const Vec3 tv_value{0, 0, 100};
 
-        const auto p0 = Point::from_cartesian(mesh, p0_value);
-        const auto tv = TangentVector::from_ambient_vector(p0, tv_value);
-        ASSERT_TRUE(are_equal(p0.position(), p0_value));
+        const auto p0 = from_cartesian(mesh, p0_value);
+        const auto tv = TangentVector::from_ambient_vector(mesh, p0, tv_value);
+        ASSERT_TRUE(are_equal(position(mesh, p0), p0_value));
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), tv_value));
         ASSERT_EQ(location_type(p0), LocationType::ON_EDGE);
         ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
 
         Geodesic   geod;
-        const auto res = exponential_map(tv, &geod);
+        const auto res = exponential_map(mesh, tv, &geod);
 
-        ASSERT_TRUE(are_equal(res.position(), Vec3{0, 0, 50}));
+        ASSERT_TRUE(are_equal(position(mesh, res), Vec3{0, 0, 50}));
         ASSERT_EQ(geod.size(), 3);
         ASSERT_TRUE(are_equal(geod[0], p0_value));
         ASSERT_TRUE(are_equal(geod[1], Vec3{50, 0, 50}));
@@ -230,11 +235,11 @@ TEST(MdvMesh, ExponentialMap) {
         const Vec3 p2_value = p1_value + delta2;
         const Vec3 tv_value = (p1_value - p0_value).normalized() * 100.0;
 
-        const auto p0 = Point::from_cartesian(mesh, p0_value);
-        const auto p1 = Point::from_cartesian(mesh, p1_value);
-        const auto p2 = Point::from_cartesian(mesh, p2_value);
-        const auto tv = TangentVector::from_ambient_vector(p0, tv_value);
-        ASSERT_TRUE(are_equal(p0.position(), p0_value));
+        const auto p0 = from_cartesian(mesh, p0_value);
+        const auto p1 = from_cartesian(mesh, p1_value);
+        const auto p2 = from_cartesian(mesh, p2_value);
+        const auto tv = TangentVector::from_ambient_vector(mesh, p0, tv_value);
+        ASSERT_TRUE(are_equal(position(mesh, p0), p0_value));
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), tv_value));
         ASSERT_EQ(location_type(p0), LocationType::INSIDE_FACE);
         ASSERT_EQ(location_type(p1), LocationType::ON_VERTEX);
@@ -242,9 +247,9 @@ TEST(MdvMesh, ExponentialMap) {
         ASSERT_EQ(tv.type(), TangentVector::Type::INSIDE_FACE);
 
         Geodesic   geod;
-        const auto res = exponential_map(tv, &geod);
+        const auto res = exponential_map(mesh, tv, &geod);
 
-        ASSERT_TRUE(are_equal(res.position(), p2_value));
+        ASSERT_TRUE(are_equal(position(mesh, res), p2_value));
         ASSERT_EQ(geod.size(), 3);
         ASSERT_TRUE(are_equal(geod[0], p0_value));
         ASSERT_TRUE(are_equal(geod[1], p1_value));
@@ -262,11 +267,11 @@ TEST(MdvMesh, ExponentialMap) {
         const Vec3 p2_value = p1_value + delta2;
         const Vec3 tv_value{0, 0, 100};
 
-        const auto p0 = Point::from_cartesian(mesh, p0_value);
-        const auto p1 = Point::from_cartesian(mesh, p1_value);
-        const auto p2 = Point::from_cartesian(mesh, p2_value);
-        const auto tv = TangentVector::from_ambient_vector(p0, tv_value);
-        ASSERT_TRUE(are_equal(p0.position(), p0_value));
+        const auto p0 = from_cartesian(mesh, p0_value);
+        const auto p1 = from_cartesian(mesh, p1_value);
+        const auto p2 = from_cartesian(mesh, p2_value);
+        const auto tv = TangentVector::from_ambient_vector(mesh, p0, tv_value);
+        ASSERT_TRUE(are_equal(position(mesh, p0), p0_value));
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), tv_value));
         ASSERT_EQ(location_type(p0), LocationType::ON_EDGE);
         ASSERT_EQ(location_type(p1), LocationType::ON_VERTEX);
@@ -274,9 +279,9 @@ TEST(MdvMesh, ExponentialMap) {
         ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
 
         Geodesic   geod;
-        const auto res = exponential_map(tv, &geod);
+        const auto res = exponential_map(mesh, tv, &geod);
 
-        ASSERT_TRUE(are_equal(res.position(), p2_value));
+        ASSERT_TRUE(are_equal(position(mesh, res), p2_value));
         ASSERT_EQ(geod.size(), 3);
         ASSERT_TRUE(are_equal(geod[0], p0_value));
         ASSERT_TRUE(are_equal(geod[1], p1_value));
@@ -294,11 +299,11 @@ TEST(MdvMesh, ExponentialMap) {
         const Vec3 p2_value = p1_value + delta2;
         const Vec3 tv_value{0, 0, 100};
 
-        const auto p0 = Point::from_cartesian(mesh, p0_value);
-        const auto p1 = Point::from_cartesian(mesh, p1_value);
-        const auto p2 = Point::from_cartesian(mesh, p2_value);
-        const auto tv = TangentVector::from_ambient_vector(p0, tv_value);
-        ASSERT_TRUE(are_equal(p0.position(), p0_value));
+        const auto p0 = from_cartesian(mesh, p0_value);
+        const auto p1 = from_cartesian(mesh, p1_value);
+        const auto p2 = from_cartesian(mesh, p2_value);
+        const auto tv = TangentVector::from_ambient_vector(mesh, p0, tv_value);
+        ASSERT_TRUE(are_equal(position(mesh, p0), p0_value));
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), tv_value));
         ASSERT_EQ(location_type(p0), LocationType::ON_EDGE);
         ASSERT_EQ(location_type(p1), LocationType::ON_VERTEX);
@@ -306,9 +311,9 @@ TEST(MdvMesh, ExponentialMap) {
         ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
 
         Geodesic   geod;
-        const auto res = exponential_map(tv, &geod);
+        const auto res = exponential_map(mesh, tv, &geod);
 
-        ASSERT_TRUE(are_equal(res.position(), p2_value));
+        ASSERT_TRUE(are_equal(position(mesh, res), p2_value));
         ASSERT_EQ(geod.size(), 3);
         ASSERT_TRUE(are_equal(geod[0], p0_value));
         ASSERT_TRUE(are_equal(geod[1], p1_value));
@@ -327,12 +332,12 @@ TEST(MdvMesh, ExponentialMap) {
 
         const Vec3 tv_value{0, 0, 100 + 100 * std::numbers::sqrt2};
 
-        const auto p0 = Point::from_cartesian(mesh, p0_value);
-        const auto p1 = Point::from_cartesian(mesh, p1_value);
-        const auto p2 = Point::from_cartesian(mesh, p2_value);
-        const auto p3 = Point::from_cartesian(mesh, p3_value);
-        const auto tv = TangentVector::from_ambient_vector(p0, tv_value);
-        ASSERT_TRUE(are_equal(p0.position(), p0_value));
+        const auto p0 = from_cartesian(mesh, p0_value);
+        const auto p1 = from_cartesian(mesh, p1_value);
+        const auto p2 = from_cartesian(mesh, p2_value);
+        const auto p3 = from_cartesian(mesh, p3_value);
+        const auto tv = TangentVector::from_ambient_vector(mesh, p0, tv_value);
+        ASSERT_TRUE(are_equal(position(mesh, p0), p0_value));
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), tv_value));
         ASSERT_EQ(location_type(p0), LocationType::ON_EDGE);
         ASSERT_EQ(location_type(p1), LocationType::ON_VERTEX);
@@ -341,14 +346,15 @@ TEST(MdvMesh, ExponentialMap) {
         ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
 
         Geodesic   geod;
-        const auto res = exponential_map(tv, &geod);
+        const auto res = exponential_map(mesh, tv, &geod);
 
         ASSERT_EQ(geod.size(), 4);
         ASSERT_TRUE(are_equal(geod[0], p0_value));
         ASSERT_TRUE(are_equal(geod[1], p1_value));
         ASSERT_TRUE(are_equal(geod[2], p2_value));
         ASSERT_TRUE(are_equal(geod[3], p3_value));
-        ASSERT_TRUE(are_equal(res.position(), p3_value)) << res.position().transpose();
+        ASSERT_TRUE(are_equal(position(mesh, res), p3_value))
+                << position(mesh, res).transpose();
     }
 
     {
@@ -364,13 +370,13 @@ TEST(MdvMesh, ExponentialMap) {
 
         const Vec3 tv_value{0, 0, 100 + 100 * std::numbers::sqrt2};
 
-        const auto p0 = Point::from_cartesian(mesh, p0_value);
-        const auto p1 = Point::from_cartesian(mesh, p1_value);
-        const auto p2 = Point::from_cartesian(mesh, p2_value);
-        const auto p3 = Point::from_cartesian(mesh, p3_value);
-        const auto p4 = Point::from_cartesian(mesh, p4_value);
-        const auto tv = TangentVector::from_ambient_vector(p0, tv_value);
-        ASSERT_TRUE(are_equal(p0.position(), p0_value));
+        const auto p0 = from_cartesian(mesh, p0_value);
+        const auto p1 = from_cartesian(mesh, p1_value);
+        const auto p2 = from_cartesian(mesh, p2_value);
+        const auto p3 = from_cartesian(mesh, p3_value);
+        const auto p4 = from_cartesian(mesh, p4_value);
+        const auto tv = TangentVector::from_ambient_vector(mesh, p0, tv_value);
+        ASSERT_TRUE(are_equal(position(mesh, p0), p0_value));
         ASSERT_TRUE(are_equal(tv.cartesian_vector(), tv_value));
         ASSERT_EQ(location_type(p0), LocationType::ON_EDGE);
         ASSERT_EQ(location_type(p1), LocationType::ON_VERTEX);
@@ -380,7 +386,7 @@ TEST(MdvMesh, ExponentialMap) {
         ASSERT_EQ(tv.type(), TangentVector::Type::ALONG_EDGE);
 
         Geodesic   geod;
-        const auto res = exponential_map(tv, &geod);
+        const auto res = exponential_map(mesh, tv, &geod);
 
         ASSERT_EQ(geod.size(), 5);
         ASSERT_TRUE(are_equal(geod[0], p0_value));
@@ -388,7 +394,7 @@ TEST(MdvMesh, ExponentialMap) {
         ASSERT_TRUE(are_equal(geod[2], p2_value));
         ASSERT_TRUE(are_equal(geod[3], p3_value));
         ASSERT_TRUE(are_equal(geod[4], p4_value));
-        ASSERT_TRUE(are_equal(res.position(), p4_value));
+        ASSERT_TRUE(are_equal(position(mesh, res), p4_value));
     }
 }
 
@@ -406,24 +412,20 @@ TEST(MdvMesh, DeterministicTangentInvariants) {
     };
     for (std::size_t i = 0; i < positions.size(); ++i) {
         SCOPED_TRACE(i);
-        const auto  p = Point::from_cartesian(mesh, positions[i]);
-        auto        v = TangentVector::from_ambient_vector(p, ambient_vectors[i]);
+        const auto  p = from_cartesian(mesh, positions[i]);
+        auto        v = TangentVector::from_ambient_vector(mesh, p, ambient_vectors[i]);
         const Vec3d original = v.cartesian_vector();
         EXPECT_NEAR(
-                (v.application_point().position() - p.position()).norm(), 0.0, 1e-9
-        );
-        EXPECT_NEAR(
-                original.dot(normal(mesh, FaceId{v.application_point().face().id()})),
+                (position(mesh, v.application_point()) - position(mesh, p)).norm(),
                 0.0,
                 1e-9
         );
-        EXPECT_NEAR((v.tip() - p.position() - original).norm(), 0.0, 1e-9);
+        EXPECT_NEAR(original.dot(normal(mesh, v.face())), 0.0, 1e-9);
+        EXPECT_NEAR((tip(mesh, v) - position(mesh, p) - original).norm(), 0.0, 1e-9);
         if (i != 0) {
             ASSERT_EQ(v.type(), TangentVector::ALONG_EDGE);
             EXPECT_NEAR(
-                    original.cross(direction(mesh, HalfEdgeId{v.halfedge().id()})
-                                           .normalized())
-                            .norm(),
+                    original.cross(direction(mesh, *v.halfedge()).normalized()).norm(),
                     0.0,
                     1e-9
             );
@@ -432,7 +434,9 @@ TEST(MdvMesh, DeterministicTangentInvariants) {
         EXPECT_NEAR(unit.cartesian_vector().norm(), 1.0, 1e-12);
         EXPECT_NEAR((v.cartesian_vector() - original).norm(), 0.0, 1e-12);
         EXPECT_NEAR(
-                (unit.application_point().position() - p.position()).norm(), 0.0, 1e-9
+                (position(mesh, unit.application_point()) - position(mesh, p)).norm(),
+                0.0,
+                1e-9
         );
         v.scale(2.5);
         EXPECT_NEAR((v.cartesian_vector() - 2.5 * original).norm(), 0.0, 1e-9);
@@ -441,32 +445,33 @@ TEST(MdvMesh, DeterministicTangentInvariants) {
 
 TEST(MdvMesh, FoldedMapAndTransportInvariants) {
     const auto mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
-    const auto p    = Point::from_cartesian(mesh, {50, -20, 5});
-    const auto q    = Point::from_cartesian(mesh, {10, -20, 50});
+    const auto p    = from_cartesian(mesh, {50, -20, 5});
+    const auto q    = from_cartesian(mesh, {10, -20, 50});
     ASSERT_EQ(location_type(p), LocationType::INSIDE_FACE);
     ASSERT_EQ(location_type(q), LocationType::INSIDE_FACE);
-    const auto   log      = logarithmic_map(p, q);
-    const double distance = length(mesh.build_geodesic(p, q));
+    const auto   log      = logarithmic_map(mesh, p, q);
+    const double distance = length(build_geodesic(mesh, p, q));
     EXPECT_NEAR(log.cartesian_vector().norm(), distance, 1e-9);
     Geodesic   path;
-    const auto end = exponential_map(log, &path);
+    const auto end = exponential_map(mesh, log, &path);
     ASSERT_GE(path.size(), 2);
-    EXPECT_NEAR((path.front() - p.position()).norm(), 0.0, 1e-9);
-    EXPECT_NEAR((path.back() - end.position()).norm(), 0.0, 1e-9);
-    EXPECT_NEAR((end.position() - q.position()).norm(), 0.0, 1e-9);
+    EXPECT_NEAR((path.front() - position(mesh, p)).norm(), 0.0, 1e-9);
+    EXPECT_NEAR((path.back() - position(mesh, end)).norm(), 0.0, 1e-9);
+    EXPECT_NEAR((position(mesh, end) - position(mesh, q)).norm(), 0.0, 1e-9);
     EXPECT_NEAR(length(path), log.cartesian_vector().norm(), 1e-9);
-    EXPECT_LE(length(mesh.build_geodesic(p, end)), length(path) + 1e-9);
+    EXPECT_LE(length(build_geodesic(mesh, p, end)), length(path) + 1e-9);
     EXPECT_NEAR(
-            (Point::from_cartesian(mesh, end.position()).position() - end.position())
+            (position(mesh, from_cartesian(mesh, position(mesh, end)))
+             - position(mesh, end))
                     .norm(),
             0.0,
             1e-9
     );
 
-    const TangentVector v(p, {0, 2, 3});
-    const TangentVector w(p, {0, -4, 1});
-    const auto          pv = parallel_transport(v, q);
-    const auto          pw = parallel_transport(w, q);
+    const TangentVector v(mesh, p, {0, 2, 3});
+    const TangentVector w(mesh, p, {0, -4, 1});
+    const auto          pv = parallel_transport(mesh, v, q);
+    const auto          pw = parallel_transport(mesh, w, q);
     EXPECT_NEAR(pv.cartesian_vector().norm(), v.cartesian_vector().norm(), 1e-9);
     EXPECT_NEAR(pw.cartesian_vector().norm(), w.cartesian_vector().norm(), 1e-9);
     EXPECT_NEAR(
@@ -474,15 +479,33 @@ TEST(MdvMesh, FoldedMapAndTransportInvariants) {
             v.cartesian_vector().dot(w.cartesian_vector()),
             1e-9
     );
+    EXPECT_NEAR(pv.cartesian_vector().dot(normal(mesh, pv.face())), 0.0, 1e-9);
     EXPECT_NEAR(
-            pv.cartesian_vector().dot(normal(mesh, FaceId{q.face().id()})), 0.0, 1e-9
-    );
-    EXPECT_NEAR((pv.application_point().position() - q.position()).norm(), 0.0, 1e-9);
-    EXPECT_NEAR(
-            (parallel_transport(v, p).cartesian_vector() - v.cartesian_vector()).norm(),
+            (position(mesh, pv.application_point()) - position(mesh, q)).norm(),
             0.0,
             1e-9
     );
+    EXPECT_NEAR(
+            (parallel_transport(mesh, v, p).cartesian_vector() - v.cartesian_vector())
+                    .norm(),
+            0.0,
+            1e-9
+    );
+}
+
+TEST(TangentVector, FrameAndNormalisationSurviveMeshMove) {
+    auto       mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const auto p    = from_cartesian(mesh, {-50, -50, -50});
+    const auto v    = TangentVector::from_ambient_vector(mesh, p, {0, 20, 10});
+    const auto unit = v.normalised();
+    EXPECT_EQ(unit.face(), v.face());
+    EXPECT_EQ(unit.halfedge(), v.halfedge());
+    EXPECT_EQ(unit.application_point(), v.application_point());
+    EXPECT_NEAR(unit.cartesian_vector().norm(), 1.0, 1e-12);
+    const Vec3d original_tip = tip(mesh, v);
+    auto        moved        = std::move(mesh);
+    EXPECT_NEAR(v.cartesian_vector().dot(normal(moved, v.face())), 0.0, 1e-12);
+    EXPECT_NEAR((tip(moved, v) - original_tip).norm(), 0.0, 1e-12);
 }
 
 }  // namespace mdv::mesh

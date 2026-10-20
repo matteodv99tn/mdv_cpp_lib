@@ -94,7 +94,7 @@ Mesh::transform(const Eigen::Affine3d& transformation) {
 }
 
 Geodesic
-Mesh::build_geodesic(const Point& from, const Point& to) const {
+build_geodesic(const Mesh& mesh, const Point& from, const Point& to) {
     using mdv::condition::are_orthogonal, mdv::condition::is_zero_norm;
     using Kernel = internal::CgalImpl::Kernel;
 
@@ -103,22 +103,21 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
     using Mat32 = Eigen::Matrix<double, 3, 2>;
     using Mat33 = Eigen::Matrix<double, 3, 3>;
 
-    logger().debug(
+    mesh.logger().debug(
             "Building geodesic from {} to {}",
-            eigen_to_str(from.position()),
-            eigen_to_str(to.position())
+            eigen_to_str(position(mesh, from)),
+            eigen_to_str(position(mesh, to))
     );
 
-    if (is_zero_norm(from.position() - to.position())) return {};
+    if (is_zero_norm(position(mesh, from) - position(mesh, to))) return {};
 
-    const auto from_id = internal::to_face_impl(from.face());
-    const auto to_id   = internal::to_face_impl(to.face());
-    if (from_id == to_id) return {from.position(), to.position()};
+    const auto from_id = internal::to_cgal(face(mesh, from));
+    const auto to_id   = internal::to_cgal(face(mesh, to));
+    if (from_id == to_id) return {position(mesh, from), position(mesh, to)};
 
 
-    if (from.get_as<Point::PointInFaceDescriptor>() != nullptr
-        && to.get_as<Point::PointInFaceDescriptor>() != nullptr) {
-        const auto& m         = internal::get_mesh_impl(from.mesh());
+    if (from.get_as<PointInFace>() != nullptr && to.get_as<PointInFace>() != nullptr) {
+        const auto& m         = internal::cgal_mesh(mesh);
         const auto  shared_he = internal::shared_halfedge(from_id, to_id, m);
 
         if (shared_he.has_value()) {
@@ -129,14 +128,14 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
             const auto  p1_c      = m.point(target(he, m));
             const Vec3d p0        = internal::convert(p0_c);
             const Vec3d p1        = internal::convert(p1_c);
-            const Vec3d delta     = to.position() - p0;
+            const Vec3d delta     = position(mesh, to) - p0;
             const Vec3d delta_rot = rotation * delta;
 
             const Vec3d             p_star = p0 + delta_rot;
             const Kernel::Segment_3 segment(p0_c, p1_c);
             const Kernel::Ray_3     ray(
-                    internal::point3_from_eigen(from.position()),
-                    internal::vector3_from_eigen(p_star - from.position())
+                    internal::point3_from_eigen(position(mesh, from)),
+                    internal::vector3_from_eigen(p_star - position(mesh, from))
             );
             auto midpt = internal::edge_ray_intersection(segment, ray);
 
@@ -146,14 +145,16 @@ Mesh::build_geodesic(const Point& from, const Point& to) const {
                 );
             }
 
-            return {from.position(), internal::convert(midpt.value()), to.position()};
+            return {position(mesh, from),
+                    internal::convert(midpt.value()),
+                    position(mesh, to)};
         }
     }
 
-    Geodesic res = (*cgal()._geodesic_constructor)(from, to);
+    Geodesic res = (*mesh.cgal()._geodesic_constructor)(from, to);
 
-    assert(mdv::condition::are_equal(res.front(), from.position())
-           && mdv::condition::are_equal(res.back(), to.position()));
+    assert(mdv::condition::are_equal(res.front(), position(mesh, from))
+           && mdv::condition::are_equal(res.back(), position(mesh, to)));
 
     if (res.size() >= 2 && (res[0] - res[1]).norm() < 1e-12) res.erase(res.begin());
     const auto end = res.size() - 1;
@@ -223,11 +224,11 @@ Mesh::extract_normal_bounded_surface(
 
     std::vector<VisitState> face_class(mesh.num_faces(), VisitState::UNVISITED);
 
-    const auto   n_ref     = normal(mesh, FaceId{pt.face().id()});
+    const auto   n_ref     = normal(mesh, face(mesh, pt));
     const double cos_angle = std::cos(max_normal_angle * M_PI / 180.0);
 
-    const auto classify = [&cos_angle, &n_ref, &mesh](const Face& f) -> VisitState {
-        const auto n = normal(mesh, FaceId{f.id()});
+    const auto classify = [&cos_angle, &n_ref, &mesh](FaceId f) -> VisitState {
+        const auto n = normal(mesh, f);
         if (n.dot(n_ref) > cos_angle) return VisitState::VALID_FACE;
         return VisitState::INVALID_FACE;
     };
@@ -237,11 +238,11 @@ Mesh::extract_normal_bounded_surface(
     const auto propagate = [&](const auto& self, const Index& id) -> void {
         if (face_class[id] != VisitState::UNVISITED) return;
 
-        const auto f   = mesh.face(id);
+        const auto f   = FaceId{id};
         face_class[id] = classify(f);
         if (face_class[id] == VisitState::INVALID_FACE) return;
 
-        const auto [f_id1, f_id2, f_id3] = neighbours(mesh, FaceId{f.id()});
+        const auto [f_id1, f_id2, f_id3] = neighbours(mesh, f);
         self(self, f_id1.value);
         self(self, f_id2.value);
         self(self, f_id3.value);
@@ -249,12 +250,12 @@ Mesh::extract_normal_bounded_surface(
 
     mesh.logger().info(
             "Constructing submesh by from point {} - maximum normal angle: {}deg",
-            pt.describe(),
+            describe(mesh, pt),
             max_normal_angle
     );
-    propagate(propagate, pt.face().id());
+    propagate(propagate, face(mesh, pt).value);
 
-    const auto& m_original = internal::get_mesh_impl(mesh);
+    const auto& m_original = internal::cgal_mesh(mesh);
     auto        m_new      = m_original;
 
     long n_removed = 0;

@@ -13,48 +13,49 @@
 #include "mdv/dataset/handwritten_dataset.hpp"
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"
+#include "mdv/mesh/face.hpp"
 #include "mdv/mesh/gaussian_process.hpp"
 #include "mdv/mesh/kernel.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/mesh_utilities.hpp"
+#include "mdv/mesh/point.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/rerun.hpp"
 
-namespace mdv::mesh {
+namespace {
+using namespace mdv::mesh;
 namespace rs = ::ranges;
 namespace rv = ::ranges::views;
 
 using PointVector = std::vector<Point>;
 
-namespace {
-    std::tuple<PointVector, Geodesic, std::vector<Eigen::Vector3d>>
-    to_demonstration_data(
-            const Eigen::MatrixXd&                       pos_data,
-            const Eigen::MatrixXd&                       vel_data,
-            const Mesh&                                  mesh,
-            const std::function<double(double, double)>& fun,
-            const long                                   increment
-    ) {
-        std::vector<Point>      points;
-        std::vector<mdv::Vec3d> cart_points;
-        std::vector<mdv::Vec3d> velocities;
-        points.reserve(static_cast<std::size_t>(pos_data.cols()));
-        cart_points.reserve(static_cast<std::size_t>(pos_data.cols()));
-        for (long i = 0; i < pos_data.cols(); i += increment) {
-            const double x = pos_data(0, i);
-            const double y = pos_data(1, i);
-            cart_points.emplace_back(x, y, fun(x, y));
-            points.emplace_back(Point::from_cartesian(mesh, {x, y, fun(x, y)}));
+std::tuple<PointVector, Geodesic, std::vector<Eigen::Vector3d>>
+to_demonstration_data(
+        const Eigen::MatrixXd&                       pos_data,
+        const Eigen::MatrixXd&                       vel_data,
+        const Mesh&                                  mesh,
+        const std::function<double(double, double)>& fun,
+        const long                                   increment
+) {
+    std::vector<Point>      points;
+    std::vector<mdv::Vec3d> cart_points;
+    std::vector<mdv::Vec3d> velocities;
+    points.reserve(static_cast<std::size_t>(pos_data.cols()));
+    cart_points.reserve(static_cast<std::size_t>(pos_data.cols()));
+    for (long i = 0; i < pos_data.cols(); i += increment) {
+        const double x = pos_data(0, i);
+        const double y = pos_data(1, i);
+        cart_points.emplace_back(x, y, fun(x, y));
+        points.emplace_back(from_cartesian(mesh, {x, y, fun(x, y)}));
 
-            mdv::Vec3d v = {vel_data(0, i), vel_data(1, i), 0.0};
-            const auto n = normal(mesh, FaceId{points.back().face().id()});
-            velocities.emplace_back((mdv::Mat3d::Identity() - n * n.transpose()) * v);
-        }
-        return {points, cart_points, velocities};
+        mdv::Vec3d v = {vel_data(0, i), vel_data(1, i), 0.0};
+        const auto n = normal(mesh, face(mesh, points.back()));
+        velocities.emplace_back((mdv::Mat3d::Identity() - n * n.transpose()) * v);
     }
+    return {points, cart_points, velocities};
+}
 
 }  // namespace
-}  // namespace mdv::mesh
 
 int
 main(int argc, char* argv[]) {
@@ -130,7 +131,7 @@ main(int argc, char* argv[]) {
     PointVector test_points;
     test_points.reserve(mesh.num_vertices());
     for (mdv::mesh::Index i = 0; i < mesh.num_vertices(); ++i)
-        test_points.emplace_back(mesh.vertex(i));
+        test_points.emplace_back(PointOnVertex{VertexId{i}});
 
     fmt::print("Predicting vector field...\n");
     const Eigen::MatrixXd v_gp = gp.predict(test_points);
@@ -141,7 +142,7 @@ main(int argc, char* argv[]) {
 
     for (std::size_t i = 0; i < test_points.size(); ++i) {
         const auto k   = static_cast<Eigen::Index>(i);
-        const auto pos = test_points[i].position();
+        const auto pos = position(mesh, test_points[i]);
         gp_origs.emplace_back(pos(0), pos(1), pos(2));
         gp_vecs.emplace_back(v_gp(k, 0), v_gp(k, 1), v_gp(k, 2));
     }
@@ -153,13 +154,12 @@ main(int argc, char* argv[]) {
     );
 
     Geodesic train_pts;
-    for (const auto& pt : pts) train_pts.emplace_back(pt.position());
+    for (const auto& pt : pts) train_pts.emplace_back(position(mesh, pt));
     rec.log_static("training_data", to_rerun.as_points(train_pts));
 
     // Integration
-    Point pos = Point::from_cartesian(
-            mesh, pts[0].position() + 0.01 * mdv::Vec3d::Random()
-    );
+    Point pos =
+            from_cartesian(mesh, position(mesh, pts[0]) + 0.01 * mdv::Vec3d::Random());
     const double dt = 0.2;
 
     fmt::print("Starting dynamics integration\n");
@@ -171,14 +171,14 @@ main(int argc, char* argv[]) {
         const auto v_vec = gp.predict({pos});
         mdv::Vec3d u     = v_vec.transpose();
 
-        const auto       n = normal(mesh, FaceId{pos.face().id()});
+        const auto       n = normal(mesh, face(mesh, pos));
         const mdv::Vec3d v = (mdv::Mat3d::Identity() - n * n.transpose()) * u;
-        TangentVector    tv(pos, dt * v);
-        pos = exponential_map(tv);
-        path.emplace_back(pos.position());
+        TangentVector    tv(mesh, pos, dt * v);
+        pos = exponential_map(mesh, tv);
+        path.emplace_back(position(mesh, pos));
 
-        rec.log("position", to_rerun(pos));
-        const auto cart_pos = pos.position();
+        rec.log("position", to_rerun(mesh, pos));
+        const auto cart_pos = position(mesh, pos);
         rec.log("velocity_cmd/x", rerun::Scalars({u(0)}));
         rec.log("velocity_cmd/y", rerun::Scalars({u(1)}));
         rec.log("velocity_cmd/z", rerun::Scalars({u(2)}));

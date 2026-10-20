@@ -18,9 +18,9 @@
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/point.hpp"
 
+namespace mdv::mesh {
 namespace rs = ::ranges;
 
-namespace mdv::mesh {
 namespace {
 
     struct TimeBenchmarker {
@@ -101,10 +101,12 @@ namespace {
         using CgalGeodesicConstructor = internal::CgalGeodesicConstructor;
 
         Eigen::MatrixXd
-        operator()(const InputVector& pts1, const InputVector& pts2) const {
+        operator()(
+                const Mesh& mesh, const InputVector& pts1, const InputVector& pts2
+        ) const {
             Eigen::MatrixXd res(pts1.size(), pts2.size());
             thread_pool().detach_loop(0, res.rows(), [&](const long i) {
-                evaluate_row(i, res, pts1, pts2);
+                evaluate_row(mesh, i, res, pts1, pts2);
             });
             thread_pool().wait();
             return res;
@@ -113,19 +115,27 @@ namespace {
     private:
         static void
         evaluate_row(
+                const Mesh&        mesh,
                 const long         i,
                 Eigen::MatrixXd&   res,
                 const InputVector& pts1,
                 const InputVector& pts2
         ) {
-            ShortestPath shpath(internal::get_mesh_impl(pts1.front().mesh()));
+            const auto&  m = internal::cgal_mesh(mesh);
+            ShortestPath shpath(m);
             CgalGeodesicConstructor::set_source(
-                    shpath, pts1[static_cast<std::size_t>(i)]
+                    m,
+                    shpath,
+                    pts1[static_cast<std::size_t>(i)],
+                    &mesh.cgal()._aabb_tree
             );
 
             for (long j = 0; j < res.cols(); ++j) {
                 const auto geod = CgalGeodesicConstructor::construct_geodesic(
-                        shpath, pts2[static_cast<std::size_t>(j)]
+                        m,
+                        shpath,
+                        pts2[static_cast<std::size_t>(j)],
+                        &mesh.cgal()._aabb_tree
                 );
                 res(i, j) = length(geod);
             }
@@ -133,6 +143,7 @@ namespace {
 
         static void
         evaluate_rows_batched(
+                const Mesh&        mesh,
                 Eigen::MatrixXd&   res,
                 const InputVector& pts1,
                 const InputVector& pts2,
@@ -141,7 +152,7 @@ namespace {
         ) {
             const long& start = row_start_id;
             const long  end   = std::min(row_start_id + n_rows, res.rows());
-            for (long i = start; i < end; ++i) evaluate_row(i, res, pts1, pts2);
+            for (long i = start; i < end; ++i) evaluate_row(mesh, i, res, pts1, pts2);
         }
     };
 
@@ -155,19 +166,23 @@ namespace internal {
         InputVector               pts1;
         std::vector<ShortestPath> shpath_objs;
 
-        Data(InputVector points) : pts1(std::move(points)) {
+        Data(const Mesh& mesh, InputVector points) : pts1(std::move(points)) {
             using internal::CgalGeodesicConstructor;
 
-            const auto& mesh = pts1[0].mesh();
-            const auto& m    = internal::get_mesh_impl(pts1[0].mesh());
+            const auto& m = internal::cgal_mesh(mesh);
 
             shpath_objs.reserve(pts1.size());
             for (const auto& pt : pts1) shpath_objs.emplace_back(m);
 
             const auto process_i = [&](const std::size_t i) {
-                CgalGeodesicConstructor::set_source(shpath_objs[i], pts1[i]);
+                CgalGeodesicConstructor::set_source(
+                        m, shpath_objs[i], pts1[i], &mesh.cgal()._aabb_tree
+                );
                 CgalGeodesicConstructor::construct_geodesic(
-                        shpath_objs[i], mesh.vertex(0)
+                        m,
+                        shpath_objs[i],
+                        PointOnVertex{VertexId{0}},
+                        &mesh.cgal()._aabb_tree
                 );
             };
             thread_pool().detach_loop(0, pts1.size(), process_i);
@@ -211,6 +226,7 @@ namespace {
 
     void
     process_distance_matrix(
+            const Mesh&                        mesh,
             internal::Data&                    data,
             const internal::Data::InputVector& pts2,
             Eigen::MatrixXd&                   res
@@ -218,11 +234,13 @@ namespace {
         using internal::CgalGeodesicConstructor;
         auto time_eval = benchmarker()(std::ssize(data.pts1), std::ssize(pts2));
 
-        auto row_processor = [&data, &res, &pts2](const long i) {
+        auto row_processor = [&mesh, &data, &res, &pts2](const long i) {
             for (long j = 0; j < res.cols(); ++j) {
                 const auto path = CgalGeodesicConstructor::construct_geodesic(
+                        internal::cgal_mesh(mesh),
                         data.shpath_objs[static_cast<std::size_t>(i)],
-                        pts2[static_cast<std::size_t>(j)]
+                        pts2[static_cast<std::size_t>(j)],
+                        &mesh.cgal()._aabb_tree
                 );
                 res(i, j) = length(path);
             }
@@ -238,8 +256,8 @@ MeshKernel::MeshKernel(const Mesh& mesh) : _mesh(&mesh) {
 
 Eigen::MatrixXd
 MeshKernel::distance_matrix(const InputVector& pts1, const InputVector& pts2) const {
-    const Eigen::MatrixXd D12 = DistanceEvaluator{}(pts1, pts2);
-    const Eigen::MatrixXd D21 = DistanceEvaluator{}(pts2, pts1);
+    const Eigen::MatrixXd D12 = DistanceEvaluator{}(*_mesh, pts1, pts2);
+    const Eigen::MatrixXd D21 = DistanceEvaluator{}(*_mesh, pts2, pts1);
     assert(D12.cols() == D21.rows() && D12.rows() == D21.cols());
 
     const long      nr = D12.rows();
@@ -272,7 +290,7 @@ MeshKernel::find_max_lengthscale(
         std::vector<mdv::mesh::Point> points;
         points.reserve(num_points);
         for (std::size_t j = 0; j < num_points; ++j)
-            points.emplace_back(mdv::mesh::Point::random(*_mesh));
+            points.emplace_back(random_point(*_mesh));
 
         dist_matrices.emplace_back(distance_matrix(points, points));
     }
@@ -320,8 +338,8 @@ InexactMeshKernel::distance_matrix(
         const InputVector& pts1, const InputVector& pts2
 ) const {
     auto time_eval = benchmarker()(std::ssize(pts1), std::ssize(pts2));
-    if (pts1.size() < pts2.size()) return DistanceEvaluator{}(pts1, pts2);
-    return DistanceEvaluator{}(pts2, pts1).transpose();
+    if (pts1.size() < pts2.size()) return DistanceEvaluator{}(*_mesh, pts1, pts2);
+    return DistanceEvaluator{}(*_mesh, pts2, pts1).transpose();
 }
 
 Eigen::MatrixXd
@@ -331,7 +349,7 @@ InexactMeshKernel::distance_matrix(const InputVector& pts2) {
 
     assert(_data->shpath_objs.size() == _data->pts1.size());
     Eigen::MatrixXd distances(_data->pts1.size(), pts2.size());
-    process_distance_matrix(*_data, pts2, distances);
+    process_distance_matrix(*_mesh, *_data, pts2, distances);
     return distances;
 }
 
@@ -348,7 +366,7 @@ InexactMeshKernel::evaluate_single(const InputVector& pts2, const double ls) {
 void
 InexactMeshKernel::set_points1(const InputVector& pts1) {
     delete _data;
-    _data = new Data(pts1);
+    _data = new Data(*_mesh, pts1);
 }
 
 double

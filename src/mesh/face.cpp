@@ -13,14 +13,6 @@
 
 namespace mdv::mesh {
 
-Face Face::invalid_face = Face();
-
-std::string
-Face::describe() const {
-    if (!is_valid()) return "Invalid face object";
-    return mesh::describe(mesh(), FaceId{id()});
-}
-
 std::string
 describe(const Mesh& mesh, FaceId f) {
     if (!f.is_valid()) return "Invalid face object";

@@ -6,27 +6,8 @@
 #include "mdv/eigen_defines.hpp"
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
-#include "mdv/mesh/mesh_element.hpp"
 
 namespace mdv::mesh {
-
-/** @brief Legacy mesh-bound holder, retained until Point migrates to handles. */
-class Face final : public internal::IndexedMeshElement {
-public:
-    Face(const Mesh& mesh, Index id) noexcept : IndexedMeshElement(mesh, id) {}
-
-    static Face invalid_face;
-
-    MDV_NODISCARD bool
-    operator==(const Face& other) const noexcept {
-        return id() == other.id();
-    }
-
-    MDV_NODISCARD std::string describe() const override;
-
-private:
-    Face() = default;
-};
 
 /** @brief Face normal. The handle must belong to mesh. */
 MDV_NODISCARD Vec3d normal(const Mesh& mesh, FaceId f);

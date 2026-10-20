@@ -8,15 +8,15 @@
 #include "mdv/config.hpp"
 #include "mdv/mesh/mesh.hpp"
 
-using namespace mdv::mesh;
-
-using std::filesystem::path;
+namespace mdv::mesh {
+namespace fs = std::filesystem;
 
 TEST(MdvMesh, FlatParameterisation) {
-    const path mesh_path = mdv::config::meshes_directory() / "bunny.off";
-    const auto full_mesh = Mesh::from_file(mesh_path);
-    auto       mesh =
-            Mesh::extract_normal_bounded_surface(full_mesh, full_mesh.vertex(0), 30.0);
+    const fs::path mesh_path = mdv::config::meshes_directory() / "bunny.off";
+    const auto     full_mesh = Mesh::from_file(mesh_path);
+    auto           mesh      = Mesh::extract_normal_bounded_surface(
+            full_mesh, PointOnVertex{VertexId{0}}, 30.0
+    );
     FlatParameterisation map(mesh);
 
     ASSERT_TRUE(map.is_one_to_one_mapping());
@@ -26,10 +26,10 @@ TEST(MdvMesh, FlatParameterisation) {
 
     // Check bijective mapping of vertices
     for (Index i = 0; i < mesh.num_vertices(); ++i) {
-        const auto   v   = mesh.vertex(i);
+        const Point  v{PointOnVertex{VertexId{i}}};
         const auto   uv  = map.project(v);
         const auto   rec = map.retrieve(uv);
-        const double e   = (position(mesh, VertexId{i}) - rec.position()).norm();
+        const double e   = (position(mesh, VertexId{i}) - position(mesh, rec)).norm();
         ASSERT_TRUE(map.is_inside_mesh(uv));
         ASSERT_LT(e, 1e-12);
     }
@@ -37,11 +37,12 @@ TEST(MdvMesh, FlatParameterisation) {
     // Check bijective mapping of points centered in the faces
     constexpr double b = 1.0 / 3.0;
     for (Index i = 0; i < mesh.num_faces(); ++i) {
-        const auto   pt  = Point::PointInFaceDescriptor(mesh.face(i), {b, b, b});
+        const Point  pt(mesh, FaceId{i}, {b, b, b});
         const auto   uv  = map.project(pt);
         const auto   rec = map.retrieve(uv);
-        const double e   = (pt.position() - rec.position()).norm();
+        const double e   = (position(mesh, pt) - position(mesh, rec)).norm();
         ASSERT_TRUE(map.is_inside_mesh(uv));
         ASSERT_LT(e, 1e-12);
     }
 }
+}  // namespace mdv::mesh

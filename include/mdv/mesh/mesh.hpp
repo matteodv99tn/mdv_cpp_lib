@@ -1,6 +1,7 @@
 #ifndef MDV_MESH_CLASS_HPP
 #define MDV_MESH_CLASS_HPP
 
+#include <cassert>
 #include <Eigen/Geometry>
 #include <filesystem>
 #include <gsl/pointers>
@@ -102,15 +103,6 @@ public:
      */
     void transform(const Eigen::Affine3d& transformation);
 
-    /**
-     * @brief Builds a shortest-path geodesic between two surface points.
-     *
-     * @param from Start point on the mesh.
-     * @param to End point on the mesh.
-     * @return Geodesic polyline representing the shortest path on the surface.
-     */
-    MDV_NODISCARD Geodesic build_geodesic(const Point& from, const Point& to) const;
-
     // Getters
     /**
      * @brief Number of vertices.
@@ -135,28 +127,6 @@ public:
                   name() const {
         return _name;
     };
-
-    /**
-     * @brief Retrieves a face by index.
-     *
-     * @param id Face index.
-     * @return Face handle.
-     */
-    MDV_NODISCARD Face
-    face(const Index id) const {
-        return {*this, id};
-    }
-
-    /**
-     * @brief Retrieves a vertex by index.
-     *
-     * @param id Vertex index.
-     * @return Vertex handle.
-     */
-    MDV_NODISCARD Vertex
-    vertex(const Index& id) const {
-        return {*this, id};
-    }
 
     /**
      * @brief Logger associated with this mesh instance.
@@ -239,6 +209,9 @@ private:
      */
     std::string _name;
 };
+
+/** @brief Shortest path, with cached CGAL state owned by mesh. */
+MDV_NODISCARD Geodesic build_geodesic(const Mesh&, const Point&, const Point&);
 
 }  // namespace mdv::mesh
 

@@ -40,43 +40,51 @@ namespace {
 //   | | (_| | | | | (_| |  __/ | | | |_ \ V /  __/ (__| || (_) | |
 //   |_|\__,_|_| |_|\__, |\___|_| |_|\__| \_/ \___|\___|\__\___/|_|
 //                  |___/
-TangentVector::TangentVector(Point app_point, Vec3d v, Type type) :
-        _pt(std::move(app_point)), _vec(std::move(v)), _type(type) {
+TangentVector::TangentVector(
+        const Mesh&           mesh,
+        Point                 app_point,
+        Vec3d                 v,
+        Type                  type,
+        std::optional<FaceId> preferred
+) :
+        _pt(app_point), _vec(std::move(v)), _type(type) {
     using mdv::condition::are_orthogonal;
 
+    if (!_vec.allFinite()) throw std::runtime_error("Nonfinite tangent vector");
+    (void)position(mesh, _pt);
+    _f = preferred.value_or(mesh::face(mesh, _pt));
+    (void)internal::face_location(internal::cgal_mesh(mesh), _pt, _f);
     const auto point_type = location_type(_pt);
 
     if (point_type == LocationType::INSIDE_FACE) {
-        validate_app_point_inside_face();
+        validate_app_point_inside_face(mesh);
         return;
     }
 
-    fill_halfedge();
+    fill_halfedge(mesh);
     assert(_he.has_value());
 
     if (point_type == LocationType::ON_EDGE) {
-        validate_app_point_on_edge();
+        validate_app_point_on_edge(mesh);
+        _f = mesh::face(mesh, *_he);
         return;
     }
 
-    validate_app_point_on_vertex();
+    validate_app_point_on_vertex(mesh);
 
 
     // In case if the point is on a edge, you may switch the halfedge to ensure that
     // the vector is orthogonal to the face (which may be the opposite one)
-    const auto* desc = _pt.get_as<Point::PointOnEdgeDescriptor>();
+    const auto* desc = _pt.get_as<PointOnEdge>();
     const bool  shall_switch =
-            (desc != nullptr)
-            && !are_orthogonal(normal(_pt.mesh(), FaceId{_pt.face().id()}), _vec);
-    if (shall_switch) _pt = desc->display_in_opposite_halfedge();
+            (desc != nullptr) && !are_orthogonal(normal(mesh, _f), _vec);
+    if (shall_switch) _pt = flip(mesh, *desc);
 
-    assert(mdv::condition::are_orthogonal(
-            normal(_pt.mesh(), FaceId{_pt.face().id()}), _vec
-    ));
+    assert(mdv::condition::are_orthogonal(normal(mesh, _f), _vec));
 }
 
 void
-TangentVector::validate_app_point_inside_face() {
+TangentVector::validate_app_point_inside_face(const Mesh& mesh) {
     assert(location_type(_pt) == LocationType::INSIDE_FACE);
     if (_type == ALONG_EDGE) {
         throw std::runtime_error(
@@ -84,7 +92,7 @@ TangentVector::validate_app_point_inside_face() {
                 "inside the face"
         );
     }
-    if (!condition::are_orthogonal(normal(_pt.mesh(), FaceId{_pt.face().id()}), _vec)) {
+    if (!condition::are_orthogonal(normal(mesh, _f), _vec)) {
         throw std::runtime_error(
                 "Provided vector is not orthogonal to the face normal"
         );
@@ -92,20 +100,19 @@ TangentVector::validate_app_point_inside_face() {
 }
 
 void
-TangentVector::validate_app_point_on_edge() {
+TangentVector::validate_app_point_on_edge(const Mesh& mesh) {
     using namespace mdv::condition;
     assert(location_type(_pt) == LocationType::ON_EDGE);
     assert(_he.has_value());
 
-    const auto switch_halfedge = [this]() {
-        _pt = _pt.get_as<Point::PointOnEdgeDescriptor>()
-                      ->display_in_opposite_halfedge();
-        fill_halfedge();
+    const auto switch_halfedge = [this, &mesh]() {
+        _pt = flip(mesh, *_pt.get_as<PointOnEdge>());
+        fill_halfedge(mesh);
     };
 
 
     if (_type == ALONG_EDGE) {
-        const auto he_dir = direction(_pt.mesh(), HalfEdgeId{_he->id()});
+        const auto he_dir = direction(mesh, *_he);
         if (!are_parallel(he_dir, _vec)) {
             throw std::runtime_error(
                     "The provided vector is not parallel to the edge upon which it "
@@ -117,11 +124,9 @@ TangentVector::validate_app_point_on_edge() {
     }
 
     // If inside face
-    auto is_valid_halfedge = [this](const HalfEdge& he) -> bool {
-        return are_orthogonal(
-                       normal(_pt.mesh(), face(_pt.mesh(), HalfEdgeId{he.id()})), _vec
-               )
-               && inbound_direction(_pt.mesh(), HalfEdgeId{he.id()}).dot(_vec) > 0.0;
+    auto is_valid_halfedge = [this, &mesh](HalfEdgeId he) -> bool {
+        return are_orthogonal(normal(mesh, mesh::face(mesh, he)), _vec)
+               && inbound_direction(mesh, he).dot(_vec) > 0.0;
     };
 
     if (!is_valid_halfedge(_he.value())) switch_halfedge();
@@ -134,15 +139,12 @@ TangentVector::validate_app_point_on_edge() {
 }
 
 void
-TangentVector::validate_app_point_on_vertex() {
+TangentVector::validate_app_point_on_vertex(const Mesh& mesh) {
     using namespace condition;
     assert(location_type(_pt) == LocationType::ON_VERTEX);
 
     if (_type == ALONG_EDGE) {
-        if (!are_parallel(
-                    direction(_pt.mesh(), HalfEdgeId{_he->id()}).normalized(),
-                    _vec.normalized()
-            )) {
+        if (!are_parallel(direction(mesh, *_he).normalized(), _vec.normalized())) {
             throw std::runtime_error(
                     "Unable to construct tangent vector on vertex with vector along an "
                     "halfedge"
@@ -152,11 +154,10 @@ TangentVector::validate_app_point_on_vertex() {
     }
 
     // If inside face
-    const auto h  = HalfEdgeId{_he->id()};
-    const auto v1 = direction(_pt.mesh(), h).normalized();
-    const auto v3 =
-            direction(_pt.mesh(), twin(_pt.mesh(), prev(_pt.mesh(), h))).normalized();
-    assert(face(_pt.mesh(), h).value == _pt.face().id());
+    const auto h  = *_he;
+    const auto v1 = direction(mesh, h).normalized();
+    const auto v3 = direction(mesh, twin(mesh, prev(mesh, h))).normalized();
+    assert(mesh::face(mesh, h) == _f);
 
     if (!internal::are_coplanar(v1, _vec, v3)) {
         throw std::runtime_error(
@@ -173,73 +174,65 @@ TangentVector::validate_app_point_on_vertex() {
 }
 
 void
-TangentVector::fill_halfedge() {
+TangentVector::fill_halfedge(const Mesh& mesh) {
     using VertexIndex = internal::CgalImpl::CgalVertexIndex;
     using FaceIndex   = internal::CgalImpl::CgalFaceIndex;
     using HeIndex     = internal::CgalImpl::CgalHalfEdgeIndex;
 
     assert(location_type(_pt) != LocationType::INSIDE_FACE);
 
-    const auto* he_descriptor = _pt.get_as<Point::PointOnEdgeDescriptor>();
+    const auto* he_descriptor = _pt.get_as<PointOnEdge>();
     if (he_descriptor != nullptr) {
-        _he = he_descriptor->halfedge();
+        _he = he_descriptor->he;
         return;
     }
 
-    const auto* v_descriptor = _pt.get_as<Point::PointOnVertexDescriptor>();
-    _he                      = HalfEdge{
-            _pt.mesh(),
-            mesh::halfedge(
-                    _pt.mesh(),
-                    VertexId{v_descriptor->vertex().id()},
-                    FaceId{v_descriptor->face().id()}
-            )
-                    .value
-    };
+    const auto* v_descriptor = _pt.get_as<PointOnVertex>();
+    _he                      = mesh::halfedge(mesh, v_descriptor->v, _f);
 }
 
 TangentVector
-TangentVector::from_tip_position(const Point& origin, const CartesianPoint& tip) {
-    const Vec3d p0  = origin.position();
+TangentVector::from_tip_position(
+        const Mesh& mesh, const Point& origin, const CartesianPoint& tip
+) {
+    const Vec3d p0  = position(mesh, origin);
     const Vec3d vec = tip - p0;
-    return from_ambient_vector(origin, vec);
+    return from_ambient_vector(mesh, origin, vec);
 }
 
 TangentVector
-TangentVector::from_ambient_vector(const Point& origin, const Eigen::Vector3d& vec) {
+TangentVector::from_ambient_vector(
+        const Mesh& mesh, const Point& origin, const Eigen::Vector3d& vec
+) {
+    (void)position(mesh, origin);
+    if (!vec.allFinite()) throw std::runtime_error("Nonfinite ambient vector");
     const auto loc_type = location_type(origin);
 
     if (loc_type == LocationType::INSIDE_FACE) {
-        return {origin,
-                normal_projection(
-                        vec, normal(origin.mesh(), FaceId{origin.face().id()})
-                ),
+        return {mesh,
+                origin,
+                normal_projection(vec, normal(mesh, mesh::face(mesh, origin))),
                 INSIDE_FACE};
     }
 
     if (loc_type == LocationType::ON_EDGE) {
-        return from_ambient_vector_on_edge(
-                *origin.get_as<Point::PointOnEdgeDescriptor>(), vec
-        );
+        return from_ambient_vector_on_edge(mesh, *origin.get_as<PointOnEdge>(), vec);
     }
 
-    return from_ambient_vector_on_vertex(
-            *origin.get_as<Point::PointOnVertexDescriptor>(), vec
-    );
+    return from_ambient_vector_on_vertex(mesh, *origin.get_as<PointOnVertex>(), vec);
 }
 
 TangentVector
 TangentVector::from_ambient_vector_on_edge(
-        const Point::PointOnEdgeDescriptor& origin, const Eigen::Vector3d& vec
+        const Mesh& mesh, const PointOnEdge& origin, const Eigen::Vector3d& vec
 ) {
     using VertexIndex    = internal::CgalImpl::CgalVertexIndex;
     using HeIndex        = internal::CgalImpl::CgalHalfEdgeIndex;
     using FaceIndex      = internal::CgalImpl::CgalFaceIndex;
     using ProjectionInfo = std::tuple<Vec3d, Type, HeIndex>;
 
-    const auto& he   = origin.halfedge();
-    const auto& mesh = he.mesh();
-    const auto& m    = internal::get_mesh_impl(mesh);
+    const auto  he = origin.he;
+    const auto& m  = internal::cgal_mesh(mesh);
 
     const auto project_on_halfedge = [&vec, &mesh](const HeIndex he_id) -> Vec3d {
         return project_along_direction(
@@ -247,15 +240,15 @@ TangentVector::from_ambient_vector_on_edge(
         );
     };
     const auto project_on_face = [&vec, &mesh, &m](const HeIndex he_id) -> Vec3d {
-        const Face f{mesh, face(he_id, m)};
+        const auto f = internal::from_cgal(CGAL::face(he_id, m));
         if (!f.is_valid()) return Vec3d::Zero();
-        const auto proj = normal_projection(vec, normal(mesh, FaceId{f.id()}));
+        const auto proj = normal_projection(vec, normal(mesh, f));
         if (proj.dot(inbound_direction(mesh, internal::from_cgal(he_id))) <= 0.0)
             return Vec3d::Zero();
         return proj;
     };
 
-    const HeIndex he_id{he.id()};
+    const auto    he_id      = internal::to_cgal(he);
     const HeIndex twin_he_id = opposite(he_id, m);
 
     const std::vector<ProjectionInfo> candidates{
@@ -270,14 +263,14 @@ TangentVector::from_ambient_vector_on_edge(
                 return vec.dot(std::get<0>(info));
             });
 
-    const auto point_constructor = [&origin, &he_id](
-                                           const HeIndex& actual_id
-                                   ) -> Point::PointOnEdgeDescriptor {
+    const auto point_constructor =
+            [&origin, &he_id, &mesh](const HeIndex& actual_id) -> PointOnEdge {
         if (actual_id == he_id) return origin;
-        return origin.display_in_opposite_halfedge();
+        return flip(mesh, origin);
     };
 
     return {
+            mesh,
             point_constructor(std::get<2>(best_candidate)),
             std::get<0>(best_candidate),
             std::get<1>(best_candidate),
@@ -286,8 +279,9 @@ TangentVector::from_ambient_vector_on_edge(
 
 TangentVector
 TangentVector::from_ambient_vector_on_vertex(
-        const Point::PointOnVertexDescriptor& application_point,
-        const Eigen::Vector3d&                vec
+        const Mesh&            mesh,
+        const PointOnVertex&   application_point,
+        const Eigen::Vector3d& vec
 ) {
     using VertexIndex = internal::CgalImpl::CgalVertexIndex;
     using HeIndex     = internal::CgalImpl::CgalHalfEdgeIndex;
@@ -295,32 +289,31 @@ TangentVector::from_ambient_vector_on_vertex(
 
     using ProjectionInfo = std::tuple<Vec3d, Type, FaceIndex>;
 
-    const auto&       v = application_point.vertex();
-    const auto&       m = internal::get_mesh_impl(v);
-    const VertexIndex v_id{v.id()};
+    const auto& m    = internal::cgal_mesh(mesh);
+    const auto  v_id = internal::to_cgal(application_point.v);
 
     const auto halfedges = CGAL::halfedges_around_source(v_id, m) | rs::to_vector;
 
     // Candidates inside faces
-    const auto project_on_face = [&vec, &v](const HeIndex he_id) -> Vec3d {
+    const auto project_on_face = [&vec, &mesh](const HeIndex he_id) -> Vec3d {
         return normal_projection(
-                vec, normal(v.mesh(), face(v.mesh(), internal::from_cgal(he_id)))
+                vec, normal(mesh, mesh::face(mesh, internal::from_cgal(he_id)))
         );
     };
 
     const auto retrieve_vectors =
-            [&vec, &m, &v](const HeIndex& he_id) -> std::array<Vec3d, 3> {
+            [&vec, &m, &mesh](const HeIndex& he_id) -> std::array<Vec3d, 3> {
         const auto       opposite_he_id = opposite(prev(he_id, m), m);
         const HalfEdgeId he1            = internal::from_cgal(he_id);
         const HalfEdgeId he2            = internal::from_cgal(opposite_he_id);
         assert(mdv::condition::are_parallel(
-                direction(v.mesh(), he1).cross(direction(v.mesh(), he2)),
-                normal(v.mesh(), face(v.mesh(), he1))
+                direction(mesh, he1).cross(direction(mesh, he2)),
+                normal(mesh, mesh::face(mesh, he1))
         ));
         return {
-                direction(v.mesh(), he1),
-                normal_projection(vec, normal(v.mesh(), face(v.mesh(), he1))),
-                direction(v.mesh(), he2),
+                direction(mesh, he1),
+                normal_projection(vec, normal(mesh, mesh::face(mesh, he1))),
+                direction(mesh, he2),
         };
     };
     const auto vector_inside_face = [](const auto& rng) -> bool {
@@ -335,15 +328,17 @@ TangentVector::from_ambient_vector_on_vertex(
             halfedges | rv::filter(projected_vector_is_inside_face)
             | rv::transform([project_on_face, &m](const HeIndex& he_id) {
                   return std::make_tuple(
-                          project_on_face(he_id), Type::INSIDE_FACE, face(he_id, m)
+                          project_on_face(he_id),
+                          Type::INSIDE_FACE,
+                          CGAL::face(he_id, m)
                   );
               })
             | rs::to<std::vector<ProjectionInfo>>;
 
     // Candidates inside faces
-    const auto project_on_halfedge = [&vec, &v](const HeIndex he_id) -> Vec3d {
+    const auto project_on_halfedge = [&vec, &mesh](const HeIndex he_id) -> Vec3d {
         const Vec3d proj = project_along_direction(
-                vec, direction(v.mesh(), internal::from_cgal(he_id))
+                vec, direction(mesh, internal::from_cgal(he_id))
         );
         if (proj.dot(vec) <= 0.0) return Vec3d::Zero();
         return proj;
@@ -351,7 +346,9 @@ TangentVector::from_ambient_vector_on_vertex(
     const auto along_edge_candidates =
             halfedges | rv::transform([project_on_halfedge, &m](const HeIndex& he_id) {
                 return std::make_tuple(
-                        project_on_halfedge(he_id), Type::ALONG_EDGE, face(he_id, m)
+                        project_on_halfedge(he_id),
+                        Type::ALONG_EDGE,
+                        CGAL::face(he_id, m)
                 );
             })
             | rs::to<std::vector<ProjectionInfo>>;
@@ -371,42 +368,37 @@ TangentVector::from_ambient_vector_on_vertex(
                 return vec.dot(std::get<0>(info));
             });
 
-    Point::PointOnVertexDescriptor app_point{application_point};
-    app_point.assign_face(Face{v.mesh(), std::get<2>(best_candidate)});
     return {
-            app_point,
+            mesh,
+            application_point,
             std::get<0>(best_candidate),
             std::get<1>(best_candidate),
+            internal::from_cgal(std::get<2>(best_candidate)),
     };
 }
 
 TangentVector
-TangentVector::unit_random(const Point& application_point) {
-    const Vec3d n =
-            normal(application_point.mesh(), FaceId{application_point.face().id()});
+TangentVector::unit_random(const Mesh& mesh, const Point& application_point) {
+    const Vec3d n = normal(mesh, mesh::face(mesh, application_point));
     if (location_type(application_point) != LocationType::INSIDE_FACE) {
         throw std::runtime_error(
                 "Don't know how to initialise unit random tangent vector on a point "
                 "which is not inside the face"
         );
     }
-    return {application_point,
+    return {mesh,
+            application_point,
             normal_projection(Vec3d::Random(), n).normalized(),
             INSIDE_FACE};
 }
 
 Eigen::Vector3d
-TangentVector::tip() const noexcept {
-    return application_point().position() + cartesian_vector();
-}
-
-mdv::Vec3d
-TangentVector::cartesian_vector() const noexcept {
-    return _vec;
+tip(const Mesh& mesh, const TangentVector& v) {
+    return position(mesh, v.application_point()) + v.cartesian_vector();
 }
 
 void
-TangentVector::scale(const double& factor) {
+TangentVector::scale(double factor) {
     _vec *= factor;
 }
 
@@ -416,16 +408,10 @@ TangentVector::normalise() {
 }
 
 TangentVector
-TangentVector::normalised() & {
+TangentVector::normalised() const {
     TangentVector res(*this);
-    return {_pt, _vec.normalized(), type()};
-}
-
-TangentVector
-TangentVector::normalised() && {
-    const double len = _vec.norm();
-    scale(1.0 / len);
-    return *this;
+    res.normalise();
+    return res;
 }
 
 namespace internal {

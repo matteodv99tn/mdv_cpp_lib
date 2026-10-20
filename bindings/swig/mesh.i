@@ -58,6 +58,9 @@ import_array();
 %rename(face_normal) mdv::mesh::normal(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
 %rename(face_describe) mdv::mesh::describe(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
 %rename(halfedge_face) mdv::mesh::face(const mdv::mesh::Mesh&, mdv::mesh::HalfEdgeId);
+%rename(point_position) mdv::mesh::position(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
+%rename(point_face) mdv::mesh::face(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
+%rename(point_describe) mdv::mesh::describe(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
 
 namespace mdv::mesh {
 
@@ -93,7 +96,6 @@ namespace mdv::mesh {
 
         std::size_t num_vertices() const;
 
-        std::vector<Eigen::Vector3d> build_geodesic(const mdv::mesh::Point& from, const mdv::mesh::Point& to) const;
 
         Eigen::MatrixXd get_vertex_matrix() const;
 
@@ -103,24 +105,15 @@ namespace mdv::mesh {
 
     class Point {
     public:
-        static mdv::mesh::Point from_cartesian(const mdv::mesh::Mesh& m, const Eigen::Vector3d& pt);
-
-        Eigen::Vector3d position() const;
-
-        static Point random(const mdv::mesh::Mesh& m) noexcept;
-
-        %extend {
-            mdv::mesh::FaceId face() {
-                return mdv::mesh::FaceId{$self->face().id()};
-            }
-        }
-
-        const mdv::mesh::Mesh& mesh() const;
-
-        std::string describe() const;
-
         bool is_undefined() const;
     };
+
+    mdv::mesh::Point from_cartesian(const mdv::mesh::Mesh&, const Eigen::Vector3d&);
+    mdv::mesh::Point random_point(const mdv::mesh::Mesh&);
+    Eigen::Vector3d position(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
+    mdv::mesh::FaceId face(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
+    std::string describe(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
+    std::vector<Eigen::Vector3d> build_geodesic(const mdv::mesh::Mesh&, const mdv::mesh::Point&, const mdv::mesh::Point&);
 
     class TangentVector {
     public:
@@ -129,21 +122,20 @@ namespace mdv::mesh {
             ALONG_EDGE
         };
 
-        TangentVector(const mdv::mesh::Point& app_point, const Eigen::Vector3d& v);
+        TangentVector(const mdv::mesh::Mesh&, const mdv::mesh::Point& app_point, const Eigen::Vector3d& v);
 
         static mdv::mesh::TangentVector from_ambient_vector(
-                const mdv::mesh::Point& application_point, const Eigen::Vector3d& vec
+                const mdv::mesh::Mesh&, const mdv::mesh::Point& application_point, const Eigen::Vector3d& vec
         );
 
         static mdv::mesh::TangentVector from_tip_position(
-                const mdv::mesh::Point& application_point, const Eigen::Vector3d& tip
+                const mdv::mesh::Mesh&, const mdv::mesh::Point& application_point, const Eigen::Vector3d& tip
         );
 
         static mdv::mesh::TangentVector unit_random(
-                const mdv::mesh::Point& application_point
+                const mdv::mesh::Mesh&, const mdv::mesh::Point& application_point
         );
 
-        Eigen::Vector3d tip() const;
 
         Eigen::Vector3d cartesian_vector() const;
 
@@ -151,12 +143,14 @@ namespace mdv::mesh {
 
         void normalise();
 
-        mdv::mesh::TangentVector normalised();
+        mdv::mesh::TangentVector normalised() const;
 
         mdv::mesh::Point application_point() const;
 
         mdv::mesh::TangentVector::Type type() const;
     };
+
+    Eigen::Vector3d tip(const mdv::mesh::Mesh&, const mdv::mesh::TangentVector&);
 
     double length(const std::vector<Eigen::Vector3d>& geod);
 
@@ -174,15 +168,15 @@ namespace mdv::mesh {
 
 
     mdv::mesh::TangentVector parallel_transport(
-            const mdv::mesh::TangentVector& v, const mdv::mesh::Point& p
+            const mdv::mesh::Mesh&, const mdv::mesh::TangentVector& v, const mdv::mesh::Point& p
     );
 
     mdv::mesh::TangentVector logarithmic_map(
-            const mdv::mesh::Point& p, const mdv::mesh::Point& y
+            const mdv::mesh::Mesh&, const mdv::mesh::Point& p, const mdv::mesh::Point& y
     );
 
     mdv::mesh::Point exponential_map(
-            const mdv::mesh::TangentVector& v
+            const mdv::mesh::Mesh&, const mdv::mesh::TangentVector& v
     );
 
     std::vector<std::pair<Eigen::MatrixXd, Eigen::MatrixXd>> solve_path(
@@ -314,7 +308,8 @@ namespace mdv::mesh {
 
 %inline %{
     mdv::mesh::Point point_from_vertex(const mdv::mesh::Mesh& mesh, mdv::mesh::VertexId v) {
-        return mdv::mesh::Point{mdv::mesh::Vertex{mesh, v.value}};
+        (void)mdv::mesh::position(mesh, mdv::mesh::Point{mdv::mesh::PointOnVertex{v}});
+        return mdv::mesh::Point{mdv::mesh::PointOnVertex{v}};
     }
 
     mdv::mesh::Mesh* load_from_file(const char* file) {

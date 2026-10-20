@@ -7,19 +7,15 @@
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/utils/logging.hpp"
 
-// \cond DOXYGEN_IGNORE
-using mdv::mesh::Mesh;
-using mdv::mesh::MeshManager;
-// \endcond
+namespace mdv::mesh {
 
 mdv::Logger::SharedPtr MeshManager::default_logger = get_default_logger();
 
 MeshManager::~MeshManager() = default;
 
 void
-MeshManager::insert_mesh(
-        std::unique_ptr<Mesh> mesh, const std::optional<std::string>& name
-) {
+MeshManager::insert_mesh(MeshPtr mesh, const std::optional<std::string>& name) {
+    if (!mesh) throw std::invalid_argument("Cannot insert a null mesh");
     const std::string mesh_name = name.value_or(std::string(mesh->name()));
     _logger->info("Inserting new mesh with name '{}' into cache", mesh_name);
 
@@ -44,7 +40,7 @@ MeshManager::get_mesh_by_name(const std::string& name) {
         return std::nullopt;
     }
 
-    return MeshPtr{_mesh_map.at(name).get()};
+    return _mesh_map.at(name);
 }
 
 MeshManager::MeshPtr
@@ -53,7 +49,7 @@ MeshManager::get_mesh_from_file(const std::filesystem::path& file_path) {
 
 
     if (!_file_map.contains(file_path)) {
-        auto mesh            = std::make_unique<Mesh>(Mesh::from_file(file_path));
+        auto mesh            = std::make_shared<Mesh>(Mesh::from_file(file_path));
         _file_map[file_path] = std::string(mesh->name());
         insert_mesh(std::move(mesh));
         _logger->trace("Mesh '{}' cached", file_path.string());
@@ -72,3 +68,5 @@ MeshManager::get_mesh_from_file(const std::filesystem::path& file_path) {
 
     return maybe_mesh.value();
 }
+
+}  // namespace mdv::mesh

@@ -22,14 +22,14 @@ TEST(MeshKernel, Square_SinglePointSet) {
     const long         n_pts = 20;
     std::vector<Point> points;
     points.reserve(n_pts);
-    for (long i = 0; i < n_pts; ++i)
-        points.emplace_back(Point::PointOnEdgeDescriptor::random(mesh));
+    for (long i = 0; i < n_pts; ++i) points.emplace_back(PointOnEdge::random(mesh));
 
     Eigen::MatrixXd mesh_d(n_pts, n_pts);
     auto            start = std::chrono::high_resolution_clock::now();
     for (long i = 0; i < n_pts; ++i) {
         for (long j = 0; j < n_pts; ++j) {
-            mesh_d(i, j) = length(mesh.build_geodesic(
+            mesh_d(i, j) = length(build_geodesic(
+                    mesh,
                     points[static_cast<std::size_t>(i)],
                     points[static_cast<std::size_t>(j)]
             ));
@@ -63,15 +63,14 @@ TEST(MeshKernel, Square_DoublePointSet) {
     std::vector<Point> points_b;
     points_a.reserve(n_pts_a);
     points_b.reserve(n_pts_b);
-    for (long i = 0; i < n_pts_a; ++i)
-        points_a.emplace_back(Point::PointOnEdgeDescriptor::random(mesh));
-    for (long i = 0; i < n_pts_b; ++i)
-        points_b.emplace_back(Point::PointOnEdgeDescriptor::random(mesh));
+    for (long i = 0; i < n_pts_a; ++i) points_a.emplace_back(PointOnEdge::random(mesh));
+    for (long i = 0; i < n_pts_b; ++i) points_b.emplace_back(PointOnEdge::random(mesh));
 
     Eigen::MatrixXd mesh_d(n_pts_a, n_pts_b);
     for (long i = 0; i < n_pts_a; ++i) {
         for (long j = 0; j < n_pts_b; ++j) {
-            mesh_d(i, j) = length(mesh.build_geodesic(
+            mesh_d(i, j) = length(build_geodesic(
+                    mesh,
                     points_a[static_cast<std::size_t>(i)],
                     points_b[static_cast<std::size_t>(j)]
             ));
@@ -91,29 +90,16 @@ TEST(MeshKernel, Square_DoublePointSet) {
 
 TEST(MeshKernel, DeterministicDistanceMatrixInvariants) {
     const auto mesh = Mesh::from_file(config::meshes_directory() / "torus_simple.off");
-    const auto face = mesh.face(0);
-    const auto edge = Point::PointOnEdgeDescriptor(
-            HalfEdge{
-                    mesh,
-                    halfedge(
-                            mesh,
-                            vertices(mesh, FaceId{face.id()})[0],
-                            FaceId{face.id()}
-                    )
-                            .value
-            },
-            0.3
-    );
+    const FaceId      f{0};
+    const PointOnEdge edge{.he = halfedge(mesh, vertices(mesh, f)[0], f), .t = 0.3};
     const std::vector<Point> points{
-            Point(mesh.vertex(0)),
+            Point(PointOnVertex{VertexId{0}}),
             Point(edge),
-            Point(Point::PointInFaceDescriptor(mesh.face(23), {0.2, 0.3, 0.5})),
-            Point(edge.display_in_opposite_halfedge())
+            Point(mesh, FaceId{23}, {0.2, 0.3, 0.5}),
+            Point(flip(mesh, edge))
     };
     const std::vector<Point> other{
-            points[2],
-            points[0],
-            Point(Point::PointInFaceDescriptor(mesh.face(7), {0.4, 0.35, 0.25}))
+            points[2], points[0], Point(mesh, FaceId{7}, {0.4, 0.35, 0.25})
     };
     MeshKernel kernel(mesh);
     const auto square  = kernel.distance_matrix(points, points);
@@ -133,7 +119,8 @@ TEST(MeshKernel, DeterministicDistanceMatrixInvariants) {
             EXPECT_NEAR(square(i, j), square(j, i), 1e-9);
             EXPECT_NEAR(
                     square(i, j),
-                    length(mesh.build_geodesic(
+                    length(build_geodesic(
+                            mesh,
                             points[static_cast<std::size_t>(i)],
                             points[static_cast<std::size_t>(j)]
                     )),
@@ -145,7 +132,8 @@ TEST(MeshKernel, DeterministicDistanceMatrixInvariants) {
             EXPECT_NEAR(cross(i, j), reverse(j, i), 1e-9);
             EXPECT_NEAR(
                     cross(i, j),
-                    length(mesh.build_geodesic(
+                    length(build_geodesic(
+                            mesh,
                             points[static_cast<std::size_t>(i)],
                             other[static_cast<std::size_t>(j)]
                     )),

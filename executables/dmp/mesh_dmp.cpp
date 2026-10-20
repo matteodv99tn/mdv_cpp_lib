@@ -30,6 +30,7 @@
 #include "mdv/riemann_geometry/mesh.hpp"
 #include "mdv/utils/conversions.hpp"
 
+namespace {
 using Quat = Eigen::Quaterniond;
 
 std::string
@@ -39,11 +40,12 @@ to_string(const Quat& q) {
     return ss.str();
 }
 
-using namespace mdv::mesh;
-using std::filesystem::path;
+}  // namespace
 
 int
 main() {
+    using namespace mdv::mesh;
+    namespace fs = std::filesystem;
     // mdv::set_default_logger(mdv::static_logger_factory("Log"));
 
     using namespace std::chrono_literals;
@@ -95,9 +97,11 @@ main() {
 
     // Mesh retrieval
     fmt::print("Creating mesh...\n");
-    const path mesh_path = mdv::mesh::create_from_function(fun);
+    const fs::path mesh_path = mdv::mesh::create_from_function(fun);
     fmt::print("Loading mesh...\n");
-    const auto mesh = Mesh::from_file(mesh_path);
+    const auto  mesh_owner = std::make_shared<Mesh>(Mesh::from_file(mesh_path));
+    const auto& mesh       = *mesh_owner;
+    auto        m          = std::make_shared<M>(mesh_owner);
     fmt::print("Loading mesh... Done\n");
     mesh.logger().set_log_level(mdv::Logger::LogLevel::Trace);
     rec.log_static("mesh", rr_converter(mesh));
@@ -117,7 +121,7 @@ main() {
             path_coords,
             std::back_inserter(demonstration_path),
             [&mesh, &path_f](const double t) -> mdv::mesh::Point {
-                return mdv::mesh::Point::from_cartesian(mesh, path_f(t * 3.14));
+                return mdv::mesh::from_cartesian(mesh, path_f(t * 3.14));
             }
     );
 
@@ -127,11 +131,11 @@ main() {
     ranges::transform(
             demonstration_path,
             back_inserter(cartesian_demonstration),
-            [](const Point& p) { return p.position(); }
+            [&mesh](const Point& p) { return position(mesh, p); }
     );
     rec.log_static("demonstration/path", rr_converter(cartesian_demonstration));
 
-    const Demo demonstration = Demo::builder(demonstration_path.size())
+    const Demo demonstration = Demo::builder(m, demonstration_path.size())
                                        .assign_position(demonstration_path)
                                        .velocity_automatic_differentiation()
                                        .acceleration_automatic_differentiation()
@@ -140,8 +144,8 @@ main() {
     for (const auto& sample : demonstration) {
         rec.set_time_duration_secs("time", mdv::convert::seconds(sample.t()));
         // rec.set_time_sequence("tick", i);
-        const Eigen::Vector3d pos = sample.y().position();
-        rec.log("demonstration/trajectory/position", rr_converter(sample.y()));
+        const Eigen::Vector3d pos = position(mesh, sample.y());
+        rec.log("demonstration/trajectory/position", rr_converter(mesh, sample.y()));
         rec.log("demonstration/trajectory/x", rerun::Scalars(pos(0)));
         rec.log("demonstration/trajectory/y", rerun::Scalars(pos(1)));
         rec.log("demonstration/trajectory/z", rerun::Scalars(pos(2)));
@@ -153,20 +157,26 @@ main() {
 
     long ns_int = ns_demo * (dts_demo / 1ms);
 
-    Dmp dmp;
+    auto transformation = std::make_shared<Dmp::TransformationSystem>(48.0, 12.0, m);
+    Dmp  dmp(12,
+             transformation,
+             std::make_shared<Dmp::CoordinateSystem>(),
+             mdv::get_default_logger(),
+             m);
     dmp.tau = 1.0;
     fmt::print("Learning...\n");
     dmp.embedding().setup(demonstration.front().y(), demonstration.back().y());
     dmp.learn(demonstration);
     fmt::print("Learning... Done!\n");
-    Point new_g = Point::from_cartesian(mesh, 0.1 * y0.position() + 0.9 * g.position());
+    Point new_g =
+            from_cartesian(mesh, 0.1 * position(mesh, y0) + 0.9 * position(mesh, g));
     mdv::DemonstrationSample<M, 0, double> new_g_sample;
     new_g_sample.y() = new_g;
     fmt::print("Setting up embedding\n");
     dmp.embedding().setup(demonstration.front().y(), new_g);
-    fmt::print("y0: {}\n", mdv::eigen_to_str(y0.position()));
-    fmt::print("g: {}\n", mdv::eigen_to_str(g.position()));
-    fmt::print("g': {}\n", mdv::eigen_to_str(new_g.position()));
+    fmt::print("y0: {}\n", mdv::eigen_to_str(position(mesh, y0)));
+    fmt::print("g: {}\n", mdv::eigen_to_str(position(mesh, g)));
+    fmt::print("g': {}\n", mdv::eigen_to_str(position(mesh, new_g)));
 
     fmt::print("Integrating...\n");
     const Demo out = dmp.integrate(y0, new_g, static_cast<std::size_t>(ns_int), 1ms);
@@ -176,9 +186,9 @@ main() {
     for (std::size_t i = 0; i < out.size(); ++i) {
         rec.set_time_duration_secs("time", mdv::convert::seconds(out[i].t()));
         // rec.set_time_sequence("tick", i);
-        const Eigen::Vector3d pos = out[i].y().position();
+        const Eigen::Vector3d pos = position(mesh, out[i].y());
         res_traj[i]               = pos;
-        rec.log("integration/trajectory/position", rr_converter(out[i].y()));
+        rec.log("integration/trajectory/position", rr_converter(mesh, out[i].y()));
         rec.log("integration/trajectory/x", rerun::Scalars(pos(0)));
         rec.log("integration/trajectory/y", rerun::Scalars(pos(1)));
         rec.log("integration/trajectory/z", rerun::Scalars(pos(2)));

@@ -1,6 +1,10 @@
 #ifndef MDV_DMP_TRANSFORMATION_SYSTEM_INTERFACE_HPP
 #define MDV_DMP_TRANSFORMATION_SYSTEM_INTERFACE_HPP
 
+#include <memory>
+#include <stdexcept>
+#include <utility>
+
 #include "mdv/containers/demonstration.hpp"
 #include "mdv/dmp/concepts.hpp"
 #include "mdv/macros.hpp"
@@ -16,19 +20,25 @@ struct RiemannOdeSolver {
 
     using TangentBundle = std::pair<Point, TangentVector>;
 
-    RiemannOdeSolver(const double dt) : _dt(dt) {};
+    RiemannOdeSolver(
+            const double dt, std::shared_ptr<const M> manifold = std::make_shared<M>()
+    ) :
+            _dt(dt), _m(std::move(manifold)) {
+        if (!_m) throw std::invalid_argument("RiemannOdeSolver requires a manifold");
+    }
 
     TangentBundle
     operator()(const TangentBundle& xk, const TangentVector& f, const double tau) {
         const auto& [y, z]   = xk;
         TangentVector z_next = z + f * _dt / tau;
-        const Point   y_next = M().exponential_map(y, z_next * _dt / tau);
-        return {y_next, M().parallel_transport(y, y_next, z_next)};
+        const Point   y_next = _m->exponential_map(y, z_next * _dt / tau);
+        return {y_next, _m->parallel_transport(y, y_next, z_next)};
     };
 
 
 private:
-    const double _dt;
+    const double             _dt;
+    std::shared_ptr<const M> _m;
 };
 
 template <concepts::manifold M>
@@ -73,7 +83,7 @@ public:
         const TangentVector dz_dt =
                 manifold().covariant_derivative(curr_state.y(), dz_dt_original);
 
-        RiemannOdeSolver<M> solver(dt);
+        RiemannOdeSolver<M> solver(dt, _m);
         const auto next = solver({curr_state.y(), curr_state.yd()}, dz_dt, tau);
         next_state.y()  = next.first;
         next_state.yd() = next.second;

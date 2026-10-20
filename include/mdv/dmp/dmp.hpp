@@ -225,7 +225,7 @@ public:
         );
 
         Demonstration<M> res =
-                Demonstration<M>::builder(n_steps).set_sampling_period(dt).create();
+                Demonstration<M>::builder(_m, n_steps).set_sampling_period(dt).create();
         res.front().y()   = y0;
         res.front().yd()  = manifold().default_tangent_vector();
         res.front().ydd() = manifold().default_tangent_vector();

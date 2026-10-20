@@ -183,7 +183,7 @@ struct RhytmicDmp {
 
         logger().trace("Evaluating desired forcing term");
         const Point g = goal.value_or(compute_average(demo));
-        assert(g != demo.front().y());
+        assert(construct_default_r(demo.front().y(), g) > 0.0);
         const Eigen::MatrixXd f_des = evaluate_desired_forcing_term(demo, g);
 
         const double r = [&r_value, &demo, this]() -> double {
@@ -220,7 +220,7 @@ struct RhytmicDmp {
         logger().info("Performing integration");
 
         Demonstration<M> res =
-                Demonstration<M>::builder(n_steps).set_sampling_period(dt).create();
+                Demonstration<M>::builder(_m, n_steps).set_sampling_period(dt).create();
         res.front().y()   = y0;
         res.front().yd()  = v0;
         res.front().ydd() = manifold().default_tangent_vector();

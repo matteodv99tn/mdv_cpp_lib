@@ -167,10 +167,19 @@ public:
 /**
  * @brief Converts a mesh point to a CGAL face location (face + barycentric).
  *
+ * @param mesh CGAL mesh.
  * @param pt Mesh point.
+ * @param tree Borrowed tree for mesh; null builds a temporary tree for edge points.
  * @return CGAL face location.
  */
-CgalImpl::FaceLocation location_from_mesh_point(const ::mdv::mesh::Point& pt) noexcept;
+CgalImpl::FaceLocation face_location(
+        const CgalImpl::Mesh&     mesh,
+        const Point&              pt,
+        const CgalImpl::AabbTree* tree = nullptr
+);
+CgalImpl::FaceLocation face_location(
+        const CgalImpl::Mesh&, const Point&, FaceId preferred
+);
 
 //   ____                              _
 //  / ___|___  _ ____   _____ _ __ ___(_) ___  _ __
@@ -240,17 +249,6 @@ vector3_from_eigen(const Vec3d& vec) {
 };
 
 /**
- * @brief Retrieves CGAL mesh from a mesh element.
- *
- * @param elem Mesh element.
- * @return CGAL mesh reference.
- */
-MDV_INLINE const CgalImpl::Mesh&
-get_mesh_impl(const MeshElement& elem) {
-    return elem.mesh().cgal()._mesh;
-};
-
-/**
  * @brief Retrieves CGAL mesh from a mesh instance.
  *
  * @param mesh Mesh instance.
@@ -259,12 +257,6 @@ get_mesh_impl(const MeshElement& elem) {
 MDV_INLINE const CgalImpl::Mesh&
 cgal_mesh(const Mesh& mesh) {
     return mesh.cgal()._mesh;
-}
-
-/** @brief Compatibility alias for cgal_mesh, retained until point migration. */
-MDV_INLINE const CgalImpl::Mesh&
-get_mesh_impl(const Mesh& mesh) {
-    return cgal_mesh(mesh);
 }
 
 static_assert(std::is_same_v<Index, CgalImpl::CgalVertexIndex::size_type>);
@@ -308,47 +300,14 @@ from_cgal(CgalImpl::CgalHalfEdgeIndex id) {
 }
 
 /**
- * @brief Converts a mesh face to CGAL face index.
- *
- * @param f Mesh face.
- * @return CGAL face index.
- */
-MDV_INLINE CgalImpl::CgalFaceIndex
-to_face_impl(const Face& f) {
-    return CgalImpl::CgalFaceIndex{f.id()};
-}
-
-/**
- * @brief Converts a mesh half-edge to CGAL half-edge index.
- *
- * @param he Mesh half-edge.
- * @return CGAL half-edge index.
- */
-MDV_INLINE CgalImpl::CgalHalfEdgeIndex
-to_halfedge_impl(const HalfEdge& he) {
-    return CgalImpl::CgalHalfEdgeIndex{he.id()};
-}
-
-/**
- * @brief Converts a mesh point to CGAL point.
- *
- * @param pt Mesh point.
- * @return CGAL point.
- */
-MDV_INLINE CgalImpl::Kernel::Point_3
-point3_from_point(const Point& pt) {
-    return point3_from_eigen(pt.position());
-}
-
-/**
  * @brief Converts a tangent vector to a CGAL ray.
  *
  * @param tv Tangent vector.
  * @return CGAL ray.
  */
 MDV_INLINE CgalImpl::Kernel::Ray_3
-ray3_from_tangent_vector(const TangentVector& tv) {
-    return {point3_from_point(tv.application_point()),
+ray(const Mesh& mesh, const TangentVector& tv) {
+    return {point3_from_eigen(position(mesh, tv.application_point())),
             direction3_from_eigen(tv.cartesian_vector())};
 }
 
@@ -359,9 +318,9 @@ ray3_from_tangent_vector(const TangentVector& tv) {
  * @return CGAL triangle.
  */
 MDV_INLINE CgalImpl::Kernel::Triangle_3
-triangle3_from_face(const Face& f) {
-    const auto& m   = get_mesh_impl(f);
-    const auto  he0 = m.halfedge(to_face_impl(f));
+triangle(const Mesh& mesh, FaceId f) {
+    const auto& m   = cgal_mesh(mesh);
+    const auto  he0 = m.halfedge(to_cgal(f));
     const auto  he1 = next(he0, m);
     const auto  he2 = next(he1, m);
     const auto& p0  = m.point(source(he0, m));

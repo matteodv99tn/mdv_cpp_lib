@@ -4,16 +4,8 @@
 #include "mdv/eigen_defines.hpp"
 #include "mdv/macros.hpp"
 #include "mdv/mesh/fwd.hpp"
-#include "mdv/mesh/mesh_element.hpp"
 
 namespace mdv::mesh {
-
-/** @brief Legacy mesh-bound holder, retained until Point migrates to handles. */
-struct HalfEdge final : internal::IndexedMeshElement {
-    HalfEdge(const Mesh& mesh, Index id) : IndexedMeshElement(mesh, id) {}
-
-    MDV_NODISCARD std::string describe() const override;
-};
 
 /** @brief Outgoing halfedge at v on f; throws if v is not incident to f. */
 MDV_NODISCARD HalfEdgeId halfedge(const Mesh& mesh, VertexId v, FaceId f);

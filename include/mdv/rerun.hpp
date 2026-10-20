@@ -29,15 +29,17 @@ public:
             const ::mdv::mesh::Geodesic&
     ) const;
 
-    MDV_NODISCARD ::rerun::archetypes::Points3D operator()(const mesh::Point&) const;
+    MDV_NODISCARD ::rerun::archetypes::Points3D operator()(
+            const mesh::Mesh&, const mesh::Point&
+    ) const;
 
     MDV_NODISCARD ::rerun::archetypes::Points3D operator()(
-            const std::vector<mesh::Point>&
+            const mesh::Mesh&, const std::vector<mesh::Point>&
     ) const;
 
 
     MDV_NODISCARD ::rerun::archetypes::Arrows3D operator()(
-            const std::vector<::mdv::mesh::TangentVector>&
+            const mesh::Mesh&, const std::vector<::mdv::mesh::TangentVector>&
     ) const;
 
     MDV_NODISCARD ::rerun::archetypes::Arrows3D operator()(

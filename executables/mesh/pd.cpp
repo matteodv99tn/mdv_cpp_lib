@@ -6,10 +6,9 @@
 #include "mdv/mesh/kernel.hpp"
 #include "mdv/mesh/mesh.hpp"
 
-using namespace mdv::mesh;
-
 int
 main(int argc, char* argv[]) {
+    using namespace mdv::mesh;
     std::string mesh_path = mdv::config::meshes_directory() / "angle.off";
     const auto  mesh      = Mesh::from_file(mesh_path);
 

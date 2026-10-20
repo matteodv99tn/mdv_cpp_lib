@@ -20,11 +20,11 @@ TEST(MeshGeodesic, RandomPoints) {
     const auto     mesh      = Mesh::from_file(mesh_path);
 
     for (std::size_t i = 0; i < 40; ++i) {
-        const auto p0 = Point::random(mesh);
-        const auto p1 = Point::random(mesh);
+        const auto p0 = random_point(mesh);
+        const auto p1 = random_point(mesh);
 
-        const auto g0 = mesh.build_geodesic(p0, p1);
-        const auto g1 = mesh.build_geodesic(p1, p0);
+        const auto g0 = build_geodesic(mesh, p0, p1);
+        const auto g1 = build_geodesic(mesh, p1, p0);
         EXPECT_NEAR(length(g0), length(g1), 1e-9);
     }
 }
@@ -41,16 +41,15 @@ TEST(MeshGeodesic, RandomVertexPoints) {
 
 
     for (std::size_t i = 0; i < 40; ++i) {
-        const Vertex& v0 = mesh.vertex(dist(rng));
-        const Vertex& v1 = mesh.vertex(dist(rng));
-        const auto p0 = Point::from_cartesian(mesh, position(mesh, VertexId{v0.id()}));
-        const auto p1 = Point::from_cartesian(mesh, position(mesh, VertexId{v1.id()}));
+        const VertexId v0{dist(rng)};
+        const VertexId v1{dist(rng)};
+        const auto     p0 = from_cartesian(mesh, position(mesh, v0));
+        const auto     p1 = from_cartesian(mesh, position(mesh, v1));
 
-        const auto g0 = mesh.build_geodesic(p0, p1);
-        const auto g1 = mesh.build_geodesic(p1, p0);
+        const auto g0 = build_geodesic(mesh, p0, p1);
+        const auto g1 = build_geodesic(mesh, p1, p0);
         EXPECT_NEAR(length(g0), length(g1), 1e-9)
-                << "v0: " << describe(mesh, VertexId{v0.id()})
-                << "\nv1: " << describe(mesh, VertexId{v1.id()});
+                << "v0: " << describe(mesh, v0) << "\nv1: " << describe(mesh, v1);
     }
 }
 
@@ -65,17 +64,17 @@ TEST(MeshGeodesic, RandomEdgePoints) {
     );
 
 
-    using EdgeDescriptor = Point::PointOnEdgeDescriptor;
+    using EdgeDescriptor = PointOnEdge;
     for (std::size_t i = 0; i < 40; ++i) {
         const auto p0 = Point(EdgeDescriptor::random(mesh));
         const auto p1 = Point(EdgeDescriptor::random(mesh));
 
-        const auto g0 = mesh.build_geodesic(p0, p1);
-        const auto g1 = mesh.build_geodesic(p1, p0);
+        const auto g0 = build_geodesic(mesh, p0, p1);
+        const auto g1 = build_geodesic(mesh, p1, p0);
 
         ASSERT_NEAR(length(g0), length(g1), 1e-9)
-                << "Iteration " << i << "\np0: " << p0.describe()
-                << "\np1: " << p1.describe();
+                << "Iteration " << i << "\np0: " << describe(mesh, p0)
+                << "\np1: " << describe(mesh, p1);
     }
 }
 
@@ -97,39 +96,30 @@ TEST(Vertex, Curvatures) {
 
 TEST(MeshGeodesic, DeterministicDescriptorInvariants) {
     const auto mesh = Mesh::from_file(config::meshes_directory() / "torus_simple.off");
-    const auto face = mesh.face(0);
-    const auto edge = Point::PointOnEdgeDescriptor(
-            HalfEdge{
-                    mesh,
-                    halfedge(
-                            mesh,
-                            vertices(mesh, FaceId{face.id()})[0],
-                            FaceId{face.id()}
-                    )
-                            .value
-            },
-            0.3
-    );
+    const FaceId      f{0};
+    const PointOnEdge edge{.he = halfedge(mesh, vertices(mesh, f)[0], f), .t = 0.3};
     const std::vector<Point> points{
-            Point(mesh.vertex(0)),
-            Point(mesh.vertex(17)),
+            Point(PointOnVertex{VertexId{0}}),
+            Point(PointOnVertex{VertexId{17}}),
             Point(edge),
-            Point(edge.display_in_opposite_halfedge()),
-            Point(Point::PointInFaceDescriptor(mesh.face(0), {0.2, 0.3, 0.5})),
-            Point(Point::PointInFaceDescriptor(mesh.face(23), {0.4, 0.35, 0.25}))
+            Point(flip(mesh, edge)),
+            Point(mesh, FaceId{0}, {0.2, 0.3, 0.5}),
+            Point(mesh, FaceId{23}, {0.4, 0.35, 0.25})
     };
     for (std::size_t i = 0; i < points.size(); ++i) {
         SCOPED_TRACE(i);
         const auto& from      = points[i];
-        const auto  projected = Point::from_cartesian(mesh, from.position());
-        EXPECT_NEAR((projected.position() - from.position()).norm(), 0.0, 1e-9);
-        EXPECT_NEAR(length(mesh.build_geodesic(from, from)), 0.0, 1e-9);
+        const auto  projected = from_cartesian(mesh, position(mesh, from));
+        EXPECT_NEAR(
+                (position(mesh, projected) - position(mesh, from)).norm(), 0.0, 1e-9
+        );
+        EXPECT_NEAR(length(build_geodesic(mesh, from, from)), 0.0, 1e-9);
         for (std::size_t j = i + 1; j < points.size(); ++j) {
             SCOPED_TRACE(j);
             const auto& to      = points[j];
-            const auto  forward = mesh.build_geodesic(from, to);
-            const auto  reverse = mesh.build_geodesic(to, from);
-            if ((to.position() - from.position()).norm() < 1e-12) {
+            const auto  forward = build_geodesic(mesh, from, to);
+            const auto  reverse = build_geodesic(mesh, to, from);
+            if ((position(mesh, to) - position(mesh, from)).norm() < 1e-12) {
                 // Coincident positions (including opposite edge descriptors) have
                 // an empty polyline in the current API.
                 EXPECT_NEAR(length(forward), 0.0, 1e-9);
@@ -138,12 +128,15 @@ TEST(MeshGeodesic, DeterministicDescriptorInvariants) {
             }
             ASSERT_FALSE(forward.empty());
             ASSERT_FALSE(reverse.empty());
-            EXPECT_NEAR((forward.front() - from.position()).norm(), 0.0, 1e-9);
-            EXPECT_NEAR((forward.back() - to.position()).norm(), 0.0, 1e-9);
-            EXPECT_NEAR((reverse.front() - to.position()).norm(), 0.0, 1e-9);
-            EXPECT_NEAR((reverse.back() - from.position()).norm(), 0.0, 1e-9);
+            EXPECT_NEAR((forward.front() - position(mesh, from)).norm(), 0.0, 1e-9);
+            EXPECT_NEAR((forward.back() - position(mesh, to)).norm(), 0.0, 1e-9);
+            EXPECT_NEAR((reverse.front() - position(mesh, to)).norm(), 0.0, 1e-9);
+            EXPECT_NEAR((reverse.back() - position(mesh, from)).norm(), 0.0, 1e-9);
             EXPECT_NEAR(length(forward), length(reverse), 1e-9);
-            EXPECT_GE(length(forward) + 1e-9, (to.position() - from.position()).norm());
+            EXPECT_GE(
+                    length(forward) + 1e-9,
+                    (position(mesh, to) - position(mesh, from)).norm()
+            );
         }
     }
 }
@@ -187,15 +180,15 @@ TEST(Vertex, HandleQueriesSurviveMeshMove) {
 
 TEST(Face, EqualityUsesElementIndex) {
     const auto mesh  = Mesh::from_file(config::meshes_directory() / "square.off");
-    const auto first = mesh.face(0);
-    const auto copy  = mesh.face(0);
+    const auto first = FaceId{0};
+    const auto copy  = FaceId{0};
     EXPECT_EQ(first, copy);
-    EXPECT_EQ(mesh.face(0), mesh.face(0));
-    EXPECT_NE(mesh.face(0), mesh.face(1));
+    EXPECT_EQ(FaceId{0}, FaceId{0});
+    EXPECT_NE(FaceId{0}, FaceId{1});
     EXPECT_TRUE(Point{}.is_undefined());
-    EXPECT_FALSE(Point{mesh.vertex(0)}.is_undefined());
+    EXPECT_FALSE(Point{PointOnVertex{VertexId{0}}}.is_undefined());
     const Point interior{
-            Point::PointInFaceDescriptor{first, {0.2, 0.3, 0.5}}
+            PointInFace{.f = first, .bary = {0.2, 0.3, 0.5}}
     };
     EXPECT_FALSE(interior.is_undefined());
 }
@@ -315,6 +308,161 @@ TEST(MeshHandle, ValueSemanticsAndCgalRoundTrip) {
     check.operator()<VertexId>();
     check.operator()<FaceId>();
     check.operator()<HalfEdgeId>();
+}
+
+TEST(Point, ValidationAndStructuralEquality) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "square.off");
+    EXPECT_TRUE(Point{}.is_undefined());
+    EXPECT_EQ(Point{}, Point(PointOnVertex{}));
+    const auto bad_edge = [](HalfEdgeId h, double t) {
+        return Point(PointOnEdge{.he = h, .t = t});
+    };
+    EXPECT_THROW(bad_edge(HalfEdgeId{}, 0.5), std::runtime_error);
+    for (const double t :
+         {0.0,
+          1.0,
+          -0.1,
+          std::numeric_limits<double>::infinity(),
+          std::numeric_limits<double>::quiet_NaN()})
+        EXPECT_THROW(bad_edge(HalfEdgeId{0}, t), std::runtime_error);
+    for (const Vec3d b : {
+                 Vec3d{0,     0.5, 0.5},
+                 Vec3d{-0.1,  0.5, 0.6},
+                 Vec3d{0.2,   0.2, 0.2},
+                 Vec3d{1e-14, 0.5, 0.5},
+                 Vec3d{NAN,   0.5, 0.5}
+    }) {
+        EXPECT_THROW((Point(mesh, FaceId{0}, b, false)), std::runtime_error);
+    }
+    EXPECT_THROW((Point(mesh, FaceId{}, {0.2, 0.3, 0.5})), std::runtime_error);
+    EXPECT_THROW((Point(mesh, FaceId{999999}, {0.2, 0.3, 0.5})), std::runtime_error);
+    EXPECT_THROW(
+            (Point(PointInFace{
+                    FaceId{},
+                    {0.2, 0.3, 0.5}
+    })),
+            std::runtime_error
+    );
+    const PointOnEdge e{.he = HalfEdgeId{0}, .t = 0.37};
+    const Point       a{e};
+    const Point       b{flip(mesh, e)};
+    EXPECT_NE(a, b);
+    EXPECT_TRUE(same_location(mesh, a, b));
+    EXPECT_EQ(flip(mesh, flip(mesh, e)), e);
+}
+
+TEST(Point, CachedFaceLocationMatchesFallback) {
+    using internal::CgalImpl;
+    auto       mesh  = Mesh::from_file(config::meshes_directory() / "torus_simple.off");
+    const auto check = [&mesh] {
+        const auto& cgal = mesh.cgal();
+        const auto& m    = cgal._mesh;
+        for (const auto h : m.halfedges()) {
+            // CGAL stores the two orientations of each edge consecutively.
+            if (h.idx() >= 16) break;
+            for (const double t : {0.13, 0.37, 0.5, 0.81}) {
+                const Point point(PointOnEdge{.he = internal::from_cgal(h), .t = t});
+                const auto  fallback = internal::face_location(m, point);
+                const auto cached = internal::face_location(m, point, &cgal._aabb_tree);
+                EXPECT_EQ(cached.first, fallback.first);
+                EXPECT_EQ(cached.second, fallback.second);
+                const auto cached_position =
+                        CgalImpl::ShortestPath::point(cached.first, cached.second, m);
+                EXPECT_EQ(
+                        cached_position,
+                        CgalImpl::ShortestPath::point(
+                                fallback.first, fallback.second, m
+                        )
+                );
+                EXPECT_NEAR(
+                        (internal::convert(cached_position) - position(mesh, point))
+                                .norm(),
+                        0.0,
+                        1e-12
+                );
+            }
+        }
+        const Point invalid(PointOnEdge{.he = HalfEdgeId{999999}, .t = 0.37});
+        EXPECT_THROW(internal::face_location(m, invalid), std::runtime_error);
+        EXPECT_THROW(
+                internal::face_location(m, invalid, &cgal._aabb_tree),
+                std::runtime_error
+        );
+    };
+    check();
+    mesh.scale(2.7);
+    check();
+    Eigen::Affine3d transform = Eigen::Affine3d::Identity();
+    transform.rotate(Eigen::AngleAxisd(0.43, Vec3d{1, 2, 3}.normalized()));
+    transform.translate(Vec3d{0.31, -0.27, 1.19});
+    mesh.transform(transform);
+    check();
+}
+
+TEST(Point, BarycentricTopologyAndMoveInvariants) {
+    auto        mesh = Mesh::from_file(config::meshes_directory() / "torus_simple.off");
+    const auto& m    = internal::cgal_mesh(mesh);
+    for (Index i = 0; i < mesh.num_faces(); ++i) {
+        const FaceId     f{i};
+        const auto       h = CGAL::halfedge(internal::to_cgal(f), m);
+        const std::array vs{
+                CGAL::source(h, m),
+                CGAL::target(h, m),
+                CGAL::target(CGAL::next(h, m), m)
+        };
+        for (int j = 0; j < 3; ++j) {
+            Vec3d b = Vec3d::Zero();
+            b[j]    = 1;
+            const Point v(mesh, f, b);
+            ASSERT_NE(v.get_as<PointOnVertex>(), nullptr);
+            EXPECT_EQ(
+                    v.get_as<PointOnVertex>()->v,
+                    internal::from_cgal(vs[static_cast<std::size_t>(j)])
+            );
+            b[(j + 1) % 3] = 0.37;
+            b[j]           = 0.63;
+            const Point e(mesh, f, b);
+            ASSERT_NE(e.get_as<PointOnEdge>(), nullptr);
+            const auto expected = internal::convert(
+                    internal::CgalImpl::ShortestPath::point(
+                            internal::to_cgal(f), {b[0], b[1], b[2]}, m
+                    )
+            );
+            EXPECT_NEAR((position(mesh, e) - expected).norm(), 0.0, 1e-12);
+            const auto loc = internal::face_location(m, e, f);
+            EXPECT_EQ(loc.first, internal::to_cgal(f));
+            EXPECT_NEAR(
+                    (internal::convert(
+                             internal::CgalImpl::ShortestPath::point(
+                                     loc.first, loc.second, m
+                             )
+                     )
+                     - expected)
+                            .norm(),
+                    0.0,
+                    1e-12
+            );
+        }
+    }
+    const std::array<Point, 3> points{
+            PointOnVertex{VertexId{0}},
+            PointOnEdge{.he = HalfEdgeId{0}, .t = 0.37},
+            Point(mesh, FaceId{0},
+            {0.2, 0.3, 0.5}
+            )
+    };
+    std::array<CartesianPoint, 3> positions{};
+    for (std::size_t i = 0; i < points.size(); ++i)
+        positions[i] = position(mesh, points[i]);
+    auto moved    = std::move(mesh);
+    auto assigned = Mesh::from_file(config::meshes_directory() / "square.off");
+    assigned      = std::move(moved);
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        EXPECT_NEAR((position(assigned, points[i]) - positions[i]).norm(), 0.0, 1e-12);
+        EXPECT_TRUE(same_location(
+                assigned, points[i], from_cartesian(assigned, positions[i])
+        ));
+    }
 }
 
 }  // namespace mdv::mesh

@@ -27,19 +27,17 @@
 #include "mdv/rerun.hpp"
 #include "mdv/riemann_geometry/mesh.hpp"
 
-namespace mdv::mesh {
+namespace {
 using Quat = Eigen::Quaterniond;
 
-namespace {
-    std::string
-    to_string(const Quat& q) {
-        std::stringstream ss;
-        ss << q;
-        return ss.str();
-    }
+std::string
+to_string(const Quat& q) {
+    std::stringstream ss;
+    ss << q;
+    return ss.str();
+}
 
 }  // namespace
-}  // namespace mdv::mesh
 
 int
 main() {
@@ -82,18 +80,27 @@ main() {
 
     // clang-format on
 
-    std::string mesh_path = mdv::config::meshes_directory() / "cube.stl";
-    const auto  mesh      = Mesh::from_file(mesh_path);
+    std::string mesh_path  = mdv::config::meshes_directory() / "cube.stl";
+    const auto  mesh_owner = std::make_shared<Mesh>(Mesh::from_file(mesh_path));
+    const auto& mesh       = *mesh_owner;
+    auto        m          = std::make_shared<M>(mesh_owner);
     mesh.logger().set_log_level(mdv::Logger::LogLevel::Trace);
     rec.log_static("mesh", rr_converter(mesh));
     fmt::print("Mesh loaded\n");
 
-    const Point y0 = Point::from_cartesian(mesh, {0, 50, 20});
-    const Point g  = Point::from_cartesian(mesh, {100, 30, 35});
+    const Point y0 = from_cartesian(mesh, {0, 50, 20});
+    const Point g  = from_cartesian(mesh, {100, 30, 35});
 
     long ns_int = ns_demo * (dts_demo / 1ms);
 
-    MeshDmp dmp;
+    auto    ts = std::make_shared<MeshDmp::TransformationSystem>(48.0, 12.0, m);
+    MeshDmp dmp(
+            12,
+            ts,
+            std::make_shared<MeshDmp::CoordinateSystem>(),
+            mdv::get_default_logger(),
+            m
+    );
     dmp.tau = 1.0;
     fmt::print("Learning...\n");
     dmp.embedding().setup(y0, g);
@@ -103,9 +110,9 @@ main() {
     for (std::size_t i = 0; i < out.size(); ++i) {
         // rec.set_time_duration_secs("time", mdv::convert::seconds(out[i].t()));
         rec.set_time_sequence("tick", static_cast<std::int64_t>(i));
-        const Eigen::Vector3d pos = out[i].y().position();
+        const Eigen::Vector3d pos = position(mesh, out[i].y());
         res_traj[i]               = pos;
-        rec.log("meshdmp/trajectory/position", rr_converter(out[i].y()));
+        rec.log("meshdmp/trajectory/position", rr_converter(mesh, out[i].y()));
         rec.log("meshdmp/trajectory/x", rerun::Scalars(pos(0)));
         rec.log("meshdmp/trajectory/y", rerun::Scalars(pos(1)));
         rec.log("meshdmp/trajectory/z", rerun::Scalars(pos(2)));
@@ -124,9 +131,10 @@ main() {
 
     const mdv::Vec3d x_des = mdv::Vec3d(0.0, 0.0, 0.8).normalized();
 
-    const auto encode_rotation =
-            [&x_des, &project](const mdv::mesh::Point& pt) -> Eigen::Quaterniond {
-        const mdv::Vec3d z = normal(pt.mesh(), FaceId{pt.face().id()});
+    const auto encode_rotation = [&mesh, &x_des, &project](
+                                         const mdv::mesh::Point& pt
+                                 ) -> Eigen::Quaterniond {
+        const mdv::Vec3d z = normal(mesh, face(mesh, pt));
         const mdv::Vec3d x = project(x_des, z).normalized();
         const mdv::Vec3d y = z.cross(x);
 
@@ -138,7 +146,9 @@ main() {
     };
 
     for (const auto& sample : out) {
-        meshdmp_demo.emplace_back(sample.y().position(), encode_rotation(sample.y()));
+        meshdmp_demo.emplace_back(
+                position(mesh, sample.y()), encode_rotation(sample.y())
+        );
     }
 
     // sliding window filter

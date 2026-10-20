@@ -29,68 +29,63 @@
 #endif  // MDV_WITH_RERUN_SDK
 
 
-namespace mdv::mesh {
+namespace {
+using namespace mdv::mesh;
 namespace rs = ::ranges;
 namespace rv = ::ranges::views;
 using Quat   = Eigen::Quaterniond;
 
-namespace {
-    std::string
-    to_string(const Quat& q) {
-        std::stringstream ss;
-        ss << q;
-        return ss.str();
-    }
+std::string
+to_string(const Quat& q) {
+    std::stringstream ss;
+    ss << q;
+    return ss.str();
+}
 
-    template <typename T>
-    std::vector<double>
-    get_component_vector(const std::vector<T>& vec, const long id) {
-        std::vector<double> res;
-        res.reserve(vec.size());
-        for (const auto& v : vec) res.emplace_back(v(id));
-        return res;
-    }
+template <typename T>
+std::vector<double>
+get_component_vector(const std::vector<T>& vec, const long id) {
+    std::vector<double> res;
+    res.reserve(vec.size());
+    for (const auto& v : vec) res.emplace_back(v(id));
+    return res;
+}
 
-    Eigen::Vector3d
-    average(const mdv::mesh::Geodesic& path) {
-        Eigen::Vector3d zero = Eigen::Vector3d::Zero();
-        return rs::accumulate(path, zero) / double(path.size());
-    }
+Eigen::Vector3d
+average(const mdv::mesh::Geodesic& path) {
+    Eigen::Vector3d zero = Eigen::Vector3d::Zero();
+    return rs::accumulate(path, zero) / double(path.size());
+}
 
-    Eigen::Vector3d
-    normal_projection(const mdv::mesh::Point& p, const Eigen::Vector3d& v) {
-        const auto n = normal(p.mesh(), FaceId{p.face().id()});
-        return (mdv::Mat3d::Identity() - n * n.transpose()) * v;
-    }
+Eigen::Vector3d
+normal_projection(const Mesh& mesh, const Point& p, const Eigen::Vector3d& v) {
+    const auto n = normal(mesh, face(mesh, p));
+    return (mdv::Mat3d::Identity() - n * n.transpose()) * v;
+}
 
-    void
-    write_matrix(
-            FILE*                               file,
-            const std::string&                  varname,
-            const std::vector<Eigen::Vector3d>& data
-    ) {
-        fmt::print(file, "\n{} = np.array([\n", varname);
-        for (const auto& v : data)
-            fmt::print(file, "    [{}, {}, {}],\n", v(0), v(1), v(2));
-        fmt::print(file, "])\n");
-    }
+void
+write_matrix(
+        FILE* file, const std::string& varname, const std::vector<Eigen::Vector3d>& data
+) {
+    fmt::print(file, "\n{} = np.array([\n", varname);
+    for (const auto& v : data)
+        fmt::print(file, "    [{}, {}, {}],\n", v(0), v(1), v(2));
+    fmt::print(file, "])\n");
+}
 
-    std::vector<Eigen::Vector3d>
-    move_outward(
-            const mdv::mesh::Mesh& mesh, const std::vector<Eigen::Vector3d>& data
-    ) {
-        std::vector<Eigen::Vector3d> res;
-        res.reserve(data.size());
+std::vector<Eigen::Vector3d>
+move_outward(const mdv::mesh::Mesh& mesh, const std::vector<Eigen::Vector3d>& data) {
+    std::vector<Eigen::Vector3d> res;
+    res.reserve(data.size());
 
-        for (const auto& p : data) {
-            const auto pt = Point::from_cartesian(mesh, p);
-            res.emplace_back(p + 0.003 * normal(mesh, FaceId{pt.face().id()}));
-        }
-        return res;
+    for (const auto& p : data) {
+        const auto pt = from_cartesian(mesh, p);
+        res.emplace_back(p + 0.003 * normal(mesh, face(mesh, pt)));
     }
+    return res;
+}
 
 }  // namespace
-}  // namespace mdv::mesh
 
 int
 main() {
@@ -128,15 +123,20 @@ main() {
     using Mesh = mdv::mesh::Mesh;
     using Demo = mdv::Demonstration<M>;
 
-    const auto flat_mesh = Mesh::from_file(mdv::mesh::create_flat(5.0));
-    const auto target_mesh =
-            Mesh::from_file(mdv::config::meshes_directory() / "bunny_simple.off");
+    const auto flat_owner =
+            std::make_shared<Mesh>(Mesh::from_file(mdv::mesh::create_flat(5.0)));
+    const auto target_owner = std::make_shared<Mesh>(
+            Mesh::from_file(mdv::config::meshes_directory() / "bunny_simple.off")
+    );
+    const auto& flat_mesh   = *flat_owner;
+    const auto& target_mesh = *target_owner;
+    auto        m           = std::make_shared<M>(flat_owner);
 
     const auto demo_position = demo_3d | rv::transform([&flat_mesh](const auto& p) {
-                                   return Point::from_cartesian(flat_mesh, p);
+                                   return from_cartesian(flat_mesh, p);
                                })
                                | rs::to_vector;
-    const Demo demo = Demo::builder()
+    const Demo demo = Demo::builder(m)
                               .assign_position(demo_position)
                               .assign_velocity(get_demonstration_velocity())
                               .assign_acceleration(get_demonstration_acceleration())
@@ -146,9 +146,10 @@ main() {
     using Dmp = mdv::RhytmicDmp<M, mdv::riemann::MeshEmbedder>;
 
     const Point y0 = demo.front().y();
-    const Point g  = Point::from_cartesian(flat_mesh, get_demonstration_centre());
+    const Point g  = from_cartesian(flat_mesh, get_demonstration_centre());
 
-    Dmp dmp(15, std::make_shared<mdv::dmp::TransformationSystem<M>>(20.0, 5.0));
+    auto ts = std::make_shared<Dmp::TransformationSystem>(20.0, 5.0, m);
+    Dmp  dmp(15, ts, mdv::get_default_logger(), m);
     // Dmp dmp(15));
     dmp.tau = 1.0;
     fmt::print("Learning...\n");
@@ -156,8 +157,7 @@ main() {
     //         demo.front().y(), Eigen::Vector3d::UnitX()
     // );
     dmp.embedding().setup(
-            demo.front().y(),
-            Point::from_cartesian(flat_mesh, get_demonstration_centre())
+            demo.front().y(), from_cartesian(flat_mesh, get_demonstration_centre())
     );
     dmp.learn(demo, 1.0, g);
     fmt::print("Learning... Done!\n");
@@ -177,22 +177,24 @@ main() {
     rec.log_static("bunny/mesh", rr_converter(target_mesh));
     rec.log_static("bunny/original_path", LineStrips3D(std::move(original_path)));
 
-    const auto       new_g = Point::from_cartesian(target_mesh, get_bunny_centre());
-    const auto       n     = normal(target_mesh, FaceId{new_g.face().id()});
-    const mdv::Vec3d dir   = normal_projection(new_g, mdv::Vec3d::UnitY()).normalized();
+    const auto       new_g = from_cartesian(target_mesh, get_bunny_centre());
+    const auto       n     = normal(target_mesh, face(target_mesh, new_g));
+    const mdv::Vec3d dir =
+            normal_projection(target_mesh, new_g, mdv::Vec3d::UnitY()).normalized();
     assert(mdv::condition::are_orthogonal(dir, n));
 
-    const auto new_y0 =
-            Point::from_cartesian(target_mesh, get_integrated_position()[0]);
-    const mdv::Vec3d v0 = get_integrated_velocity()[0];
+    const auto       new_y0 = from_cartesian(target_mesh, get_integrated_position()[0]);
+    const mdv::Vec3d v0     = get_integrated_velocity()[0];
+    // Preserve the shared manifold identity held by the TS and embedder.
+    *m = M(target_owner);
     dmp.embedding().setup(new_y0, new_g);
 
     // const auto new_path = dmp.integrate(new_y0, v0, new_g, 0.28, 3 * n_samples, 1ms);
     const auto new_path = dmp.integrate(new_y0, v0, new_g, 0.28, n_samples, 3ms);
 
     auto bunny_path = LineStrip3D(
-            new_path | rv::transform([](const auto& sample) {
-                const auto p = sample.y().position();
+            new_path | rv::transform([&target_mesh](const auto& sample) {
+                const auto p = position(target_mesh, sample.y());
                 return rerun::datatypes::Vec3D(
                         static_cast<float>(p(0)),
                         static_cast<float>(p(1)),
@@ -204,9 +206,10 @@ main() {
     rec.log_static("bunny/path", LineStrips3D(std::move(bunny_path)));
 
 
-    const auto new_position =
-            new_path | rv::transform([](const auto& s) { return s.y().position(); })
-            | rs::to_vector;
+    const auto new_position = new_path | rv::transform([&target_mesh](const auto& s) {
+                                  return position(target_mesh, s.y());
+                              })
+                              | rs::to_vector;
 
     write_matrix(
             file,

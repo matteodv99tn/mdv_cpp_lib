@@ -43,7 +43,7 @@ namespace {
     using FaceIndex        = internal::CgalImpl::CgalFaceIndex;
     using VertexIndex      = internal::CgalImpl::CgalVertexIndex;
     using HalfEdgeIndex    = internal::CgalImpl::CgalHalfEdgeIndex;
-    using VertexDescriptor = Point::PointOnVertexDescriptor;
+    using VertexDescriptor = PointOnVertex;
     using CgalHalfEdge     = internal::CgalImpl::CgalHalfEdgeIndex;
     using CgalMesh         = internal::CgalImpl::Mesh;
 
@@ -466,28 +466,26 @@ namespace {
 }  // namespace
 
 Point
-exponential_map(const TangentVector& v, Geodesic* geod) {
+exponential_map(const Mesh& mesh, const TangentVector& v, Geodesic* geod) {
 #if RERUN_DEBUG_ENABLED
     rec.spawn().exit_on_failure();
-    logged_mesh = &(v.application_point().mesh());
-    rec.log_static("mesh", to_rr(v.application_point().mesh()));
+    logged_mesh = &mesh;
+    rec.log_static("mesh", to_rr(mesh));
     rec.set_time_sequence("iteration", iter_count);
-    rec.log("tangent_vector", to_rr(std::vector{v}));
+    rec.log("tangent_vector", to_rr(mesh, std::vector{v}));
     ++iter_count;
 #endif
 
     if (mdv::condition::is_zero_norm(v.cartesian_vector()))
         return v.application_point();
 
-    const auto  p0         = internal::point3_from_point(v.application_point());
-    const auto  f_id       = internal::to_face_impl(v.application_point().face());
-    const auto& mesh       = internal::get_mesh_impl(v.application_point().face());
+    const auto  p0 = internal::point3_from_eigen(position(mesh, v.application_point()));
+    const auto  f_id       = internal::to_cgal(v.face());
+    const auto& m          = internal::cgal_mesh(mesh);
     const auto  vec        = internal::vector3_from_eigen(v.cartesian_vector());
-    const auto [pfinal, f] = exponential_map_impl(p0, f_id, vec, v.type(), mesh, geod);
-    const auto res         = Point::from_cartesian(
-            v.application_point().mesh(), internal::convert(pfinal)
-    );
-    if (geod != nullptr) geod->emplace_back(res.position());
+    const auto [pfinal, f] = exponential_map_impl(p0, f_id, vec, v.type(), m, geod);
+    const auto res         = from_cartesian(mesh, internal::convert(pfinal));
+    if (geod != nullptr) geod->emplace_back(position(mesh, res));
     return res;
 }
 }  // namespace mdv::mesh

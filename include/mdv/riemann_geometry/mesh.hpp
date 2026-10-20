@@ -2,9 +2,12 @@
 #define MDV_MESH_MANIFOLD_HPP
 
 #include <Eigen/Dense>
+#include <memory>
 
 #include "mdv/macros.hpp"
+#include "mdv/mesh/face.hpp"
 #include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/point.hpp"
 #include "mdv/utils/conditions.hpp"
 
 namespace mdv::riemann {
@@ -13,6 +16,11 @@ class MeshManifold {
 public:
     using Point         = mdv::mesh::Point;
     using TangentVector = Eigen::Vector3d;
+
+    /** @brief Own the mesh used to interpret points; throws on a null owner. */
+    explicit MeshManifold(std::shared_ptr<const mesh::Mesh> mesh);
+
+    MDV_NODISCARD const mesh::Mesh& mesh() const;
 
     MDV_NODISCARD TangentVector logarithmic_map(const Point& q1, const Point& q2) const;
 
@@ -27,6 +35,9 @@ public:
     MDV_NODISCARD Point default_point() const;
 
     MDV_NODISCARD TangentVector default_tangent_vector() const;
+
+private:
+    std::shared_ptr<const mesh::Mesh> _mesh;
 };
 
 struct MeshEmbedder {
@@ -50,7 +61,7 @@ struct MeshEmbedder {
             return Vec3{(Mat3::Identity() - normal * normal.transpose()) * v};
         };
 
-        const Vec3 vz = mesh::normal(g.mesh(), mesh::FaceId{g.face().id()});
+        const Vec3 vz = mesh::normal(_m->mesh(), mesh::face(_m->mesh(), g));
         assert(!are_parallel(vz, dir));
         const Vec3 vx_unnorm = normal_projection(vz, dir);
         const Vec3 vx        = vx_unnorm.normalized();
@@ -74,7 +85,7 @@ struct MeshEmbedder {
         _g = g;
 
         const Vec3 vx = -_m->logarithmic_map(g, y0).normalized();
-        const Vec3 vz = mesh::normal(g.mesh(), mesh::FaceId{g.face().id()});
+        const Vec3 vz = mesh::normal(_m->mesh(), mesh::face(_m->mesh(), g));
         const Vec3 vy = vz.cross(vx);
 
         _base.col(0) = vx;
@@ -118,16 +129,16 @@ struct MeshEmbedder {
 
         assert(g.y() == _g);
         assert(are_orthogonal(
-                v_in_g, mesh::normal(g.y().mesh(), mesh::FaceId{g.y().face().id()})
+                v_in_g, mesh::normal(_m->mesh(), mesh::face(_m->mesh(), g.y()))
         ));
         assert(are_orthogonal(
-                v_in_g, mesh::normal(_g.mesh(), mesh::FaceId{_g.face().id()})
+                v_in_g, mesh::normal(_m->mesh(), mesh::face(_m->mesh(), _g))
         ));
 
         const Vec3 res = _m->parallel_transport(g.y(), x.y(), v_in_g);
 
         assert(are_orthogonal(
-                res, mesh::normal(x.y().mesh(), mesh::FaceId{x.y().face().id()})
+                res, mesh::normal(_m->mesh(), mesh::face(_m->mesh(), x.y()))
         ));
         return res;
     }
