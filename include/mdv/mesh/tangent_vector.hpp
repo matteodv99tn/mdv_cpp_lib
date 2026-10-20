@@ -26,7 +26,6 @@ public:
     static TangentVector from_tip_position(
             const Mesh&, const Point&, const CartesianPoint&
     );
-    static TangentVector unit_random(const Mesh&, const Point&);
 
     MDV_NODISCARD const Point&
     application_point() const {

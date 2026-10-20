@@ -2,7 +2,6 @@
 
 #include <fmt/format.h>
 #include <gsl/assert>
-#include <random>
 
 #include "CGAL/Polygon_mesh_processing/compute_normal.h"
 #include "mdv/mesh/cgal_impl.hpp"
@@ -68,14 +67,6 @@ neighbours(const Mesh& mesh, FaceId f) {
     }
     assert(j == 3);
     return res;
-}
-
-FaceId
-random_face(const Mesh& mesh) {
-    static std::random_device                  rand_dev;
-    static std::mt19937                        generator(rand_dev());
-    std::uniform_int_distribution<std::size_t> distribution(0, mesh.num_faces() - 1);
-    return FaceId{static_cast<Index>(distribution(generator))};
 }
 
 }  // namespace mdv::mesh

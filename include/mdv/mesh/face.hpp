@@ -21,8 +21,6 @@ MDV_NODISCARD std::array<FaceId, 3> neighbours(const Mesh& mesh, FaceId f);
 /** @brief Human-readable face description, preserving the legacy text. */
 MDV_NODISCARD std::string describe(const Mesh& mesh, FaceId f);
 
-MDV_NODISCARD FaceId random_face(const Mesh& mesh);
-
 }  // namespace mdv::mesh
 
 #endif  // MDV_MESH_FACE_HPP

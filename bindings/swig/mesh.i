@@ -79,7 +79,6 @@ namespace mdv::mesh {
 
     Eigen::Vector3d normal(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
     std::string describe(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
-    mdv::mesh::FaceId random_face(const mdv::mesh::Mesh&);
     std::array<mdv::mesh::VertexId, 3> vertices(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
     std::array<mdv::mesh::FaceId, 3> neighbours(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
     mdv::mesh::HalfEdgeId halfedge(const mdv::mesh::Mesh&, mdv::mesh::VertexId, mdv::mesh::FaceId);
@@ -115,7 +114,6 @@ namespace mdv::mesh {
     };
 
     mdv::mesh::Point from_cartesian(const mdv::mesh::Mesh&, const Eigen::Vector3d&);
-    mdv::mesh::Point random_point(const mdv::mesh::Mesh&);
     Eigen::Vector3d position(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
     mdv::mesh::FaceId face(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
     std::string describe(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
@@ -136,10 +134,6 @@ namespace mdv::mesh {
 
         static mdv::mesh::TangentVector from_tip_position(
                 const mdv::mesh::Mesh&, const mdv::mesh::Point& application_point, const Eigen::Vector3d& tip
-        );
-
-        static mdv::mesh::TangentVector unit_random(
-                const mdv::mesh::Mesh&, const mdv::mesh::Point& application_point
         );
 
 
