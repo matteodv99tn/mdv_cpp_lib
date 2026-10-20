@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <numbers>
-#include <random>
 #include <string_view>
 #include <unordered_set>
 #include <vector>
@@ -11,6 +10,7 @@
 #include "mdv/config.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
+#include "mdv/mesh/sampler.hpp"
 
 namespace mdv::mesh {
 namespace fs = std::filesystem;
@@ -18,10 +18,11 @@ namespace fs = std::filesystem;
 TEST(MeshGeodesic, RandomPoints) {
     const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto     mesh      = Mesh::from_file(mesh_path);
+    Sampler        sampler(mesh, 42);
 
     for (std::size_t i = 0; i < 40; ++i) {
-        const auto p0 = random_point(mesh);
-        const auto p1 = random_point(mesh);
+        const auto p0 = sampler.point_in_face();
+        const auto p1 = sampler.point_in_face();
 
         const auto g0 = build_geodesic(mesh, p0, p1);
         const auto g1 = build_geodesic(mesh, p1, p0);
@@ -33,23 +34,16 @@ TEST(MeshGeodesic, RandomVertexPoints) {
     const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto     mesh      = Mesh::from_file(mesh_path);
 
-    std::random_device                   dev;
-    std::mt19937                         rng(dev());
-    std::uniform_int_distribution<Index> dist(
-            0, static_cast<Index>(mesh.num_vertices() - 1)
-    );
-
-
+    Sampler    sampler(mesh, 42);
+    const auto points = sampler.points_on_vertices(80);
     for (std::size_t i = 0; i < 40; ++i) {
-        const VertexId v0{dist(rng)};
-        const VertexId v1{dist(rng)};
-        const auto     p0 = from_cartesian(mesh, position(mesh, v0));
-        const auto     p1 = from_cartesian(mesh, position(mesh, v1));
+        const auto& p0 = points[2 * i];
+        const auto& p1 = points[2 * i + 1];
 
         const auto g0 = build_geodesic(mesh, p0, p1);
         const auto g1 = build_geodesic(mesh, p1, p0);
         EXPECT_NEAR(length(g0), length(g1), 1e-9)
-                << "v0: " << describe(mesh, v0) << "\nv1: " << describe(mesh, v1);
+                << "p0: " << describe(mesh, p0) << "\np1: " << describe(mesh, p1);
     }
 }
 
@@ -57,17 +51,10 @@ TEST(MeshGeodesic, RandomEdgePoints) {
     const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto     mesh      = Mesh::from_file(mesh_path);
 
-    std::random_device                   dev;
-    std::mt19937                         rng(dev());
-    std::uniform_int_distribution<Index> dist(
-            0, static_cast<Index>(mesh.num_vertices() - 1)
-    );
-
-
-    using EdgeDescriptor = PointOnEdge;
+    Sampler sampler(mesh, 42);
     for (std::size_t i = 0; i < 40; ++i) {
-        const auto p0 = Point(EdgeDescriptor::random(mesh));
-        const auto p1 = Point(EdgeDescriptor::random(mesh));
+        const Point p0 = sampler.point_on_edge();
+        const Point p1 = sampler.point_on_edge();
 
         const auto g0 = build_geodesic(mesh, p0, p1);
         const auto g1 = build_geodesic(mesh, p1, p0);
@@ -227,7 +214,7 @@ TEST(Face, HandleTopologyAndBoundaryOrdering) {
         }
         EXPECT_EQ(boundary, std::string_view{name} == "square.off" ? 4U : 0U);
         EXPECT_EQ(describe(mesh, FaceId{}), "Invalid face object");
-        EXPECT_LT(random_face(mesh).value, mesh.num_faces());
+        EXPECT_LT(Sampler(mesh, 42).face().value, mesh.num_faces());
     }
 }
 

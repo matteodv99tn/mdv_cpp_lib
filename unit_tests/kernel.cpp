@@ -7,6 +7,7 @@
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/sampler.hpp"
 
 namespace mdv::mesh {
 namespace fs = std::filesystem;
@@ -19,10 +20,9 @@ TEST(MeshKernel, Square_SinglePointSet) {
         return std::chrono::duration_cast<std::chrono::milliseconds>(delta).count();
     };
 
-    const long         n_pts = 20;
-    std::vector<Point> points;
-    points.reserve(n_pts);
-    for (long i = 0; i < n_pts; ++i) points.emplace_back(PointOnEdge::random(mesh));
+    const long n_pts = 20;
+    Sampler    sampler(mesh, 42);
+    const auto points = sampler.points_on_edges(n_pts);
 
     Eigen::MatrixXd mesh_d(n_pts, n_pts);
     auto            start = std::chrono::high_resolution_clock::now();
@@ -57,14 +57,11 @@ TEST(MeshKernel, Square_DoublePointSet) {
     const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto     mesh      = Mesh::from_file(mesh_path);
 
-    const long         n_pts_a = 20;
-    const long         n_pts_b = 10;
-    std::vector<Point> points_a;
-    std::vector<Point> points_b;
-    points_a.reserve(n_pts_a);
-    points_b.reserve(n_pts_b);
-    for (long i = 0; i < n_pts_a; ++i) points_a.emplace_back(PointOnEdge::random(mesh));
-    for (long i = 0; i < n_pts_b; ++i) points_b.emplace_back(PointOnEdge::random(mesh));
+    const long n_pts_a = 20;
+    const long n_pts_b = 10;
+    Sampler    sampler(mesh, 42);
+    const auto points_a = sampler.points_on_edges(n_pts_a);
+    const auto points_b = sampler.points_on_edges(n_pts_b);
 
     Eigen::MatrixXd mesh_d(n_pts_a, n_pts_b);
     for (long i = 0; i < n_pts_a; ++i) {
