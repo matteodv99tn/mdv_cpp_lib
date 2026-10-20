@@ -56,20 +56,6 @@ if(NOT Catch2_FOUND)
     )
 endif()
 
-find_package(rerun_sdk)
-if(NOT rerun_sdk_FOUND)
-    ExternalProject_Add(
-        rerun_sdk-dep
-        DOWNLOAD_EXTRACT_TIMESTAMP NEW
-        URL https://github.com/rerun-io/rerun/releases/download/0.20.3/rerun_cpp_sdk.zip
-        PREFIX ${PROJECT_BUILD_DIR}/rerun_sdk
-        INSTALL_DIR ${PROJECT_INSTALL_DIR}/rerun_sdk
-        CMAKE_ARGS 
-            -DCMAKE_INSTALL_PREFIX=${PROJECT_INSTALL_DIR}/rerun_sdk
-            -DCMAKE_BUILD_TYPE=Release
-    )
-endif()
-
 find_package(fmt)
 if(NOT fmt_FOUND)
     ExternalProject_Add(

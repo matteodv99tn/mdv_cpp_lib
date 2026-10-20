@@ -81,7 +81,7 @@ public:
 template <int FunctionDimension, typename BaseFunction = ExponentialBasis>
 class LearnableFunction {
 public:
-    using Input = BaseFunction::Input;
+    using Input = typename BaseFunction::Input;
 
     using Basis         = std::vector<BaseFunction>;
     using WeightsMatrix = std::conditional_t<

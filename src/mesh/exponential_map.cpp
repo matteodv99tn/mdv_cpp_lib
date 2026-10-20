@@ -1,6 +1,7 @@
 #include <CGAL/Polygon_mesh_processing/compute_normal.h>
 #include <cstdint>
 #include <Eigen/Geometry>
+#include <iterator>
 #include <stdexcept>
 
 #include "mdv/eigen_defines.hpp"
@@ -385,10 +386,10 @@ namespace {
 
         assert(are_orthogonal(n, d));
         assert(are_orthogonal(vec_dir, n));
-        assert(vector_inside_triangle(  // NOLINT
+        assert(vector_inside_triangle(
                 convert(he_to_vec3(*he_circ)),
                 vec_dir,
-                convert(he_to_vec3(*(he_circ--)))
+                convert(he_to_vec3(*std::prev(he_circ)))
         ));
         return {
                 .v    = vector3_from_eigen(vec_dir * length(v)),

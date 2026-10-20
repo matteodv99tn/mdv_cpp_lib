@@ -45,7 +45,11 @@ jobs:
         run: |
           sudo ./cmake/install_dependencies.sh
           sudo apt-get install -y clang curl
-      # Build on each runner/compiler to avoid sharing ABI-sensitive Rerun binaries.
+      - name: Install precompiled Rerun SDK
+        run: |
+          curl -fL --retry 3 -o "$RUNNER_TEMP/rerun-sdk.deb" \
+            https://github.com/matteodv99tn/rerun-sdk-precompiled/releases/download/v0.25.1/rerun-cpp-sdk_0.25_1.deb
+          sudo apt-get install -y "$RUNNER_TEMP/rerun-sdk.deb"
       - name: Build external dependencies
         run: |
           cmake -S cmake -B cmake/build
