@@ -179,12 +179,12 @@ main(int argc, char* argv[]) {
 
         rec.log("position", to_rerun(mesh, pos));
         const auto cart_pos = position(mesh, pos);
-        rec.log("velocity_cmd/x", rerun::Scalars({u(0)}));
-        rec.log("velocity_cmd/y", rerun::Scalars({u(1)}));
-        rec.log("velocity_cmd/z", rerun::Scalars({u(2)}));
-        rec.log("pos/x", rerun::Scalars({cart_pos(0)}));
-        rec.log("pos/y", rerun::Scalars({cart_pos(1)}));
-        rec.log("pos/z", rerun::Scalars({cart_pos(2)}));
+        rec.log("velocity_cmd/x", rerun::Scalars(u(0)));
+        rec.log("velocity_cmd/y", rerun::Scalars(u(1)));
+        rec.log("velocity_cmd/z", rerun::Scalars(u(2)));
+        rec.log("pos/x", rerun::Scalars(cart_pos(0)));
+        rec.log("pos/y", rerun::Scalars(cart_pos(1)));
+        rec.log("pos/z", rerun::Scalars(cart_pos(2)));
         rec.log("path", to_rerun(path));
     }
     auto       stop = std::chrono::high_resolution_clock::now();
