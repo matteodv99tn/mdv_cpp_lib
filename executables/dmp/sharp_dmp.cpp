@@ -27,19 +27,23 @@
 #include "mdv/rerun.hpp"
 #include "mdv/riemann_geometry/mesh.hpp"
 
+namespace mdv::mesh {
 using Quat = Eigen::Quaterniond;
 
-std::string
-to_string(const Quat& q) {
-    std::stringstream ss;
-    ss << q;
-    return ss.str();
-}
+namespace {
+    std::string
+    to_string(const Quat& q) {
+        std::stringstream ss;
+        ss << q;
+        return ss.str();
+    }
 
-using namespace mdv::mesh;
+}  // namespace
+}  // namespace mdv::mesh
 
 int
 main() {
+    using namespace mdv::mesh;
     using namespace std::chrono_literals;
     using M = mdv::riemann::MeshManifold;
 
@@ -122,7 +126,7 @@ main() {
 
     const auto encode_rotation =
             [&x_des, &project](const mdv::mesh::Point& pt) -> Eigen::Quaterniond {
-        const mdv::Vec3d z = pt.face().normal();
+        const mdv::Vec3d z = normal(pt.mesh(), FaceId{pt.face().id()});
         const mdv::Vec3d x = project(x_des, z).normalized();
         const mdv::Vec3d y = z.cross(x);
 

@@ -26,37 +26,59 @@
 import_array();
 %}
 
+%typemap(in) mdv::mesh::VertexId {
+    unsigned long value = PyLong_AsUnsignedLong($input);
+    if (PyErr_Occurred()) SWIG_fail;
+    if (value > std::numeric_limits<mdv::mesh::Index>::max())
+        SWIG_exception_fail(SWIG_OverflowError, "Vertex index out of range");
+    $1 = $1_ltype{static_cast<mdv::mesh::Index>(value)};
+}
+%typemap(out) mdv::mesh::VertexId {
+    $result = PyLong_FromUnsignedLong($1.value);
+}
+%apply mdv::mesh::VertexId { mdv::mesh::FaceId };
+%apply mdv::mesh::VertexId { mdv::mesh::HalfEdgeId };
+%typemap(out) std::array<mdv::mesh::VertexId, 3> {
+    $result = PyTuple_New(3);
+    if (!$result) SWIG_fail;
+    for (std::size_t i = 0; i < 3; ++i) {
+        PyObject* value = PyLong_FromUnsignedLong($1[i].value);
+        if (!value) {
+            Py_DECREF($result);
+            $result = nullptr;
+            SWIG_fail;
+        }
+        PyTuple_SET_ITEM($result, i, value);
+    }
+}
+%apply std::array<mdv::mesh::VertexId, 3> { std::array<mdv::mesh::FaceId, 3> };
+%rename(vertex_position) mdv::mesh::position(const mdv::mesh::Mesh&, mdv::mesh::VertexId);
+%rename(vertex_normal) mdv::mesh::normal(const mdv::mesh::Mesh&, mdv::mesh::VertexId);
+%rename(vertex_describe) mdv::mesh::describe(const mdv::mesh::Mesh&, mdv::mesh::VertexId);
+%rename(face_normal) mdv::mesh::normal(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
+%rename(face_describe) mdv::mesh::describe(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
+%rename(halfedge_face) mdv::mesh::face(const mdv::mesh::Mesh&, mdv::mesh::HalfEdgeId);
+
 namespace mdv::mesh {
 
-    class Vertex {
-    public:
-        Vertex(const mdv::mesh::Mesh&, const long int);
+    Eigen::Vector3d position(const mdv::mesh::Mesh&, mdv::mesh::VertexId);
+    Eigen::Vector3d normal(const mdv::mesh::Mesh&, mdv::mesh::VertexId);
+    std::string describe(const mdv::mesh::Mesh&, mdv::mesh::VertexId);
+    double total_angle(const mdv::mesh::Mesh&, mdv::mesh::VertexId);
+    double gauss_curvature(const mdv::mesh::Mesh&, mdv::mesh::VertexId);
+    mdv::mesh::VertexId closest_vertex(const mdv::mesh::Mesh&, const Eigen::Vector3d&);
 
-        Eigen::Vector3d position() const;
-
-        Eigen::Vector3d normal();
-
-        std::size_t id() const;
-
-        std::string describe() const;
-
-        double total_curvature() const;
-
-        double gauss_curvature() const;
-    };
-
-    class Face {
-    public:
-        Face(const mdv::mesh::Mesh&, const long int);
-
-        std::size_t id() const;
-
-        Eigen::Vector3d normal();
-
-        const mdv::mesh::Mesh& mesh() const;
-
-        std::string describe() const;
-    };
+    Eigen::Vector3d normal(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
+    std::string describe(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
+    mdv::mesh::FaceId random_face(const mdv::mesh::Mesh&);
+    std::array<mdv::mesh::VertexId, 3> vertices(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
+    std::array<mdv::mesh::FaceId, 3> neighbours(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
+    mdv::mesh::HalfEdgeId halfedge(const mdv::mesh::Mesh&, mdv::mesh::VertexId, mdv::mesh::FaceId);
+    mdv::mesh::HalfEdgeId prev(const mdv::mesh::Mesh&, mdv::mesh::HalfEdgeId);
+    mdv::mesh::HalfEdgeId twin(const mdv::mesh::Mesh&, mdv::mesh::HalfEdgeId);
+    mdv::mesh::FaceId face(const mdv::mesh::Mesh&, mdv::mesh::HalfEdgeId);
+    Eigen::Vector3d direction(const mdv::mesh::Mesh&, mdv::mesh::HalfEdgeId);
+    Eigen::Vector3d inbound_direction(const mdv::mesh::Mesh&, mdv::mesh::HalfEdgeId);
 
     class Mesh {
         Mesh(gsl::owner<CgalImpl*> data, const std::string& name);
@@ -67,13 +89,9 @@ namespace mdv::mesh {
         
         void scale(double);
         
-        mdv::mesh::Vertex vertex(const long& id);
-
         std::size_t num_faces() const;
 
         std::size_t num_vertices() const;
-
-        mdv::mesh::Face face(const long& id) const;
 
         std::vector<Eigen::Vector3d> build_geodesic(const mdv::mesh::Point& from, const mdv::mesh::Point& to) const;
 
@@ -81,23 +99,21 @@ namespace mdv::mesh {
 
         Eigen::MatrixXd get_face_matrix_double() const;
 
-        mdv::mesh::Vertex closest_vertex(const Eigen::Vector3d&);
-
-        mdv::mesh::Face random_face() const;
-
     };
 
     class Point {
     public:
-        Point(const mdv::mesh::Vertex& v);
-
         static mdv::mesh::Point from_cartesian(const mdv::mesh::Mesh& m, const Eigen::Vector3d& pt);
 
         Eigen::Vector3d position() const;
 
         static Point random(const mdv::mesh::Mesh& m) noexcept;
 
-        mdv::mesh::Face face() const;
+        %extend {
+            mdv::mesh::FaceId face() {
+                return mdv::mesh::FaceId{$self->face().id()};
+            }
+        }
 
         const mdv::mesh::Mesh& mesh() const;
 
@@ -297,6 +313,10 @@ namespace mdv::mesh {
 }
 
 %inline %{
+    mdv::mesh::Point point_from_vertex(const mdv::mesh::Mesh& mesh, mdv::mesh::VertexId v) {
+        return mdv::mesh::Point{mdv::mesh::Vertex{mesh, v.value}};
+    }
+
     mdv::mesh::Mesh* load_from_file(const char* file) {
         return new mdv::mesh::Mesh(mdv::mesh::Mesh::from_file(std::filesystem::path(file)));
     }

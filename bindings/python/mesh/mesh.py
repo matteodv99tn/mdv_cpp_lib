@@ -307,7 +307,7 @@ class Mesh:
         Vertex
             Vertex with the specified identifier.
         """
-        return Vertex(self._mesh_impl.vertex(id))
+        return Vertex(self, id)
 
     def face(self, id: int) -> Face:
         """Return a face by its identifier.
@@ -322,11 +322,11 @@ class Mesh:
         Face
             Face with the specified identifier.
         """
-        return Face(self._mesh_impl.face(id))
+        return Face(self, id)
 
     def random_face(self) -> Face:
         """Return a random face from the mesh."""
-        return Face(self._mesh_impl.random_face())  # type: ignore[attr-defined]
+        return Face(self, _impl.random_face(self._mesh_impl))
 
     @property
     def faces(self) -> list[Face]:
@@ -447,8 +447,7 @@ class Mesh:
             Closest vertex on the mesh.
         """
         point_array = as_vector(point, size=3, name="point")
-        vertex_impl = self._mesh_impl.closest_vertex(point_array)
-        return Vertex(vertex_impl)
+        return Vertex(self, _impl.closest_vertex(self._mesh_impl, point_array))
 
     @staticmethod
     def extract_normal_bounded_surface(

@@ -36,7 +36,7 @@ TEST(MdvMesh, TangentVectorFromTipInitialisation) {
 
     for (int i{0}; i < 256; ++i) {
         const auto pt    = Point::random(mesh);
-        const auto n     = pt.face().normal();
+        const auto n     = normal(mesh, FaceId{pt.face().id()});
         const Vec3 delta = (Mat3::Identity() - n * n.transpose()) * pref_dir;
         const Vec3 tip   = pt.position() + delta;
 
@@ -59,7 +59,7 @@ TEST(MdvMesh, TangentVectorDifference) {
         const auto v1 = TangentVector::unit_random(pt);
         const auto v2 = TangentVector::unit_random(pt);
 
-        const auto n     = pt.face().normal();
+        const auto n     = normal(mesh, FaceId{pt.face().id()});
         const Vec3 delta = (Mat3::Identity() - n * n.transpose()) * pref_dir;
         const Vec3 tip   = pt.position() + delta;
 
@@ -412,12 +412,18 @@ TEST(MdvMesh, DeterministicTangentInvariants) {
         EXPECT_NEAR(
                 (v.application_point().position() - p.position()).norm(), 0.0, 1e-9
         );
-        EXPECT_NEAR(original.dot(v.application_point().face().normal()), 0.0, 1e-9);
+        EXPECT_NEAR(
+                original.dot(normal(mesh, FaceId{v.application_point().face().id()})),
+                0.0,
+                1e-9
+        );
         EXPECT_NEAR((v.tip() - p.position() - original).norm(), 0.0, 1e-9);
         if (i != 0) {
             ASSERT_EQ(v.type(), TangentVector::ALONG_EDGE);
             EXPECT_NEAR(
-                    original.cross(v.halfedge().direction().normalized()).norm(),
+                    original.cross(direction(mesh, HalfEdgeId{v.halfedge().id()})
+                                           .normalized())
+                            .norm(),
                     0.0,
                     1e-9
             );
@@ -468,7 +474,9 @@ TEST(MdvMesh, FoldedMapAndTransportInvariants) {
             v.cartesian_vector().dot(w.cartesian_vector()),
             1e-9
     );
-    EXPECT_NEAR(pv.cartesian_vector().dot(q.face().normal()), 0.0, 1e-9);
+    EXPECT_NEAR(
+            pv.cartesian_vector().dot(normal(mesh, FaceId{q.face().id()})), 0.0, 1e-9
+    );
     EXPECT_NEAR((pv.application_point().position() - q.position()).norm(), 0.0, 1e-9);
     EXPECT_NEAR(
             (parallel_transport(v, p).cartesian_vector() - v.cartesian_vector()).norm(),

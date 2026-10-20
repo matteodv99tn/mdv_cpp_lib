@@ -4,8 +4,13 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from .point import Point
+from .mesh import Mesh
+
+class _TangentVectorImpl: ...
 
 class TangentVector:
+    @classmethod
+    def from_impl(cls, tv_impl: _TangentVectorImpl, *, mesh: Mesh) -> TangentVector: ...
     def __init__(self, application_point: Point, vector: ArrayLike) -> None: ...
     @staticmethod
     def from_ambient_vector(

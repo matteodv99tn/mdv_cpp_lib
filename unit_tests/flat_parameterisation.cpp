@@ -29,7 +29,7 @@ TEST(MdvMesh, FlatParameterisation) {
         const auto   v   = mesh.vertex(i);
         const auto   uv  = map.project(v);
         const auto   rec = map.retrieve(uv);
-        const double e   = (v.position() - rec.position()).norm();
+        const double e   = (position(mesh, VertexId{i}) - rec.position()).norm();
         ASSERT_TRUE(map.is_inside_mesh(uv));
         ASSERT_LT(e, 1e-12);
     }

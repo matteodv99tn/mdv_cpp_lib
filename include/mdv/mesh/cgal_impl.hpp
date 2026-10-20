@@ -257,20 +257,54 @@ get_mesh_impl(const MeshElement& elem) {
  * @return CGAL mesh reference.
  */
 MDV_INLINE const CgalImpl::Mesh&
-get_mesh_impl(const Mesh& mesh) {
+cgal_mesh(const Mesh& mesh) {
     return mesh.cgal()._mesh;
-};
+}
 
-/**
- * @brief Converts a mesh vertex to CGAL point.
- *
- * @param v Mesh vertex.
- * @return CGAL point.
- */
-MDV_INLINE CgalImpl::Point3
-to_vertex_impl(const Vertex& v) {
-    CgalImpl::CgalVertexIndex id(v.id());
-    return v.mesh().cgal()._mesh.point(id);
+/** @brief Compatibility alias for cgal_mesh, retained until point migration. */
+MDV_INLINE const CgalImpl::Mesh&
+get_mesh_impl(const Mesh& mesh) {
+    return cgal_mesh(mesh);
+}
+
+static_assert(std::is_same_v<Index, CgalImpl::CgalVertexIndex::size_type>);
+static_assert(std::is_same_v<Index, CgalImpl::CgalFaceIndex::size_type>);
+static_assert(std::is_same_v<Index, CgalImpl::CgalHalfEdgeIndex::size_type>);
+
+/** @brief Convert a vertex index without checking mesh membership or removal. */
+MDV_INLINE CgalImpl::CgalVertexIndex
+to_cgal(VertexId id) {
+    return CgalImpl::CgalVertexIndex{id.value};
+}
+
+/** @brief Convert a face index without checking mesh membership or removal. */
+MDV_INLINE CgalImpl::CgalFaceIndex
+to_cgal(FaceId id) {
+    return CgalImpl::CgalFaceIndex{id.value};
+}
+
+/** @brief Convert a halfedge index without checking mesh membership or removal. */
+MDV_INLINE CgalImpl::CgalHalfEdgeIndex
+to_cgal(HalfEdgeId id) {
+    return CgalImpl::CgalHalfEdgeIndex{id.value};
+}
+
+/** @brief Convert a CGAL vertex index, including its invalid sentinel. */
+MDV_INLINE VertexId
+from_cgal(CgalImpl::CgalVertexIndex id) {
+    return VertexId{id.idx()};
+}
+
+/** @brief Convert a CGAL face index, including its invalid sentinel. */
+MDV_INLINE FaceId
+from_cgal(CgalImpl::CgalFaceIndex id) {
+    return FaceId{id.idx()};
+}
+
+/** @brief Convert a CGAL halfedge index, including its invalid sentinel. */
+MDV_INLINE HalfEdgeId
+from_cgal(CgalImpl::CgalHalfEdgeIndex id) {
+    return HalfEdgeId{id.idx()};
 }
 
 /**

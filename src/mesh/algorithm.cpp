@@ -138,7 +138,7 @@ parallel_transport(const TangentVector& tangent_vector, const Point& dest_point)
     auto choose_face_normal = [](const Point& pt, const Vec3d& dir) -> Vec3d {
         const auto loc_type = location_type(pt);
         if (loc_type == INSIDE_FACE) [[likely]]
-            return pt.face().normal();
+            return mesh::normal(pt.mesh(), FaceId{pt.face().id()});
         if (loc_type == ON_VERTEX) {
             const auto* v_pt = pt.get_as<Point::PointOnVertexDescriptor>();
             const auto& m    = internal::get_mesh_impl(v_pt->face());
@@ -159,9 +159,13 @@ parallel_transport(const TangentVector& tangent_vector, const Point& dest_point)
         const auto* edge_pt = pt.get_as<Point::PointOnEdgeDescriptor>();
         assert(edge_pt != nullptr);
 
-        Vec3d n = edge_pt->face().normal();
+        Vec3d n =
+                mesh::normal(edge_pt->halfedge().mesh(), FaceId{edge_pt->face().id()});
         if (!are_orthogonal(n, dir)) {
-            n = edge_pt->display_in_opposite_halfedge().face().normal();
+            n = mesh::normal(
+                    edge_pt->halfedge().mesh(),
+                    FaceId{edge_pt->display_in_opposite_halfedge().face().id()}
+            );
             if (!are_orthogonal(n, dir)) {
                 throw std::runtime_error(
                         "Given direction is not orthogonal to neigher "
@@ -227,7 +231,8 @@ parallel_transport(const TangentVector& tangent_vector, const Point& dest_point)
     const Vec3d n_dest   = choose_face_normal(dest_point, x_dest);
 
     const Vec3d vec_start = [&]() {
-        const auto fn = start_point.face().normal();
+        const auto fn =
+                mesh::normal(start_point.mesh(), FaceId{start_point.face().id()});
         if (are_equal(n_start, fn)) [[likely]]
             return tangent_vector.cartesian_vector();
 
@@ -248,9 +253,14 @@ parallel_transport(const TangentVector& tangent_vector, const Point& dest_point)
     const Mat3  Rot      = R2 * R1.transpose();
     const Vec3d vec_dest = Rot * vec_start;
     assert(are_orthogonal(vec_start, n_start));
-    if (!mdv::condition::are_orthogonal(vec_dest, dest_point.face().normal())) {
-        const Vec3d  nf = start_point.face().normal();
-        const Vec3d  nt = dest_point.face().normal();
+    if (!mdv::condition::are_orthogonal(
+                vec_dest,
+                mesh::normal(dest_point.mesh(), FaceId{dest_point.face().id()})
+        )) {
+        const Vec3d nf =
+                mesh::normal(start_point.mesh(), FaceId{start_point.face().id()});
+        const Vec3d nt =
+                mesh::normal(dest_point.mesh(), FaceId{dest_point.face().id()});
         const Vec3d  vf = tangent_vector.cartesian_vector();
         const double s1 = nf.dot(vf);
         const double s2 = nt.dot(vec_dest);
@@ -561,9 +571,9 @@ projx(const Mesh& mesh, const Eigen::MatrixXd& xs) {
     Eigen::MatrixXd res(N, 3);
     for (long i = 0; i < N; ++i) {
         const Vec3 xo{xs.row(i)};
-        const auto cv = mesh.closest_vertex(xo);
+        const auto cv = closest_vertex(mesh, xo);
 
-        if ((cv.position() - xo).norm() < 1e-6) {
+        if ((position(mesh, cv) - xo).norm() < 1e-6) {
             ++on_v;
             res.row(i) = xo;
             continue;
@@ -677,11 +687,11 @@ proj_transformation_directions(
         const auto pt = Point::from_cartesian(mesh, pos);
         const auto tv = TangentVector::from_ambient_vector(pt, vec);
 
-        const Vec3 n  = tv.application_point().face().normal();
+        const Vec3 n  = mesh::normal(mesh, FaceId{tv.application_point().face().id()});
         Vec3       d1 = Vec3::Zero();
         d1_mat.row(i) = n;
         if (tv.type() == TangentVector::ALONG_EDGE) {
-            const Vec3 e  = tv.halfedge().direction();
+            const Vec3 e  = direction(mesh, HalfEdgeId{tv.halfedge().id()});
             d1            = e.cross(n).normalized();
             d2_mat.row(i) = d1;
         }
@@ -717,9 +727,8 @@ closest_face_normal_and_vertex(const Mesh& mesh, const Eigen::MatrixXd& xs) {
     long n_singular = 0;
     for (long i = 0; i < xs.rows(); ++i) {
         const auto pt = Point::from_cartesian(mesh, xs.row(i));
-        ns.row(i)     = pt.face().normal();
-        const auto v  = mesh.vertex(pt.face().vertices_ids()[0]);
-        vs.row(i)     = v.position();
+        ns.row(i)     = mesh::normal(mesh, FaceId{pt.face().id()});
+        vs.row(i)     = position(mesh, vertices(mesh, FaceId{pt.face().id()})[0]);
         if (location_type(pt) != LocationType::INSIDE_FACE) ++n_singular;
     }
     // if (n_singular > 0)

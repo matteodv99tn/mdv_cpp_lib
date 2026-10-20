@@ -106,7 +106,7 @@ def parallel_transport(
         tangent_vector._tv_impl,  # type: ignore[attr-defined]
         point._point_impl,  # type: ignore[attr-defined]
     )
-    return TangentVector.from_impl(tv_impl)  # type: ignore[attr-defined]
+    return TangentVector.from_impl(tv_impl, mesh=point._mesh)
 
 
 def logarithmic_map(point: "Point", target: "Point") -> "TangentVector":
@@ -130,7 +130,7 @@ def logarithmic_map(point: "Point", target: "Point") -> "TangentVector":
         point._point_impl,  # type: ignore[attr-defined]
         target._point_impl,  # type: ignore[attr-defined]
     )
-    return TangentVector.from_impl(tv_impl)  # type: ignore[attr-defined]
+    return TangentVector.from_impl(tv_impl, mesh=point._mesh)
 
 
 def exponential_map(tangent_vector: "TangentVector") -> "Point":
@@ -149,7 +149,7 @@ def exponential_map(tangent_vector: "TangentVector") -> "Point":
     from .point import Point
 
     pt_impl = _impl.exponential_map(tangent_vector._tv_impl)  # type: ignore[attr-defined]
-    return Point(pt_impl)
+    return Point(pt_impl, mesh=tangent_vector._mesh)
 
 
 def solve_path(

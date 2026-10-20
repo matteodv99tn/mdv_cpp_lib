@@ -23,8 +23,6 @@
 
 namespace mdv::mesh {
 
-namespace rs = ::ranges;
-
 Logger::SharedPtr Mesh::default_logger = get_default_logger();
 
 //   ____                _                   _
@@ -183,19 +181,11 @@ Mesh::num_faces() const {
     return cgal()._mesh.num_faces();
 }
 
-Face
-Mesh::random_face() const {
-    static std::random_device                  rand_dev;
-    static std::mt19937                        generator(rand_dev());
-    std::uniform_int_distribution<std::size_t> distribution(0, num_faces() - 1);
-    // CGAL surface meshes use 32-bit indices, so any face index fits in Index
-    return face(static_cast<Index>(distribution(generator)));
-}
-
 Eigen::MatrixXd
 Mesh::get_vertex_matrix() const {
     Eigen::MatrixXd res(num_vertices(), 3);
-    for (Index i = 0; i < num_vertices(); ++i) res.row(i) = vertex(i).position();
+    for (Index i = 0; i < num_vertices(); ++i)
+        res.row(i) = position(*this, VertexId{i});
     return res;
 }
 
@@ -203,8 +193,8 @@ Mesh::FaceMatrix
 Mesh::get_face_matrix() const {
     FaceMatrix res(num_faces(), 3);
     for (Index i = 0; i < num_faces(); ++i) {
-        const auto [b0, b1, b2] = face(i).vertices_ids();
-        res.row(i) << b0, b1, b2;
+        const auto [b0, b1, b2] = vertices(*this, FaceId{i});
+        res.row(i) << b0.value, b1.value, b2.value;
     }
     return res;
 }
@@ -221,21 +211,6 @@ Mesh::get_face_matrix_double() const {
     return res;
 }
 
-Vertex
-Mesh::closest_vertex(const CartesianPoint& pt) const {
-    const auto [_, f_id] = cgal()._aabb_tree.closest_point_and_primitive(
-            internal::point3_from_eigen(pt)
-    );
-    const auto& m    = internal::get_mesh_impl(*this);
-    auto        func = [&pt, &m](const auto id) -> double {
-        return (internal::convert(m.point(id)) - pt).norm();
-    };
-
-    const auto vids = CGAL::vertices_around_face(halfedge(f_id, m), m) | rs::to_vector;
-    const auto min_id = rs::min_element(vids, std::less{}, func);
-    return Vertex{*this, *min_id};
-}
-
 Mesh
 Mesh::extract_normal_bounded_surface(
         const Mesh& mesh, const Point& pt, const double max_normal_angle
@@ -248,11 +223,11 @@ Mesh::extract_normal_bounded_surface(
 
     std::vector<VisitState> face_class(mesh.num_faces(), VisitState::UNVISITED);
 
-    const auto   n_ref     = pt.face().normal();
+    const auto   n_ref     = normal(mesh, FaceId{pt.face().id()});
     const double cos_angle = std::cos(max_normal_angle * M_PI / 180.0);
 
-    const auto classify = [&cos_angle, &n_ref](const Face& f) -> VisitState {
-        const auto n = f.normal();
+    const auto classify = [&cos_angle, &n_ref, &mesh](const Face& f) -> VisitState {
+        const auto n = normal(mesh, FaceId{f.id()});
         if (n.dot(n_ref) > cos_angle) return VisitState::VALID_FACE;
         return VisitState::INVALID_FACE;
     };
@@ -266,10 +241,10 @@ Mesh::extract_normal_bounded_surface(
         face_class[id] = classify(f);
         if (face_class[id] == VisitState::INVALID_FACE) return;
 
-        const auto [f_id1, f_id2, f_id3] = f.neighbour_ids();
-        self(self, f_id1);
-        self(self, f_id2);
-        self(self, f_id3);
+        const auto [f_id1, f_id2, f_id3] = neighbours(mesh, FaceId{f.id()});
+        self(self, f_id1.value);
+        self(self, f_id2.value);
+        self(self, f_id3.value);
     };
 
     mesh.logger().info(

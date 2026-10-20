@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
@@ -48,6 +50,9 @@ except ImportError:  # pragma: no cover - generated at build time
 from ._validation import as_vector
 from .point import Point
 
+if TYPE_CHECKING:
+    from .mesh import Mesh
+
 
 class TangentVector:
     """Python wrapper for a mesh tangent vector.
@@ -61,6 +66,7 @@ class TangentVector:
     """
 
     def __init__(self, application_point: Point, vector: ArrayLike):
+        self._mesh = application_point._mesh
         vector = as_vector(vector, size=3, name="vector")
         self._tv_impl = _TangentVectorImpl(
             application_point._point_impl,  # type: ignore[attr-defined]
@@ -90,7 +96,7 @@ class TangentVector:
             application_point._point_impl,  # type: ignore[attr-defined]
             vector,
         )
-        return TangentVector.from_impl(tv_impl)
+        return TangentVector.from_impl(tv_impl, mesh=application_point._mesh)
 
     @staticmethod
     def from_tip_position(application_point: Point, tip: ArrayLike) -> "TangentVector":
@@ -113,7 +119,7 @@ class TangentVector:
             application_point._point_impl,  # type: ignore[attr-defined]
             tip_vec,
         )
-        return TangentVector.from_impl(tv_impl)
+        return TangentVector.from_impl(tv_impl, mesh=application_point._mesh)
 
     @staticmethod
     def unit_random(application_point: Point) -> "TangentVector":
@@ -132,11 +138,13 @@ class TangentVector:
         tv_impl = _TangentVectorImpl.unit_random(
             application_point._point_impl  # type: ignore[attr-defined]
         )
-        return TangentVector.from_impl(tv_impl)
+        return TangentVector.from_impl(tv_impl, mesh=application_point._mesh)
 
     @classmethod
-    def from_impl(cls, tv_impl: _TangentVectorImpl) -> "TangentVector":
+    def from_impl(cls, tv_impl: _TangentVectorImpl, *, mesh: Mesh) -> "TangentVector":
+        """Wrap a SWIG value together with its Python mesh owner."""
         obj = cls.__new__(cls)
+        obj._mesh = mesh
         obj._tv_impl = tv_impl
         return obj
 
@@ -176,11 +184,11 @@ class TangentVector:
 
     def normalised(self) -> "TangentVector":
         """Return a normalized copy of this vector."""
-        return TangentVector.from_impl(self._tv_impl.normalised())
+        return TangentVector.from_impl(self._tv_impl.normalised(), mesh=self._mesh)
 
     def application_point(self) -> Point:
         """Return the application point for this vector."""
-        return Point(self._tv_impl.application_point())
+        return Point(self._tv_impl.application_point(), mesh=self._mesh)
 
     def type(self) -> int:
         """Return the tangent vector type enum value."""

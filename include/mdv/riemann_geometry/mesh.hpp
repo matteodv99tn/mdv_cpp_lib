@@ -50,7 +50,7 @@ struct MeshEmbedder {
             return Vec3{(Mat3::Identity() - normal * normal.transpose()) * v};
         };
 
-        const Vec3 vz = g.face().normal();
+        const Vec3 vz = mesh::normal(g.mesh(), mesh::FaceId{g.face().id()});
         assert(!are_parallel(vz, dir));
         const Vec3 vx_unnorm = normal_projection(vz, dir);
         const Vec3 vx        = vx_unnorm.normalized();
@@ -74,7 +74,7 @@ struct MeshEmbedder {
         _g = g;
 
         const Vec3 vx = -_m->logarithmic_map(g, y0).normalized();
-        const Vec3 vz = g.face().normal();
+        const Vec3 vz = mesh::normal(g.mesh(), mesh::FaceId{g.face().id()});
         const Vec3 vy = vz.cross(vx);
 
         _base.col(0) = vx;
@@ -117,12 +117,18 @@ struct MeshEmbedder {
         const Vec3 v_in_g = _base * v_coords;
 
         assert(g.y() == _g);
-        assert(are_orthogonal(v_in_g, g.y().face().normal()));
-        assert(are_orthogonal(v_in_g, _g.face().normal()));
+        assert(are_orthogonal(
+                v_in_g, mesh::normal(g.y().mesh(), mesh::FaceId{g.y().face().id()})
+        ));
+        assert(are_orthogonal(
+                v_in_g, mesh::normal(_g.mesh(), mesh::FaceId{_g.face().id()})
+        ));
 
         const Vec3 res = _m->parallel_transport(g.y(), x.y(), v_in_g);
 
-        assert(are_orthogonal(res, x.y().face().normal()));
+        assert(are_orthogonal(
+                res, mesh::normal(x.y().mesh(), mesh::FaceId{x.y().face().id()})
+        ));
         return res;
     }
 

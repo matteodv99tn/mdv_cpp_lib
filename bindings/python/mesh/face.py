@@ -1,79 +1,48 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 from numpy.typing import NDArray
 
-try:
-    from ._mesh_impl import Face as _FaceImpl  # type: ignore[import-not-found]
-except ImportError:  # pragma: no cover - generated at build time
+from . import _mesh_impl as _impl
 
-    class _FaceImpl:  # type: ignore[no-redef]
-        def id(self) -> int:
-            raise RuntimeError("SWIG bindings are not built yet.")
-
-        def normal(self) -> NDArray[np.float64]:
-            raise RuntimeError("SWIG bindings are not built yet.")
-
-        def describe(self) -> str:
-            raise RuntimeError("SWIG bindings are not built yet.")
+if TYPE_CHECKING:
+    from .mesh import Mesh
 
 
 class Face:
-    """Python wrapper for a mesh face.
+    """A face index paired with its owning Python mesh."""
 
-    Attributes
-    ----------
-    id : int
-        Unique identifier of the face.
-    normal : np.ndarray
-        Normal vector of the face.
-    """
-
-    def __init__(self, face_impl: _FaceImpl):
-        """Initialize a Face wrapper.
-
-        Parameters
-        ----------
-        face_impl : _FaceImpl
-            The underlying SWIG face object.
-        """
-        self._face_impl = face_impl
+    def __init__(self, mesh: Mesh, face_id: int):
+        self._mesh = mesh
+        self._id = face_id
 
     @property
     def id(self) -> int:
-        """Get the unique identifier of the face.
-
-        Returns
-        -------
-        int
-            Face identifier.
-        """
-        return self._face_impl.id()
+        """The face index."""
+        return self._id
 
     @property
     def normal(self) -> NDArray[np.float64]:
-        """Get the normal vector of the face.
-
-        Returns
-        -------
-        np.ndarray
-            Normal vector ``[x, y, z]``.
-        """
-        return np.asarray(self._face_impl.normal()).reshape(-1)
+        """The unit normal of this face."""
+        return np.asarray(
+            _impl.face_normal(self._mesh._mesh_impl, self._id)
+        ).reshape(-1)
 
     @property
-    def mesh(self):
-        """Return the parent mesh."""
-        from .mesh import Mesh
-
-        return Mesh(mesh_impl=self._face_impl.mesh())  # type: ignore[attr-defined]
+    def mesh(self) -> Mesh:
+        """The original Python mesh owner."""
+        return self._mesh
 
     def describe(self) -> str:
-        """Get a string description of the face.
+        """Return the C++ face description."""
+        return _impl.face_describe(self._mesh._mesh_impl, self._id)
 
-        Returns
-        -------
-        str
-            Description of the face.
-        """
-        return self._face_impl.describe()
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Face):
+            return NotImplemented
+        return self._mesh is other._mesh and self._id == other._id
+
+    def __hash__(self) -> int:
+        return hash((id(self._mesh), self._id))

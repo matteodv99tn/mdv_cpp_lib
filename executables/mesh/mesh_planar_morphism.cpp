@@ -20,10 +20,9 @@
 #endif  // MDV_WITH_RERUN_SDK
 
 
-using namespace mdv::mesh;
-
 int
 main(int argc, char* argv[]) {
+    using namespace mdv::mesh;
     Mesh::default_logger = mdv::static_logger_factory("Mesh");
     Mesh::default_logger->set_log_level(mdv::Logger::LogLevel::Debug);
 
@@ -88,7 +87,7 @@ main(int argc, char* argv[]) {
     constexpr double err_th  = 1e-9;
     long             n_wrong = 0;
     for (mdv::mesh::Index i = 0; i < sub_mesh.num_vertices(); ++i) {
-        const auto v   = sub_mesh.vertex(i).position();
+        const auto v   = position(sub_mesh, mdv::mesh::VertexId{i});
         const auto err = (v - reconstructed[i]).norm();
         if (err > err_th) ++n_wrong;
     }
@@ -136,15 +135,18 @@ main(int argc, char* argv[]) {
 
     for (mdv::mesh::Index i = 0; i < sub_mesh.num_vertices(); ++i) {
         using mdv::condition::are_equal;
-        if (!are_equal(sub_mesh.vertex(i).position(), filled_mesh.vertex(i).position()))
+        if (!are_equal(
+                    position(sub_mesh, mdv::mesh::VertexId{i}),
+                    position(filled_mesh, mdv::mesh::VertexId{i})
+            ))
             throw std::runtime_error("Vertices have been moved");
     }
 
     for (mdv::mesh::Index i = 0; i < sub_mesh.num_faces(); ++i) {
         const auto f1  = sub_mesh.face(i);
         const auto f2  = filled_mesh.face(i);
-        const auto v1s = f1.vertices_ids();
-        const auto v2s = f2.vertices_ids();
+        const auto v1s = vertices(sub_mesh, FaceId{f1.id()});
+        const auto v2s = vertices(filled_mesh, FaceId{f2.id()});
 
         if ((v1s[0] != v2s[0]) || (v1s[1] != v2s[1]) || (v1s[2] != v2s[2])) {
             throw std::runtime_error("Faces have been changed");

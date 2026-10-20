@@ -20,10 +20,10 @@ TEST(Mesh, Square) {
     EXPECT_EQ(mesh.num_faces(), 2);
     EXPECT_EQ(mesh.num_vertices(), 4);
 
-    EXPECT_TRUE(are_equal(Vec3d{0.0, 0.0, 0.0}, mesh.vertex(0).position()));
-    EXPECT_TRUE(are_equal(Vec3d{1.0, 0.0, 0.0}, mesh.vertex(1).position()));
-    EXPECT_TRUE(are_equal(Vec3d{1.0, 1.0, 0.0}, mesh.vertex(2).position()));
-    EXPECT_TRUE(are_equal(Vec3d{0.0, 1.0, 0.0}, mesh.vertex(3).position()));
+    EXPECT_TRUE(are_equal(Vec3d{0.0, 0.0, 0.0}, position(mesh, VertexId{0})));
+    EXPECT_TRUE(are_equal(Vec3d{1.0, 0.0, 0.0}, position(mesh, VertexId{1})));
+    EXPECT_TRUE(are_equal(Vec3d{1.0, 1.0, 0.0}, position(mesh, VertexId{2})));
+    EXPECT_TRUE(are_equal(Vec3d{0.0, 1.0, 0.0}, position(mesh, VertexId{3})));
 
     const auto pt_on_v0 = Point::from_cartesian(mesh, Vec3d{0.0, 0.0, 0.0});
     EXPECT_NO_THROW(std::get<Point::PointOnVertexDescriptor>(pt_on_v0.descriptor()));
@@ -90,16 +90,16 @@ TEST(Mesh, SquareProjectionAndBoundaryInvariants) {
     for (Index i = 0; i < mesh.num_faces(); ++i) {
         SCOPED_TRACE(i);
         const auto face = mesh.face(i);
-        for (const auto id : face.vertices_ids()) {
-            SCOPED_TRACE(id);
-            const HalfEdge he{mesh.vertex(id), face};
-            const Vec3d    vertex    = mesh.vertex(id).position();
-            const auto     on_vertex = Point::from_cartesian(mesh, vertex);
+        for (const auto id : vertices(mesh, FaceId{face.id()})) {
+            SCOPED_TRACE(id.value);
+            const HalfEdgeId he        = halfedge(mesh, id, FaceId{face.id()});
+            const Vec3d      vertex    = position(mesh, id);
+            const auto       on_vertex = Point::from_cartesian(mesh, vertex);
             EXPECT_EQ(location_type(on_vertex), LocationType::ON_VERTEX);
             EXPECT_NEAR((on_vertex.position() - vertex).norm(), 0.0, 1e-12);
 
             // Convex combinations with one/two zero weights lie on an edge/vertex.
-            const Vec3d edge_position = vertex + 0.3 * he.direction();
+            const Vec3d edge_position = vertex + 0.3 * direction(mesh, he);
             const auto  on_edge       = Point::from_cartesian(mesh, edge_position);
             ASSERT_EQ(location_type(on_edge), LocationType::ON_EDGE);
             EXPECT_NEAR((on_edge.position() - edge_position).norm(), 0.0, 1e-12);
@@ -172,7 +172,9 @@ TEST(Mesh, SquareMapAndTransportInvariants) {
                 1e-9
         );
         EXPECT_NEAR(
-                pv.cartesian_vector().dot(pv.application_point().face().normal()),
+                pv.cartesian_vector().dot(
+                        normal(mesh, FaceId{pv.application_point().face().id()})
+                ),
                 0.0,
                 1e-9
         );

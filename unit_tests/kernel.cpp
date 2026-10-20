@@ -93,7 +93,16 @@ TEST(MeshKernel, DeterministicDistanceMatrixInvariants) {
     const auto mesh = Mesh::from_file(config::meshes_directory() / "torus_simple.off");
     const auto face = mesh.face(0);
     const auto edge = Point::PointOnEdgeDescriptor(
-            HalfEdge{mesh.vertex(face.vertices_ids()[0]), face}, 0.3
+            HalfEdge{
+                    mesh,
+                    halfedge(
+                            mesh,
+                            vertices(mesh, FaceId{face.id()})[0],
+                            FaceId{face.id()}
+                    )
+                            .value
+            },
+            0.3
     );
     const std::vector<Point> points{
             Point(mesh.vertex(0)),

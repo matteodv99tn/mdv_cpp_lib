@@ -63,6 +63,7 @@ class FlatParameterisation:
         mesh : Mesh
             Mesh to parameterize.
         """
+        self._mesh = mesh
         self._parameterisation_impl = _FlatParameterisationImpl(mesh._mesh_impl)
 
     def is_one_to_one_mapping(self) -> bool:
@@ -127,7 +128,7 @@ class FlatParameterisation:
         """
         uv_vec = as_vector(uv, size=2, name="uv")
         point_impl = self._parameterisation_impl.retrieve(uv_vec)
-        return Point(point_impl)
+        return Point(point_impl, mesh=self._mesh)
 
     def is_inside_mesh(self, uv: ArrayLike) -> bool:
         """

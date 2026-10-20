@@ -45,7 +45,7 @@ public:
          */
         MDV_NODISCARD CartesianPoint
         position() const noexcept {
-            return _v.position();
+            return mesh::position(_v.mesh(), VertexId{_v.id()});
         }
 
         /**

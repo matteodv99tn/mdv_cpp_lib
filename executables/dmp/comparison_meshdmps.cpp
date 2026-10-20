@@ -29,64 +29,72 @@
 #endif  // MDV_WITH_RERUN_SDK
 
 
+namespace mdv::mesh {
 namespace rs = ::ranges;
 namespace rv = ::ranges::views;
 using Quat   = Eigen::Quaterniond;
 
-std::string
-to_string(const Quat& q) {
-    std::stringstream ss;
-    ss << q;
-    return ss.str();
-}
-
-using namespace mdv::mesh;
-
-template <typename T>
-std::vector<double>
-get_component_vector(const std::vector<T>& vec, const long id) {
-    std::vector<double> res;
-    res.reserve(vec.size());
-    for (const auto& v : vec) res.emplace_back(v(id));
-    return res;
-}
-
-Eigen::Vector3d
-average(const mdv::mesh::Geodesic& path) {
-    Eigen::Vector3d zero = Eigen::Vector3d::Zero();
-    return rs::accumulate(path, zero) / double(path.size());
-}
-
-Eigen::Vector3d
-normal_projection(const mdv::mesh::Point& p, const Eigen::Vector3d& v) {
-    const auto n = p.face().normal();
-    return (mdv::Mat3d::Identity() - n * n.transpose()) * v;
-}
-
-void
-write_matrix(
-        FILE* file, const std::string& varname, const std::vector<Eigen::Vector3d>& data
-) {
-    fmt::print(file, "\n{} = np.array([\n", varname);
-    for (const auto& v : data)
-        fmt::print(file, "    [{}, {}, {}],\n", v(0), v(1), v(2));
-    fmt::print(file, "])\n");
-}
-
-std::vector<Eigen::Vector3d>
-move_outward(const mdv::mesh::Mesh& mesh, const std::vector<Eigen::Vector3d>& data) {
-    std::vector<Eigen::Vector3d> res;
-    res.reserve(data.size());
-
-    for (const auto& p : data) {
-        const auto pt = Point::from_cartesian(mesh, p);
-        res.emplace_back(p + 0.003 * pt.face().normal());
+namespace {
+    std::string
+    to_string(const Quat& q) {
+        std::stringstream ss;
+        ss << q;
+        return ss.str();
     }
-    return res;
-}
+
+    template <typename T>
+    std::vector<double>
+    get_component_vector(const std::vector<T>& vec, const long id) {
+        std::vector<double> res;
+        res.reserve(vec.size());
+        for (const auto& v : vec) res.emplace_back(v(id));
+        return res;
+    }
+
+    Eigen::Vector3d
+    average(const mdv::mesh::Geodesic& path) {
+        Eigen::Vector3d zero = Eigen::Vector3d::Zero();
+        return rs::accumulate(path, zero) / double(path.size());
+    }
+
+    Eigen::Vector3d
+    normal_projection(const mdv::mesh::Point& p, const Eigen::Vector3d& v) {
+        const auto n = normal(p.mesh(), FaceId{p.face().id()});
+        return (mdv::Mat3d::Identity() - n * n.transpose()) * v;
+    }
+
+    void
+    write_matrix(
+            FILE*                               file,
+            const std::string&                  varname,
+            const std::vector<Eigen::Vector3d>& data
+    ) {
+        fmt::print(file, "\n{} = np.array([\n", varname);
+        for (const auto& v : data)
+            fmt::print(file, "    [{}, {}, {}],\n", v(0), v(1), v(2));
+        fmt::print(file, "])\n");
+    }
+
+    std::vector<Eigen::Vector3d>
+    move_outward(
+            const mdv::mesh::Mesh& mesh, const std::vector<Eigen::Vector3d>& data
+    ) {
+        std::vector<Eigen::Vector3d> res;
+        res.reserve(data.size());
+
+        for (const auto& p : data) {
+            const auto pt = Point::from_cartesian(mesh, p);
+            res.emplace_back(p + 0.003 * normal(mesh, FaceId{pt.face().id()}));
+        }
+        return res;
+    }
+
+}  // namespace
+}  // namespace mdv::mesh
 
 int
 main() {
+    using namespace mdv::mesh;
     const long n_samples = 500;
 
     const auto eight_function = [](const double t) -> mdv::Vec2d {
@@ -170,7 +178,7 @@ main() {
     rec.log_static("bunny/original_path", LineStrips3D(std::move(original_path)));
 
     const auto       new_g = Point::from_cartesian(target_mesh, get_bunny_centre());
-    const auto       n     = new_g.face().normal();
+    const auto       n     = normal(target_mesh, FaceId{new_g.face().id()});
     const mdv::Vec3d dir   = normal_projection(new_g, mdv::Vec3d::UnitY()).normalized();
     assert(mdv::condition::are_orthogonal(dir, n));
 

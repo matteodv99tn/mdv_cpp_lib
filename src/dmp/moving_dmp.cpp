@@ -13,15 +13,9 @@
 #include "mdv/riemann_geometry/mesh.hpp"
 #include "mdv/utils/logging.hpp"
 
-
+namespace mdv {
 namespace rs = ::ranges;
 namespace rv = ::ranges::views;
-
-namespace mdv {
-using mesh::Geodesic;
-using mesh::Mesh;
-using mesh::Point;
-using mesh::TangentVector;
 
 using Vec3 = Eigen::Vector3d;
 using Quat = Eigen::Quaterniond;
@@ -33,17 +27,17 @@ using MeshDmp  = mdv::RhytmicDmp<M, Emb>;
 using MeshDemo = mdv::Demonstration<M>;
 
 namespace {
-    std::vector<Point>
-    eigen_to_meshpt(const Mesh& mesh, const Geodesic& geod) {
+    std::vector<mesh::Point>
+    eigen_to_meshpt(const mesh::Mesh& mesh, const mesh::Geodesic& geod) {
         return geod | rv::transform([&mesh](const Vec3 pt) {
-                   return Point::from_cartesian(mesh, pt);
+                   return mesh::Point::from_cartesian(mesh, pt);
                })
                | rs::to_vector;
     }
 
-    Geodesic
-    meshpt_to_eigen(const std::vector<Point>& geod) {
-        return geod | rv::transform([](const Point& pt) { return pt.position(); })
+    mesh::Geodesic
+    meshpt_to_eigen(const std::vector<mesh::Point>& geod) {
+        return geod | rv::transform([](const mesh::Point& pt) { return pt.position(); })
                | rs::to_vector;
     }
 
@@ -71,18 +65,20 @@ namespace {
 
 }  // namespace
 
-std::vector<Point>
+std::vector<mesh::Point>
 generate_trajectory(
-        const MovingDmpParameters params, Mesh& mesh, const Geodesic& centroid_path
+        const MovingDmpParameters params,
+        mesh::Mesh&               mesh,
+        const mesh::Geodesic&     centroid_path
 ) {
     const auto& logger = *get_default_logger();
 
     logger.info("Generating and learning simple circular demonstration");
-    const auto flat_mesh = Mesh::from_file(mesh::create_flat(5.0));
+    const auto flat_mesh = mesh::Mesh::from_file(mesh::create_flat(5.0));
 
-    const auto generate_pos = [&flat_mesh](const double theta) -> Point {
+    const auto generate_pos = [&flat_mesh](const double theta) -> mesh::Point {
         Vec3 pos{-std::sin(theta), std::cos(theta), 0.0};
-        return Point::from_cartesian(flat_mesh, pos);
+        return mesh::Point::from_cartesian(flat_mesh, pos);
     };
 
     const auto thetas = create_equispaced(100, 0.0, 2 * M_PI, true);
@@ -97,7 +93,7 @@ generate_trajectory(
 
     MeshDmp dmp;
     dmp.tau     = 1.0;
-    auto origin = Point::from_cartesian(flat_mesh, Vec3::Zero());
+    auto origin = mesh::Point::from_cartesian(flat_mesh, Vec3::Zero());
     dmp.embedding().setup_from_point_and_direction(origin, Vec3::UnitY());
     logger.debug("Embedding setup");
 
@@ -167,17 +163,17 @@ generate_trajectory(
             params.circle_radius
     );
     const auto& g0 = g_pt_path.front();
-    const Vec3  n0 = g0.face().normal();
+    const Vec3  n0 = mesh::normal(mesh, mesh::FaceId{g0.face().id()});
     const Vec3  v0 = normal_projection(get_direction(0), n0);
     const Vec3  d0 = n0.cross(v0).normalized() * params.circle_radius;
 
-    auto y = mesh::exponential_map(TangentVector::from_ambient_vector(g0, d0));
+    auto y = mesh::exponential_map(mesh::TangentVector::from_ambient_vector(g0, d0));
     M::TangentVector v = Vec3::Zero();
     update_embedding(0);
 
 
-    std::size_t        k_g = 0;
-    std::vector<Point> res;
+    std::size_t              k_g = 0;
+    std::vector<mesh::Point> res;
     res.reserve(static_cast<std::size_t>(geod_steps));
     dmp.tau = params.dmp_tau;
     std::chrono::milliseconds dt(params.dt_ms);
@@ -200,7 +196,9 @@ generate_trajectory(
 
 std::vector<mdv::mesh::Point>
 upsample_to_1khz(
-        const Mesh& mesh, const std::vector<Point>& in_path, MovingDmpParameters params
+        const mesh::Mesh&               mesh,
+        const std::vector<mesh::Point>& in_path,
+        MovingDmpParameters             params
 ) {
     if (params.dt_ms == 1) return in_path;
 
@@ -220,7 +218,7 @@ upsample_to_1khz(
     assert(std::ssize(interp_coords) == samples_to_add);
 
     const auto upsample_segment =
-            [&interp_coords](const Vec3 p0, const Vec3 p1) -> Geodesic {
+            [&interp_coords](const Vec3 p0, const Vec3 p1) -> mesh::Geodesic {
         const Vec3 delta = p1 - p0;
         return interp_coords | rv::transform([&p0, &delta](const double s) -> Vec3 {
                    return p0 + s * delta;
@@ -228,31 +226,33 @@ upsample_to_1khz(
                | rs::to_vector;
     };
 
-    const Geodesic downsampled_path =
+    const mesh::Geodesic downsampled_path =
             in_path
             | rv::transform([](const auto& pt) -> Vec3 { return pt.position(); })
             | rs::to_vector;
 
     const auto upsampled_path =
             downsampled_path | rv::sliding(2)
-            | rv::transform([&upsample_segment](const auto& rng) -> Geodesic {
+            | rv::transform([&upsample_segment](const auto& rng) -> mesh::Geodesic {
                   return upsample_segment(rng[0], rng[1]);
               })
-            | rs::to<std::vector<Geodesic>>;
-    const Geodesic vec = rv::join(upsampled_path) | rs::to_vector;
+            | rs::to<std::vector<mesh::Geodesic>>;
+    const mesh::Geodesic vec = rv::join(upsampled_path) | rs::to_vector;
 
-    return vec | rv::transform([&mesh](const Vec3& pos) -> Point {
-               return Point::from_cartesian(mesh, pos);
+    return vec | rv::transform([&mesh](const Vec3& pos) -> mesh::Point {
+               return mesh::Point::from_cartesian(mesh, pos);
            })
            | rs::to_vector;
 }
 
 std::vector<Quat>
-encode_orientation(const std::vector<Point>& in_path, const bool flip_orientation) {
+encode_orientation(
+        const std::vector<mesh::Point>& in_path, const bool flip_orientation
+) {
     const double z_mult             = flip_orientation ? -1.0 : 1.0;
-    const auto   compute_quaternion = [z_mult](const Point& pt) -> Quat {
+    const auto   compute_quaternion = [z_mult](const mesh::Point& pt) -> Quat {
         const Vec3 dx = Vec3::UnitX();
-        const Vec3 vz = z_mult * pt.face().normal();
+        const Vec3 vz = z_mult * mesh::normal(pt.mesh(), mesh::FaceId{pt.face().id()});
         const Vec3 vx = (dx - dx.dot(vz) * vz).normalized();
         const Vec3 vy = vz.cross(vx);
         Mat3d      rot;

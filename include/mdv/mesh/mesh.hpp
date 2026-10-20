@@ -192,13 +192,6 @@ public:
     }
 
     /**
-     * @brief Retrieves a random face from the mesh.
-     *
-     * @return Random face.
-     */
-    MDV_NODISCARD Face random_face() const;
-
-    /**
      * @brief Constructs an Nx3 matrix with all vertex positions.
      *
      * @return Vertex matrix (N x 3).
@@ -221,14 +214,6 @@ public:
      * @return Face index matrix (N x 3) as doubles.
      */
     MDV_NODISCARD Eigen::MatrixXd get_face_matrix_double() const;
-
-    /**
-     * @brief Returns the closest vertex to a 3D point.
-     *
-     * @param pt Query point in 3D.
-     * @return Closest vertex on the mesh.
-     */
-    MDV_NODISCARD Vertex closest_vertex(const CartesianPoint& pt) const;
 
 private:
     /**

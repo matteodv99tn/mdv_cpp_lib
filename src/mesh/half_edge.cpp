@@ -3,96 +3,81 @@
 #include <fmt/format.h>
 
 #include "mdv/mesh/cgal_impl.hpp"
-#include "mdv/mesh/mesh_element.hpp"
+#include "mdv/mesh/face.hpp"
+#include "mdv/mesh/vertex.hpp"
 #include "mdv/utils/conditions.hpp"
 
 namespace mdv::mesh {
 
-HalfEdge::HalfEdge(const Vertex& v, const Face& f) :
-        internal::IndexedMeshElement(v.mesh(), invalid_index) {
-    assert(&v.mesh() == &f.mesh());
-
-    using VertexIndex = internal::CgalImpl::CgalVertexIndex;
-    using FaceIndex   = internal::CgalImpl::CgalFaceIndex;
-
-    const VertexIndex v_id{v.id()};
-    const FaceIndex   f_id{f.id()};
-    const auto&       m = internal::get_mesh_impl(v.mesh());
-
+HalfEdgeId
+halfedge(const Mesh& mesh, VertexId v, FaceId f) {
+    const auto  v_id = internal::to_cgal(v);
+    const auto  f_id = internal::to_cgal(f);
+    const auto& m    = internal::cgal_mesh(mesh);
     for (const auto he_id : CGAL::halfedges_around_face(CGAL::halfedge(f_id, m), m)) {
-        if (source(he_id, m) == v_id) {
-            set_id(he_id);
-            break;
-        }
+        if (source(he_id, m) == v_id) return internal::from_cgal(he_id);
     }
-
-    if (id() == invalid_index) {
-        const std::string msg = fmt::format(
-                "Face #{} does not contain vertex #{}; cannot initialise proper "
-                "halfedge",
-                f_id.idx(),
-                v_id.idx()
-        );
-        throw std::runtime_error(msg.c_str());
-    };
+    throw std::runtime_error(
+            fmt::format(
+                    "Face #{} does not contain vertex #{}; cannot initialise proper "
+                    "halfedge",
+                    f_id.idx(),
+                    v_id.idx()
+            )
+    );
 }
 
-Face
-HalfEdge::face() const noexcept {
-    const auto& m  = internal::get_mesh_impl(*this);
-    const auto  id = CGAL::face(internal::to_halfedge_impl(*this), m);
-    return {mesh(), id};
+FaceId
+face(const Mesh& mesh, HalfEdgeId h) {
+    return internal::from_cgal(
+            CGAL::face(internal::to_cgal(h), internal::cgal_mesh(mesh))
+    );
 }
 
-Eigen::Vector3d
-HalfEdge::inbound_direction() const {
-    using Vec3   = Eigen::Vector3d;
-    using Mat3   = Eigen::Matrix3d;
-    const Vec3 e = normalised_direction();         // current edge
-    const Vec3 v = next().normalised_direction();  // vector w.r.t. which will be
-                                                   // rendered orthoghonal to e
+Vec3d
+direction(const Mesh& mesh, HalfEdgeId h) {
+    const auto& m  = internal::cgal_mesh(mesh);
+    const auto  id = internal::to_cgal(h);
+    return position(mesh, internal::from_cgal(CGAL::source(CGAL::next(id, m), m)))
+           - position(mesh, internal::from_cgal(CGAL::source(id, m)));
+}
 
-    const Mat3 proj = (Mat3::Identity() - e * e.transpose());
-    const Vec3 res  = (proj * v).normalized();
-
-    assert(mdv::condition::are_orthogonal(e, res));
-    assert(mdv::condition::are_orthogonal(face().normal(), res));
-
+Vec3d
+inbound_direction(const Mesh& mesh, HalfEdgeId h) {
+    const auto& m = internal::cgal_mesh(mesh);
+    const Vec3d e = direction(mesh, h).normalized();
+    const Vec3d v =
+            direction(mesh, internal::from_cgal(CGAL::next(internal::to_cgal(h), m)))
+                    .normalized();
+    const Mat3d proj = (Mat3d::Identity() - e * e.transpose());
+    const Vec3d res  = (proj * v).normalized();
+    assert(condition::are_orthogonal(e, res));
+    assert(condition::are_orthogonal(normal(mesh, face(mesh, h)), res));
     return res;
 }
 
-HalfEdge
-HalfEdge::next() const noexcept {
-    const auto& m  = internal::get_mesh_impl(*this);
-    const auto  id = internal::to_halfedge_impl(*this);
-    return {mesh(), CGAL::next(id, m)};
+HalfEdgeId
+prev(const Mesh& mesh, HalfEdgeId h) {
+    return internal::from_cgal(
+            CGAL::prev(internal::to_cgal(h), internal::cgal_mesh(mesh))
+    );
 }
 
-HalfEdge
-HalfEdge::prev() const noexcept {
-    const auto& m  = internal::get_mesh_impl(*this);
-    const auto  id = internal::to_halfedge_impl(*this);
-    return {mesh(), CGAL::prev(id, m)};
-}
-
-HalfEdge
-HalfEdge::twin() const noexcept {
-    const auto& m  = internal::get_mesh_impl(*this);
-    const auto  id = internal::to_halfedge_impl(*this);
-    return {mesh(), CGAL::opposite(id, m)};
-}
-
-Vertex
-HalfEdge::origin() const noexcept {
-    const auto& m  = internal::get_mesh_impl(*this);
-    const auto  id = internal::to_halfedge_impl(*this);
-    return {mesh(), CGAL::source(id, m)};
+HalfEdgeId
+twin(const Mesh& mesh, HalfEdgeId h) {
+    return internal::from_cgal(
+            CGAL::opposite(internal::to_cgal(h), internal::cgal_mesh(mesh))
+    );
 }
 
 std::string
 HalfEdge::describe() const {
+    const auto& m = internal::cgal_mesh(mesh());
+    const auto  h = internal::to_cgal(HalfEdgeId{id()});
     return fmt::format(
-            "HalfEdge on face #{} with origin vertex #{}", face().id(), origin().id()
+            "HalfEdge on face #{} with origin vertex #{}",
+            CGAL::face(h, m).idx(),
+            CGAL::source(h, m).idx()
     );
 }
 

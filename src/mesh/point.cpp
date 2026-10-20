@@ -28,7 +28,9 @@ namespace rv = ::ranges::views;
 std::string
 Point::PointOnVertexDescriptor::describe() const {
     return fmt::format(
-            "Point on vertex #{} located at {}", _v.id(), eigen_to_str(_v.position())
+            "Point on vertex #{} located at {}",
+            _v.id(),
+            eigen_to_str(mesh::position(_v.mesh(), VertexId{_v.id()}))
     );
 };
 
@@ -279,8 +281,11 @@ Point::from_cartesian(const Mesh& mesh, const CartesianPoint& cartesian_pt) {
             true
     );
 
-    if (n_zero_coords == 2)
-        return PointOnVertexDescriptor{mesh.closest_vertex(cartesian_pt)};
+    if (n_zero_coords == 2) {
+        return PointOnVertexDescriptor{
+                Vertex{mesh, closest_vertex(mesh, cartesian_pt).value}
+        };
+    }
 
     if (n_zero_coords == 1) return PointOnEdgeDescriptor::from_face(face, cartesian_pt);
 
@@ -307,7 +312,7 @@ Point::random(const Mesh& m) {
     static std::random_device rand_dev;
     static std::mt19937       generator(rand_dev());
 
-    const auto&                            face = m.random_face();
+    const Face                             face{m, random_face(m).value};
     std::uniform_real_distribution<double> distribution(0.1, 0.9);
 
     const double b0 = distribution(generator);

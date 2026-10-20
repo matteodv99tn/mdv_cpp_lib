@@ -58,13 +58,16 @@ class Point:
         Face on which the point is located.
     """
 
-    def __init__(self, point_impl: Union[_PointImpl, Vertex]):
+    def __init__(self, point_impl: Union[_PointImpl, Vertex], *, mesh: "Mesh | None" = None):
         """Initialize a Point wrapper.
 
         Parameters
         ----------
         point_impl : _PointImpl or Vertex
             The underlying SWIG point object, or a Vertex to convert into a Point.
+        mesh : Mesh, optional
+            Required owner when wrapping a raw SWIG implementation. Vertex inputs
+            already carry their owner.
 
         Raises
         ------
@@ -72,9 +75,15 @@ class Point:
             If ``point_impl`` is not a supported type.
         """
         if isinstance(point_impl, Vertex):
-            self._point_impl = _PointImpl(point_impl._vertex_impl)
+            from . import _mesh_impl as _impl
+
+            self._mesh = point_impl.mesh
+            self._point_impl = _impl.point_from_vertex(self._mesh._mesh_impl, point_impl.id)
             return
         if isinstance(point_impl, _PointImpl):
+            if mesh is None:
+                raise TypeError("Wrapping a raw Point implementation requires its mesh owner.")
+            self._mesh = mesh
             self._point_impl = point_impl
             return
         raise TypeError(
@@ -119,7 +128,7 @@ class Point:
         """
         from .face import Face
 
-        return Face(self._point_impl.face())
+        return Face(self._mesh, self._point_impl.face())
 
     def describe(self) -> str:
         """Get a string description of the point.
@@ -148,7 +157,7 @@ class Point:
             New point created from cartesian coordinates.
         """
         position_vec = as_vector(position, size=3, name="position")
-        return Point(_PointImpl.from_cartesian(mesh._mesh_impl, position_vec))
+        return Point(_PointImpl.from_cartesian(mesh._mesh_impl, position_vec), mesh=mesh)
 
     @staticmethod
     def random(mesh: "Mesh") -> "Point":
@@ -164,4 +173,4 @@ class Point:
         Point
             Random point on the mesh.
         """
-        return Point(_PointImpl.random(mesh._mesh_impl))
+        return Point(_PointImpl.random(mesh._mesh_impl), mesh=mesh)
