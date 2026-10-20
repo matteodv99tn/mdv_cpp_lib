@@ -82,9 +82,9 @@ geodesic_resample(const Geodesic& geod, std::vector<double> coordinates) {
     Geodesic     res;
     const double len = length(geod);
     res.reserve(coordinates.size());
-    rs::transform(coordinates, std::back_inserter(res), [geod, len](const double s) {
-        return point_from_geodesic(geod, s, &len);
-    });
+    for (const double s : coordinates) {
+        res.push_back(point_from_geodesic(geod, s, &len));
+    }
     return res;
 };
 

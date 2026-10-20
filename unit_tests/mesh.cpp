@@ -15,6 +15,28 @@
 namespace mdv::mesh {
 namespace fs = std::filesystem;
 
+TEST(MeshGeodesic, ResamplePreservesCoordinateOrderAndClampsEndpoints) {
+    const Geodesic geod{
+            {0.0, 0.0, 0.0},
+            {2.0, 0.0, 0.0},
+            {2.0, 2.0, 0.0}
+    };
+    const std::vector<double> coordinates{1.5, 0.25, -0.5, 0.75};
+    const Geodesic            expected{
+            {2.0, 2.0, 0.0},
+            {1.0, 0.0, 0.0},
+            {0.0, 0.0, 0.0},
+            {2.0, 1.0, 0.0}
+    };
+
+    const auto resampled = geodesic_resample(geod, coordinates);
+    ASSERT_EQ(resampled.size(), expected.size());
+    for (std::size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_NEAR((resampled[i] - expected[i]).norm(), 0.0, 1e-12);
+    }
+    EXPECT_TRUE(geodesic_resample(geod, std::vector<double>{}).empty());
+}
+
 TEST(MeshGeodesic, RandomPoints) {
     const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto     mesh      = Mesh::from_file(mesh_path);
