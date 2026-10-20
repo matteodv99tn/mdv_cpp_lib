@@ -6,7 +6,7 @@ echo "FOUND os: $os"
 
 case "$os" in
     arch)
-        pacman -Syu --noconfirm --needed git cmake base-devel clang eigen fmt spdlog cgal gtest range-v3 microsoft-gsl matio;
+        pacman -Syu --noconfirm --needed git cmake base-devel clang eigen fmt spdlog cgal gtest range-v3 microsoft-gsl libmatio;
         ;;
 
     ubuntu)
