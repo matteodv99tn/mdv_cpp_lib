@@ -1,11 +1,13 @@
 #include "mdv/mesh/tangent_vector.hpp"
 
+#include <cstdlib>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <filesystem>
 #include <gtest/gtest.h>
 #include <numbers>
 #include <stdexcept>
+#include <unistd.h>
 #include <vector>
 
 #include "mdv/config.hpp"
@@ -510,6 +512,39 @@ TEST(TangentVector, FrameAndNormalisationSurviveMeshMove) {
     auto        moved        = std::move(mesh);
     EXPECT_NEAR(v.cartesian_vector().dot(normal(moved, v.face())), 0.0, 1e-12);
     EXPECT_NEAR((tip(moved, v) - original_tip).norm(), 0.0, 1e-12);
+}
+
+// Regression: the geodesic crosses edge 67-1382 about 1e-8 away from vertex 67; the
+// walk then bounced between faces 381 and 53, firing an assert in Debug and hanging
+// in Release. Run in a child process so both failures are reported, not fatal.
+TEST(TangentVectorDeathTest, ExponentialMapNearVertexTerminates) {
+    ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
+    EXPECT_EXIT(
+            {
+                alarm(2);
+                const auto mesh = Mesh::from_file(
+                        config::meshes_directory() / "bunny_simple.off"
+                );
+                const Point p(
+                        mesh,
+                        FaceId{381},
+                        {0.0082300908311814247,
+                         0.88294487025889135,
+                         0.10882503890992713}
+                );
+                const TangentVector v(
+                        mesh,
+                        p,
+                        {-0.63980435339904296,
+                         -0.043272505502871726,
+                         0.89804960738758843}
+                );
+                static_cast<void>(exponential_map(mesh, v));
+                std::exit(0);
+            },
+            ::testing::ExitedWithCode(0),
+            ""
+    );
 }
 
 }  // namespace mdv::mesh
