@@ -225,6 +225,13 @@ tangent = sampler.unit_tangent(points[0])  # requires a face-interior point
 This replaces `Mesh.random_face()`, `Point.random(mesh)` and
 `TangentVector.unit_random(point)`.
 
+Sampling is geometrically uniform: faces/surface points use triangle area,
+edges use length, vertices use barycentric dual area, and tangent angles are
+uniform in the face plane. Surface barycentrics and edge parameters have an
+internal `1e-6` boundary margin. Empty or entirely zero-area meshes are rejected.
+Weights snapshot the mesh at construction: rebuild the sampler after topology
+edits or non-uniform scaling/shear. Uniform scaling preserves relative weights.
+
 ## Debugging and troubleshooting
 
 - If import fails, verify that both `_MODULE_impl.py` and `_libMODULE.so` are in

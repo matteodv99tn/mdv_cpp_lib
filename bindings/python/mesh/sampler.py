@@ -8,7 +8,12 @@ from .tangent_vector import TangentVector
 
 
 class Sampler:
-    """Seedable sampler retaining its mesh owner.
+    """Geometrically uniform, seedable sampler retaining its mesh owner.
+
+    Faces and surface points are area-weighted, edges length-weighted, and
+    vertices weighted by barycentric dual area. Tangent directions are uniform.
+    Weights snapshot the geometry: rebuild after topology edits or non-uniform
+    scaling/shear. Uniform scaling preserves relative weights.
 
     Parameters
     ----------
@@ -31,11 +36,11 @@ class Sampler:
         return Point(self._sampler_impl.point_on_vertex(), mesh=self._mesh)
 
     def point_on_edge(self) -> Point:
-        """Return a sampled edge-interior point."""
+        """Return a length-weighted edge point, with t in [1e-6, 1 - 1e-6]."""
         return Point(self._sampler_impl.point_on_edge(), mesh=self._mesh)
 
     def point_in_face(self) -> Point:
-        """Return a sampled face-interior point."""
+        """Return an area-uniform surface point with barycentrics >= 1e-6."""
         return Point(self._sampler_impl.point_in_face(), mesh=self._mesh)
 
     def unit_tangent(self, point: Point) -> TangentVector:
