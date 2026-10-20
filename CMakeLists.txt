@@ -10,6 +10,10 @@ option(BUILD_BINDINGS "" OFF)
 option(USE_RERUN "" OFF)
 option(CGAL_DO_NOT_USE_BOOST_MP "Use CGAL's GMP fallback instead of Boost.Multiprecision/CORE" ON)
 
+if(BUILD_EXECUTABLES AND NOT USE_RERUN)
+    message(FATAL_ERROR "BUILD_EXECUTABLES requires USE_RERUN=ON")
+endif()
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -42,9 +46,9 @@ find_and_log_required(fmt)
 find_and_log_required(range-v3)
 find_and_log_required(Microsoft.GSL)
 if(USE_RERUN)
-    find_and_log_required(rerun_sdk)
-else()
-    find_and_log(rerun_sdk)
+    # The precompiled 0.25.1 SDK still reports an older package version.
+    find_package(rerun_sdk CONFIG REQUIRED)
+    message(STATUS "Package rerun_sdk found at ${rerun_sdk_DIR}")
 endif()
 
 # Build libmatioCpp
@@ -240,9 +244,6 @@ endif()
 # |_____/_/\_\___|\___|\__,_|\__\__,_|_.__/|_|\___||___/
 #
 if(BUILD_EXECUTABLES)
-    if(NOT USE_RERUN)
-        message(FATAL_ERROR "BUILD_EXECUTABLES requires USE_RERUN=ON")
-    endif()
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/mesh)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/executables/dmp)
 endif()
@@ -311,7 +312,7 @@ if(ament_cmake_FOUND)
         range-v3
         Microsoft.GSL
     )
-    if(rerun_sdk_FOUND)
+    if(USE_RERUN)
         ament_export_dependencies(rerun_sdk)
     endif()
 

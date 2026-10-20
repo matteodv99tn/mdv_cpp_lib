@@ -23,15 +23,15 @@ apt-get install -y \
 ```
 
 The lonely (optional) dependency which cannot be installed by APT is the [rerun](https://github.com/rerun-io/rerun) C++ SDK.
-For convenience, the [matteodv99tn/rerun-sdk-precompiled](https://github.com/matteodv99tn/rerun-sdk-precompiled) repository hosts the precompiled binaries of the SDK as a [prerelease](https://github.com/matteodv99tn/rerun-sdk-precompiled/releases/tag/prerelease).
+For convenience, the [matteodv99tn/rerun-sdk-precompiled](https://github.com/matteodv99tn/rerun-sdk-precompiled) repository hosts the precompiled binaries of SDK 0.25.1.
 
 On Ubuntu 22.04, you may install the precompiled debian package by first fetching it
 ```bash
-curl -LO https://github.com/matteodv99tn/rerun-sdk-precompiled/releases/download/prerelease/rerun-cpp-sdk_0.20_3.deb
+curl -fLO https://github.com/matteodv99tn/rerun-sdk-precompiled/releases/download/v0.25.1/rerun-cpp-sdk_0.25_1.deb
 ```
 and then installing it
 ```bash
-dpkg -i rerun-cpp-sdk*.deb
+sudo apt-get install -y ./rerun-cpp-sdk_0.25_1.deb
 ```
 
 
@@ -40,15 +40,15 @@ For instance, installing on Arch linux may couse problems.
 
 ### Build from source
 
-If you want to build the external dependencies from source, a convenient [``CMakeLists.txt``](cmake/CMakeLists.txt) file is provided in order to preliminary fetch those library using cmake's [``ExternalProject``](https://cmake.org/cmake/help/latest/module/ExternalProject.html) functionalities.
+If you want to build the external dependencies from source, a convenient [``CMakeLists.txt``](cmake/CMakeLists.txt) file is provided in order to preliminary fetch those library using cmake's [``ExternalProject``](https://cmake.org/cmake/help/latest/module/ExternalProject.html) functionalities. Rerun is excluded: install its SDK separately before configuring with `USE_RERUN=ON`. Configuration fails if the SDK is unavailable. No SDK version constraint is applied because the precompiled 0.25.1 package still reports an older version.
 
 - Configure the project
   ```bash
-  cmake -S cmake -B cmake/build
+   cmake -S cmake -B cmake/build -G Ninja
   ```
 - Build the external dependencies
   ```bash
-  cmake --build cmake/build
+   cmake --build cmake/build --parallel 16
   ```
 
 These libraries will be installed at `cmake/install`, and such path will be automatically added by `cmake` to its path within the main [`CMakeLists.txt`](./CMakeLists.txt) of the library.
