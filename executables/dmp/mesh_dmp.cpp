@@ -6,8 +6,6 @@
 #include <sstream>
 #include <string>
 
-#include <range/v3/algorithm/transform.hpp>
-
 #include "mdv/dmp/coordinate_system/coordinate_system.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/utils/logging.hpp"
@@ -117,22 +115,16 @@ main() {
     const std::vector<double>     path_coords = mdv::poly_5th(ts);
     std::vector<mdv::mesh::Point> demonstration_path;
     demonstration_path.reserve(ns_demo);
-    ranges::transform(
-            path_coords,
-            std::back_inserter(demonstration_path),
-            [&mesh, &path_f](const double t) -> mdv::mesh::Point {
-                return mdv::mesh::from_cartesian(mesh, path_f(t * 3.14));
-            }
-    );
+    for (const double t : path_coords) {
+        demonstration_path.push_back(mdv::mesh::from_cartesian(mesh, path_f(t * 3.14)));
+    }
 
     // Build cartesian path and visualise it
     std::vector<Eigen::Vector3d> cartesian_demonstration;
     cartesian_demonstration.reserve(demonstration_path.size());
-    ranges::transform(
-            demonstration_path,
-            back_inserter(cartesian_demonstration),
-            [&mesh](const Point& p) { return position(mesh, p); }
-    );
+    for (const auto& p : demonstration_path) {
+        cartesian_demonstration.push_back(position(mesh, p));
+    }
     rec.log_static("demonstration/path", rr_converter(cartesian_demonstration));
 
     const Demo demonstration = Demo::builder(m, demonstration_path.size())

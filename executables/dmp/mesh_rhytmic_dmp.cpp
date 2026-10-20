@@ -4,7 +4,6 @@
 #include <iterator>
 #include <string>
 
-#include <range/v3/algorithm/transform.hpp>
 #include <rerun/recording_stream.hpp>
 
 #include "mdv/dmp/learnable_function.hpp"
@@ -54,16 +53,12 @@ main() {
     const Eigen::VectorXd thetas = Eigen::VectorXd::LinSpaced(n_samples, 0, 2.0 * M_PI);
     std::vector<Point>    positions;
     positions.reserve(n_samples);
-    ranges::transform(
-            thetas,
-            std::back_inserter(positions),
-            [&fun, &mesh, cx, cy](const double theta) {
-                const double x = cx + 0.5 * std::cos(theta);
-                const double y = cy + 0.5 * std::sin(theta);
-                const double z = fun(x, y);
-                return from_cartesian(mesh, {x, y, z});
-            }
-    );
+    for (const double theta : thetas) {
+        const double x = cx + 0.5 * std::cos(theta);
+        const double y = cy + 0.5 * std::sin(theta);
+        const double z = fun(x, y);
+        positions.push_back(from_cartesian(mesh, {x, y, z}));
+    }
     const Demo demo = Demo::builder(m)
                               .assign_position(positions)
                               .velocity_automatic_differentiation()
@@ -94,9 +89,7 @@ main() {
 
     Geodesic demo_path;
     demo_path.reserve(demo.size());
-    ranges::transform(demo, std::back_inserter(demo_path), [&mesh](const auto& sample) {
-        return position(mesh, sample.y());
-    });
+    for (const auto& sample : demo) { demo_path.push_back(position(mesh, sample.y())); }
     rec.log_static("demonstration_path", to_rr(demo_path));
     for (const auto& sample : demo) {
         rec.set_time_duration_secs("time", mdv::convert::seconds(sample.t()));
@@ -109,9 +102,7 @@ main() {
 
     Geodesic out_path;
     out_path.reserve(out.size());
-    ranges::transform(out, std::back_inserter(out_path), [&mesh](const auto& sample) {
-        return position(mesh, sample.y());
-    });
+    for (const auto& sample : out) { out_path.push_back(position(mesh, sample.y())); }
     rec.log_static("integrated_path", to_rr(out_path));
     for (const auto& sample : out) {
         rec.set_time_duration_secs("time", mdv::convert::seconds(sample.t()));
