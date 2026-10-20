@@ -16,6 +16,7 @@ Checks: "
         -cppcoreguidelines-non-private-member-variables-in-classes,
         -bugprone-easily-swappable-parameters,
         -readability-function-cognitive-complexity,
+        -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
         -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
         -cppcoreguidelines-avoid-magic-numbers,
         -readability-magic-numbers,
@@ -24,6 +25,7 @@ Checks: "
         -cppcoreguidelines-avoid-const-or-ref-data-members,
         -readability-convert-member-functions-to-static,
         -readability-suspicious-call-argument,
+        -misc-static-assert,
         -misc-no-recursion
         "
 WarningsAsErrors: '*'

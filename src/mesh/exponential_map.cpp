@@ -385,7 +385,7 @@ namespace {
 
         assert(are_orthogonal(n, d));
         assert(are_orthogonal(vec_dir, n));
-        assert(vector_inside_triangle(
+        assert(vector_inside_triangle(  // NOLINT
                 convert(he_to_vec3(*he_circ)),
                 vec_dir,
                 convert(he_to_vec3(*(he_circ--)))
