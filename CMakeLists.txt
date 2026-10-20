@@ -116,6 +116,7 @@ add_library(
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/cgal_geodesic.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/point.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/sampler.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/tangent_vector.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/algorithm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/exponential_map.cpp
