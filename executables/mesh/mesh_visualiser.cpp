@@ -19,6 +19,7 @@
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/point.hpp"
+#include "mdv/mesh/sampler.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/rerun.hpp"
 #include "mdv/utils/conditions.hpp"
@@ -63,10 +64,11 @@ main(int argc, char* argv[]) {
     // return 0;
 
     std::cout << "Picking random points\n";
-    const auto pt1 = random_point(mesh);
-    const auto pt2 = random_point(mesh);
+    mdv::mesh::Sampler sampler(mesh, 42);
+    const auto         pt1 = sampler.point_in_face();
+    const auto         pt2 = sampler.point_in_face();
 
-    rec.log("points", to_rerun(mesh, std::vector({pt1, pt2})));
+    rec.log("points", to_rerun(mesh, std::vector<Point>{pt1, pt2}));
 
     std::cout << "Computing the geodesic between the points\n";
     const auto geodesic = build_geodesic(mesh, pt1, pt2);
@@ -80,7 +82,7 @@ main(int argc, char* argv[]) {
 
     const auto log  = logarithmic_map(mesh, pt1, pt2);
     const auto tv1a = logarithmic_map(mesh, pt1, pt2).normalised();
-    const auto tv1b = TangentVector::unit_random(mesh, pt1);
+    const auto tv1b = sampler.unit_tangent(pt1);
     const auto tv2a = parallel_transport(mesh, tv1a, pt2);
     const auto tv2b = parallel_transport(mesh, tv1b, pt2);
 

@@ -1,7 +1,6 @@
 #include "mdv/mesh/point.hpp"
 
 #include <cmath>
-#include <random>
 #include <stdexcept>
 
 #include <range/v3/all.hpp>
@@ -182,20 +181,6 @@ flip(const Mesh& mesh, const PointOnEdge& e) {
     return {.he = twin(mesh, e.he), .t = 1.0 - e.t};
 }
 
-PointOnEdge
-PointOnEdge::random(const Mesh& mesh) {
-    static std::random_device rd;
-    static std::mt19937       generator(rd());
-    const auto&               m = internal::cgal_mesh(mesh);
-    if (m.num_halfedges() == 0) throw std::runtime_error("Cannot sample empty mesh");
-    std::uniform_int_distribution<unsigned> ids(0, m.num_halfedges() - 1);
-    std::uniform_real_distribution<double>  coords(0.0, 1.0);
-    PointOnEdge d{.he = HalfEdgeId{ids(generator)}, .t = coords(generator)};
-    require_member(mesh, d.he);
-    (void)Point{d};
-    return d;
-}
-
 Point
 from_cartesian(const Mesh& mesh, const CartesianPoint& pos) {
     if (!pos.allFinite() || mesh.num_faces() == 0)
@@ -226,21 +211,6 @@ from_cartesian(const Mesh& mesh, const CartesianPoint& pos) {
     }
     return PointInFace{
             .f = internal::from_cgal(f), .bary = {b[0], b[1], b[2]}
-    };
-}
-
-Point
-random_point(const Mesh& mesh) {
-    if (mesh.num_faces() == 0) throw std::runtime_error("Cannot sample empty mesh");
-    static std::random_device rd;
-    static std::mt19937       generator(rd());
-    const auto                f = random_face(mesh);
-    require_member(mesh, f);
-    std::uniform_real_distribution<double> distribution(0.1, 0.9);
-    const double                           b0 = distribution(generator);
-    const double b1 = 0.95 * (1.0 - b0) * distribution(generator);
-    return PointInFace{
-            .f = f, .bary = {b0, b1, 1.0 - b0 - b1}
     };
 }
 

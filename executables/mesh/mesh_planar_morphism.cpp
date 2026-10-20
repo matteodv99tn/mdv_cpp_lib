@@ -9,6 +9,7 @@
 #include "mdv/mesh/flat_parameterisation.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/point.hpp"
+#include "mdv/mesh/sampler.hpp"
 #include "mdv/mesh/vertex.hpp"
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/logging_extras.hpp"
@@ -101,9 +102,10 @@ main(int argc, char* argv[]) {
             sub_mesh.num_vertices()
     );
 
-    double max_err = 0.0;
+    double             max_err = 0.0;
+    mdv::mesh::Sampler sampler(sub_mesh, 42);
     for (long i = 0; i < 2000; ++i) {
-        const auto   pt  = random_point(sub_mesh);
+        const auto   pt  = sampler.point_in_face();
         const auto   uv  = param.project(pt);
         const auto   rev = param.retrieve(uv);
         const double e   = (position(sub_mesh, pt) - position(filled_mesh, rev)).norm();

@@ -1,6 +1,6 @@
 import os.path
 import mdv.mesh
-from mdv.mesh import FlatParameterisation, Mesh, Point
+from mdv.mesh import FlatParameterisation, Mesh, Point, Sampler
 
 VISUALISE_MESH = True
 
@@ -55,10 +55,9 @@ print("    UV map max. coords: ", max_uv)
 print("\nAre min UV coordinates mapping to a point on the mesh?", map.is_inside_mesh(min_uv))
 print("Are max UV coordinates mapping to a point on the mesh?", map.is_inside_mesh(max_uv))
 
-pt = Point.random(mesh)
+pt = Sampler(mesh, 42).point_in_face()
 uv = map.project(pt)
 print("\nRandom point on mesh:", pt.describe())
 print("UV coordinate of the point:", uv)
 print("Are UV coordinates mapping to a point on the mesh?", map.is_inside_mesh(uv))
 print("Reconstructed point:", map.retrieve(uv).describe())
-

@@ -203,6 +203,35 @@ python -c "import mdv.my_module as mm; print(mm.Foo().value())"
 - Maintain `.pyi` stubs alongside the wrappers for clear signatures and IDE
   support. Keep them in sync with runtime behavior.
 
+## Reproducible mesh sampling
+
+Use `Sampler(mesh, seed)` with an explicit unsigned 64-bit seed. A sampler keeps
+its Python mesh owner alive; returned points, faces and tangents retain that owner.
+The same seed and sequence of calls reproduce samples within the same standard
+library implementation.
+
+```python
+from mdv.mesh import Sampler
+
+sampler = Sampler(mesh, 42)
+points = sampler.points_in_faces(100)  # list[Point], suitable for kernels
+edge_point = sampler.point_on_edge()
+vertex_point = sampler.point_on_vertex()
+face = sampler.face()
+tangent = sampler.unit_tangent(points[0])  # requires a face-interior point
+```
+
+`points_on_vertices(n)` and `points_on_edges(n)` also return `list[Point]`.
+This replaces `Mesh.random_face()`, `Point.random(mesh)` and
+`TangentVector.unit_random(point)`.
+
+Sampling is geometrically uniform: faces/surface points use triangle area,
+edges use length, vertices use barycentric dual area, and tangent angles are
+uniform in the face plane. Surface barycentrics and edge parameters have an
+internal `1e-6` boundary margin. Empty or entirely zero-area meshes are rejected.
+Weights snapshot the mesh at construction: rebuild the sampler after topology
+edits or non-uniform scaling/shear. Uniform scaling preserves relative weights.
+
 ## Debugging and troubleshooting
 
 - If import fails, verify that both `_MODULE_impl.py` and `_libMODULE.so` are in

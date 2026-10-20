@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from mdv.mesh import Mesh, Point  # type: ignore[import-not-found]
+from mdv.mesh import Mesh, Point, Sampler  # type: ignore[import-not-found]
 
 
 def test_point_from_cartesian_roundtrip(cube_mesh: Mesh) -> None:
@@ -12,7 +12,7 @@ def test_point_from_cartesian_roundtrip(cube_mesh: Mesh) -> None:
 
 
 def test_point_random(cube_mesh: Mesh) -> None:
-    point = Point.random(cube_mesh)
+    point = Sampler(cube_mesh, 42).point_in_face()
     assert point.position.shape == (3,)
 
 

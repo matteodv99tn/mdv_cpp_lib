@@ -8,10 +8,12 @@
 #include "mdv/mesh/gaussian_process.hpp"
 #include "mdv/mesh/flat_parameterisation.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
+#include "mdv/mesh/sampler.hpp"
 %}
 
 %include "std_string.i"
 %include "std_vector.i"
+%include "stdint.i"
 %include "eigen.i"
 
 %eigen_typemaps(Eigen::Vector2d)
@@ -38,6 +40,10 @@ import_array();
 }
 %apply mdv::mesh::VertexId { mdv::mesh::FaceId };
 %apply mdv::mesh::VertexId { mdv::mesh::HalfEdgeId };
+%typemap(out) mdv::mesh::PointOnVertex {
+    $result = SWIG_NewPointerObj(new mdv::mesh::Point($1), $descriptor(mdv::mesh::Point *), SWIG_POINTER_OWN);
+}
+%apply mdv::mesh::PointOnVertex { mdv::mesh::PointOnEdge, mdv::mesh::PointInFace };
 %typemap(out) std::array<mdv::mesh::VertexId, 3> {
     $result = PyTuple_New(3);
     if (!$result) SWIG_fail;
@@ -73,7 +79,6 @@ namespace mdv::mesh {
 
     Eigen::Vector3d normal(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
     std::string describe(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
-    mdv::mesh::FaceId random_face(const mdv::mesh::Mesh&);
     std::array<mdv::mesh::VertexId, 3> vertices(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
     std::array<mdv::mesh::FaceId, 3> neighbours(const mdv::mesh::Mesh&, mdv::mesh::FaceId);
     mdv::mesh::HalfEdgeId halfedge(const mdv::mesh::Mesh&, mdv::mesh::VertexId, mdv::mesh::FaceId);
@@ -109,7 +114,6 @@ namespace mdv::mesh {
     };
 
     mdv::mesh::Point from_cartesian(const mdv::mesh::Mesh&, const Eigen::Vector3d&);
-    mdv::mesh::Point random_point(const mdv::mesh::Mesh&);
     Eigen::Vector3d position(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
     mdv::mesh::FaceId face(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
     std::string describe(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
@@ -130,10 +134,6 @@ namespace mdv::mesh {
 
         static mdv::mesh::TangentVector from_tip_position(
                 const mdv::mesh::Mesh&, const mdv::mesh::Point& application_point, const Eigen::Vector3d& tip
-        );
-
-        static mdv::mesh::TangentVector unit_random(
-                const mdv::mesh::Mesh&, const mdv::mesh::Point& application_point
         );
 
 
@@ -249,7 +249,7 @@ namespace mdv::mesh {
         bool has_cache_support() const;
 
         double find_max_lengthscale(
-                double ls0, double lsmax, std::size_t num_points, std::size_t num_tests, bool verbose
+                double ls0, std::uint64_t seed, double lsmax, std::size_t num_points, std::size_t num_tests, bool verbose
         );
 
         double find_pointset_max_lengthscale(
@@ -305,6 +305,29 @@ namespace mdv::mesh {
         Eigen::MatrixXd predict(const std::vector<mdv::mesh::Point>& test_points);
     };
 }
+
+%exception {
+    try {
+        $action
+    } catch (const std::exception& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what());
+    }
+}
+namespace mdv::mesh {
+    class Sampler {
+    public:
+        Sampler(const mdv::mesh::Mesh&, std::uint64_t seed);
+        mdv::mesh::FaceId face();
+        mdv::mesh::PointOnVertex point_on_vertex();
+        mdv::mesh::PointOnEdge point_on_edge();
+        mdv::mesh::PointInFace point_in_face();
+        mdv::mesh::TangentVector unit_tangent(const mdv::mesh::Point&);
+        std::vector<mdv::mesh::Point> points_on_vertices(std::size_t n);
+        std::vector<mdv::mesh::Point> points_on_edges(std::size_t n);
+        std::vector<mdv::mesh::Point> points_in_faces(std::size_t n);
+    };
+}
+%exception;
 
 %inline %{
     mdv::mesh::Point point_from_vertex(const mdv::mesh::Mesh& mesh, mdv::mesh::VertexId v) {

@@ -377,21 +377,6 @@ TangentVector::from_ambient_vector_on_vertex(
     };
 }
 
-TangentVector
-TangentVector::unit_random(const Mesh& mesh, const Point& application_point) {
-    const Vec3d n = normal(mesh, mesh::face(mesh, application_point));
-    if (location_type(application_point) != LocationType::INSIDE_FACE) {
-        throw std::runtime_error(
-                "Don't know how to initialise unit random tangent vector on a point "
-                "which is not inside the face"
-        );
-    }
-    return {mesh,
-            application_point,
-            normal_projection(Vec3d::Random(), n).normalized(),
-            INSIDE_FACE};
-}
-
 Eigen::Vector3d
 tip(const Mesh& mesh, const TangentVector& v) {
     return position(mesh, v.application_point()) + v.cartesian_vector();

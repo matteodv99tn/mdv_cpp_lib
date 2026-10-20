@@ -11,6 +11,7 @@
 #include "mdv/config.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/mesh.hpp"
+#include "mdv/mesh/sampler.hpp"
 #include "mdv/utils/conditions.hpp"
 
 namespace mdv::mesh {
@@ -19,10 +20,11 @@ namespace fs = std::filesystem;
 TEST(MdvMesh, TangentVectorUnitRandomInitialisation) {
     const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto     mesh      = Mesh::from_file(mesh_path);
+    Sampler        sampler(mesh, 42);
 
     for (int i{0}; i < 256; ++i) {
-        const auto pt  = random_point(mesh);
-        const auto vec = TangentVector::unit_random(mesh, pt);
+        const auto pt  = sampler.point_in_face();
+        const auto vec = sampler.unit_tangent(pt);
         ASSERT_TRUE(mdv::condition::is_unit_norm(tip(mesh, vec) - position(mesh, pt)));
     }
 }
@@ -33,9 +35,10 @@ TEST(MdvMesh, TangentVectorFromTipInitialisation) {
     const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto     mesh      = Mesh::from_file(mesh_path);
     const auto     pref_dir  = Vec3::UnitX();
+    Sampler        sampler(mesh, 42);
 
     for (int i{0}; i < 256; ++i) {
-        const auto pt    = random_point(mesh);
+        const auto pt    = sampler.point_in_face();
         const auto n     = normal(mesh, face(mesh, pt));
         const Vec3 delta = (Mat3::Identity() - n * n.transpose()) * pref_dir;
         const Vec3 tip   = position(mesh, pt) + delta;
@@ -53,11 +56,12 @@ TEST(MdvMesh, TangentVectorDifference) {
     const fs::path mesh_path = mdv::config::meshes_directory() / "torus_simple.off";
     const auto     mesh      = Mesh::from_file(mesh_path);
     const auto     pref_dir  = Vec3::UnitX();
+    Sampler        sampler(mesh, 42);
 
     for (int i{0}; i < 256; ++i) {
-        const auto pt = random_point(mesh);
-        const auto v1 = TangentVector::unit_random(mesh, pt);
-        const auto v2 = TangentVector::unit_random(mesh, pt);
+        const auto pt = sampler.point_in_face();
+        const auto v1 = sampler.unit_tangent(pt);
+        const auto v2 = sampler.unit_tangent(pt);
 
         const auto n     = normal(mesh, face(mesh, pt));
         const Vec3 delta = (Mat3::Identity() - n * n.transpose()) * pref_dir;

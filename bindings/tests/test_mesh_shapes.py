@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from mdv.mesh import Mesh  # type: ignore[import-not-found]
+from mdv.mesh import Mesh, Sampler  # type: ignore[import-not-found]
 
 
 def test_mesh_matrices_shapes(cube_mesh: Mesh) -> None:
@@ -27,7 +27,7 @@ def test_vertex_and_face_vectors_are_1d(cube_mesh: Mesh) -> None:
     assert v_norm.shape == (3,)
     assert f_norm.shape == (3,)
 
-    random_face = cube_mesh.random_face()
+    random_face = Sampler(cube_mesh, 42).face()
     assert random_face.id >= 0 and random_face.id < cube_mesh.num_faces
 
 
@@ -82,18 +82,18 @@ def test_face_identity_and_owner_propagation() -> None:
 
     assert _mesh_impl.vertices(mesh._mesh_impl, 0) == tuple(mesh.get_face_matrix()[0])
     assert len(_mesh_impl.neighbours(mesh._mesh_impl, 0)) == 3
-    assert mesh.random_face().mesh is mesh
+    assert Sampler(mesh, 42).face().mesh is mesh
     p = Point.from_cartesian(mesh, [1.0, 0.4, 0.3])
     q = Point.from_cartesian(mesh, [1.0, 0.5, 0.3])
     assert p.face.mesh is mesh
-    assert Point.random(mesh).face.mesh is mesh
+    assert Sampler(mesh, 42).point_in_face().face.mesh is mesh
     assert Point.from_vertex(mesh.vertex(0)).face.mesh is mesh
     tv = TangentVector(p, [0.0, 0.01, 0.0])
     vectors = [
         tv,
         TangentVector.from_ambient_vector(p, [0.0, 0.01, 0.0]),
         TangentVector.from_tip_position(p, p.position + [0.0, 0.01, 0.0]),
-        TangentVector.unit_random(p),
+        Sampler(mesh, 42).unit_tangent(p),
         tv.normalised(),
         logarithmic_map(p, q),
         parallel_transport(tv, q),

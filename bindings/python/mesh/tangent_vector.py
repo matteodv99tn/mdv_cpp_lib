@@ -21,10 +21,6 @@ except ImportError:  # pragma: no cover - generated at build time
         def from_tip_position(*_args, **_kwargs):
             raise RuntimeError("SWIG bindings are not built yet.")
 
-        @staticmethod
-        def unit_random(*_args, **_kwargs):
-            raise RuntimeError("SWIG bindings are not built yet.")
-
         def tip(self):
             raise RuntimeError("SWIG bindings are not built yet.")
 
@@ -122,26 +118,6 @@ class TangentVector:
             application_point._mesh._mesh_impl,
             application_point._point_impl,  # type: ignore[attr-defined]
             tip_vec,
-        )
-        return TangentVector.from_impl(tv_impl, mesh=application_point._mesh)
-
-    @staticmethod
-    def unit_random(application_point: Point) -> "TangentVector":
-        """Generate a random unit tangent vector at a point.
-
-        Parameters
-        ----------
-        application_point : Point
-            Point on the mesh where the vector is applied.
-
-        Returns
-        -------
-        TangentVector
-            Unit tangent vector.
-        """
-        tv_impl = _TangentVectorImpl.unit_random(
-            application_point._mesh._mesh_impl,
-            application_point._point_impl  # type: ignore[attr-defined]
         )
         return TangentVector.from_impl(tv_impl, mesh=application_point._mesh)
 

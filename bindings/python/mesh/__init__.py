@@ -21,6 +21,7 @@ from .inexact_kernel import InexactMeshKernel
 from .kernel import MeshKernel
 from .mesh import Mesh
 from .point import Point
+from .sampler import Sampler
 from .vertex import Vertex
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "Mesh",
     "MeshKernel",
     "Point",
+    "Sampler",
     "TangentVector",
     "Vertex",
     "length",

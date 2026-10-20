@@ -17,10 +17,9 @@ struct PointOnVertex {
 };
 
 struct PointOnEdge {
-    HalfEdgeId         he;
-    double             t;
-    static PointOnEdge random(const Mesh&);
-    bool               operator==(const PointOnEdge&) const = default;
+    HalfEdgeId he;
+    double     t;
+    bool       operator==(const PointOnEdge&) const = default;
 };
 
 struct PointInFace {
@@ -72,7 +71,6 @@ static_assert(std::is_trivially_copyable_v<Point>);
 CartesianPoint position(const Mesh&, const Point&);
 FaceId         face(const Mesh&, const Point&);
 Point          from_cartesian(const Mesh&, const CartesianPoint&);
-Point          random_point(const Mesh&);
 PointOnEdge    make_on_edge(const Mesh&, HalfEdgeId, const CartesianPoint&);
 PointOnEdge    make_on_edge(const Mesh&, FaceId, const CartesianPoint&);
 PointOnEdge    flip(const Mesh&, const PointOnEdge&);

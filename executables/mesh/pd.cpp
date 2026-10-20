@@ -26,7 +26,7 @@ main(int argc, char* argv[]) {
 
     for (const auto [n1, n2] : tests) {
         std::cout << n1 << " x " << n2 << " -> "
-                  << kernel.find_max_lengthscale(1.0, 10.0, n1, n2, false) << "\n";
+                  << kernel.find_max_lengthscale(1.0, 42, 10.0, n1, n2, false) << "\n";
     }
 
     return 0;

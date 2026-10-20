@@ -17,6 +17,7 @@
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/mesh.hpp"
 #include "mdv/mesh/point.hpp"
+#include "mdv/mesh/sampler.hpp"
 
 namespace mdv::mesh {
 namespace rs = ::ranges;
@@ -271,11 +272,12 @@ MeshKernel::distance_matrix(const InputVector& pts1, const InputVector& pts2) co
 
 double
 MeshKernel::find_max_lengthscale(
-        const double      ls0,
-        const double      lsmax,
-        const std::size_t num_points,
-        const std::size_t num_tests,
-        const bool        verbose
+        const double        ls0,
+        const std::uint64_t seed,
+        const double        lsmax,
+        const std::size_t   num_points,
+        const std::size_t   num_tests,
+        const bool          verbose
 ) {
     assert(_mesh);
     if (verbose) {
@@ -285,12 +287,10 @@ MeshKernel::find_max_lengthscale(
     }
 
     std::vector<Eigen::MatrixXd> dist_matrices;
+    Sampler                      sampler(*_mesh, seed);
     dist_matrices.reserve(num_tests);
     for (std::size_t i = 0; i < num_tests; ++i) {
-        std::vector<mdv::mesh::Point> points;
-        points.reserve(num_points);
-        for (std::size_t j = 0; j < num_points; ++j)
-            points.emplace_back(random_point(*_mesh));
+        const auto points = sampler.points_in_faces(num_points);
 
         dist_matrices.emplace_back(distance_matrix(points, points));
     }
