@@ -324,10 +324,6 @@ class Mesh:
         """
         return Face(self, id)
 
-    def random_face(self) -> Face:
-        """Return a random face from the mesh."""
-        return Face(self, _impl.random_face(self._mesh_impl))
-
     @property
     def faces(self) -> list[Face]:
         """Return all faces in the mesh.

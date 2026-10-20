@@ -48,7 +48,7 @@ class Point:
     constructors:
 
     - :meth:`Point.from_cartesian`
-    - :meth:`Point.random`
+    - :meth:`Sampler.point_in_face`
     - :meth:`Point.from_vertex`
 
     Attributes
@@ -159,19 +159,3 @@ class Point:
         """
         position_vec = as_vector(position, size=3, name="position")
         return Point(_impl.from_cartesian(mesh._mesh_impl, position_vec), mesh=mesh)
-
-    @staticmethod
-    def random(mesh: "Mesh") -> "Point":
-        """Create a random point on the mesh.
-
-        Parameters
-        ----------
-        mesh : Mesh
-            Mesh on which to generate the random point.
-
-        Returns
-        -------
-        Point
-            Random point on the mesh.
-        """
-        return Point(_impl.random_point(mesh._mesh_impl), mesh=mesh)
