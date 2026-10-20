@@ -12,6 +12,7 @@
 
 %include "std_string.i"
 %include "std_vector.i"
+%include "stdint.i"
 %include "eigen.i"
 
 %eigen_typemaps(Eigen::Vector2d)
@@ -249,7 +250,7 @@ namespace mdv::mesh {
         bool has_cache_support() const;
 
         double find_max_lengthscale(
-                double ls0, double lsmax, std::size_t num_points, std::size_t num_tests, bool verbose
+                double ls0, std::uint64_t seed, double lsmax, std::size_t num_points, std::size_t num_tests, bool verbose
         );
 
         double find_pointset_max_lengthscale(

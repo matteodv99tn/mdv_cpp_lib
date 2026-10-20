@@ -1,6 +1,7 @@
 #ifndef MDV_MESH_KERNEL_HPP
 #define MDV_MESH_KERNEL_HPP
 
+#include <cstdint>
 #include <Eigen/Dense>
 #include <gsl/pointers>
 #include <stdexcept>
@@ -161,6 +162,7 @@ public:
      * @brief Estimates a maximum lengthscale that yields PD kernels.
      *
      * @param ls0 Initial lengthscale.
+     * @param seed Seed for sampling test sets.
      * @param lsmax Maximum lengthscale to test.
      * @param num_points Points per test set.
      * @param num_tests Number of random test sets.
@@ -168,11 +170,12 @@ public:
      * @return Estimated maximum lengthscale.
      */
     double find_max_lengthscale(
-            double      ls0,
-            double      lsmax      = 1.0,
-            std::size_t num_points = 10,
-            std::size_t num_tests  = 100,
-            bool        verbose    = false
+            double        ls0,
+            std::uint64_t seed,
+            double        lsmax      = 1.0,
+            std::size_t   num_points = 10,
+            std::size_t   num_tests  = 100,
+            bool          verbose    = false
     );
 
     /**
