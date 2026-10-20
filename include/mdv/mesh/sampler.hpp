@@ -11,10 +11,14 @@
 namespace mdv::mesh {
 
 /**
- * @brief Seedable random sampler of mesh elements.
+ * @brief Seedable, geometrically uniform sampler of mesh elements.
  *
  * Holds a non-owning reference: the mesh must outlive the sampler.
- * @throws std::runtime_error if the mesh is empty.
+ * Faces/surface points are area-weighted, edges length-weighted, and vertices
+ * weighted by barycentric dual area. Tangent directions are uniform in the plane.
+ * Weights snapshot the geometry at construction. Rebuild after topology edits
+ * or non-uniform scaling/shear; uniform Mesh::scale preserves relative weights.
+ * @throws std::runtime_error if the mesh is empty or has no positive surface area.
  */
 class Sampler {
 public:
@@ -30,8 +34,14 @@ public:
     MDV_NODISCARD std::vector<Point> points_in_faces(std::size_t n);
 
 private:
-    const Mesh*     _mesh;
-    std::mt19937_64 _gen;
+    const Mesh*                             _mesh;
+    std::mt19937_64                         _gen;
+    std::vector<FaceId>                     _faces;
+    std::discrete_distribution<std::size_t> _face_dist;
+    std::vector<HalfEdgeId>                 _edges;
+    std::discrete_distribution<std::size_t> _edge_dist;
+    std::vector<VertexId>                   _vertices;
+    std::discrete_distribution<std::size_t> _vertex_dist;
 };
 
 }  // namespace mdv::mesh
