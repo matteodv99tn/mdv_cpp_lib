@@ -45,3 +45,8 @@ target_link_libraries(
     explog_consistency
     mdvcpplib
 )
+target_include_directories(
+    explog_consistency
+    SYSTEM PRIVATE
+    ${PROJECT_SOURCE_DIR}/third_party/bshoshany-thread-pool
+)
