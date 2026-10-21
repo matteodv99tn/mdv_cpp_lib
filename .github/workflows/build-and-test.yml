@@ -28,7 +28,8 @@ jobs:
       - name: Check formatting
         run: |
           ./scripts/run_clang_format.sh
-          git diff --exit-code
+          # The host-owned checkout is inspected by root inside the container.
+          git -c safe.directory="$GITHUB_WORKSPACE" diff --exit-code
       - name: Configure tests and Rerun executables
         run: >-
           cmake -B build
