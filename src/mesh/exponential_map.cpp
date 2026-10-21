@@ -1,492 +1,454 @@
-#include <CGAL/Polygon_mesh_processing/compute_normal.h>
-#include <cstdint>
-#include <Eigen/Geometry>
-#include <iterator>
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <cstddef>
+#include <fmt/format.h>
+#include <limits>
 #include <stdexcept>
+#include <utility>
+#include <variant>
 
 #include "mdv/eigen_defines.hpp"
+#include "mdv/macros.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/fwd.hpp"
 #include "mdv/mesh/point.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/utils/conditions.hpp"
-#include "mdv/utils/eigen_solvers.hpp"
-
-// \cond DOXYGEN_IGNORE
-
-// Uncomment the following line to enable the compilation with the integrated rerun
-// logger that will display all the steps of the shortest path computation
-
-// #define DEBUG_EXPONENTIAL_MAP
-
-#if defined(DEBUG_EXPONENTIAL_MAP) && defined(MDV_WITH_RERUN_SDK)
-#define RERUN_DEBUG_ENABLED true
-#else
-#define RERUN_DEBUG_ENABLED false
-#endif
-
-#if RERUN_DEBUG_ENABLED
-#include <thread>
-
-#include <rerun.hpp>
-#include <rerun/recording_stream.hpp>
-
-#include "mdv/rerun.hpp"
-#endif
-
-// \endcond
 
 namespace mdv::mesh {
 
 namespace {
-    using Kernel           = internal::CgalImpl::Kernel;
-    using FaceIndex        = internal::CgalImpl::CgalFaceIndex;
-    using VertexIndex      = internal::CgalImpl::CgalVertexIndex;
-    using HalfEdgeIndex    = internal::CgalImpl::CgalHalfEdgeIndex;
-    using VertexDescriptor = PointOnVertex;
-    using CgalHalfEdge     = internal::CgalImpl::CgalHalfEdgeIndex;
-    using CgalMesh         = internal::CgalImpl::Mesh;
+    using FaceIndex     = internal::CgalImpl::CgalFaceIndex;
+    using HalfEdgeIndex = internal::CgalImpl::CgalHalfEdgeIndex;
+    using CgalMesh      = internal::CgalImpl::Mesh;
 
-#if RERUN_DEBUG_ENABLED
-    rerun::RecordingStream rec("exponential_map_debug", "exponential_map");
-    std::int64_t           iter_count  = 0;
-    const Mesh*            logged_mesh = nullptr;
-    mdv::RerunConverter    to_rr;
-
-    ::rerun::components::Position3D
-    to_rr_pos(const Kernel::Point_3& in) {
-        return {static_cast<float>(in.x()),
-                static_cast<float>(in.y()),
-                static_cast<float>(in.z())};
-    }
-
-    ::rerun::components::Vector3D
-    to_rr_vec(const Kernel::Vector_3& in) {
-        return {static_cast<float>(in.x()),
-                static_cast<float>(in.y()),
-                static_cast<float>(in.z())};
-    }
-
-    void
-    draw_triangle(
-            const std::string&        path,
-            const Kernel::Triangle_3& tri,
-            const std::string&        label
-    ) {
-        const Vec3d tv0 = internal::convert(tri.vertex(0));
-        const Vec3d tv1 = internal::convert(tri.vertex(1));
-        const Vec3d tv2 = internal::convert(tri.vertex(2));
-        rec.log(path,
-                to_rr(std::vector{tv0, tv1, tv2, tv0}).with_labels(std::vector{label}));
-    }
-
-    void
-    draw_point(
-            const std::string& path, const Kernel::Point_3& pt, const std::string& label
-    ) {
-        auto drawable = ::rerun::archetypes::Points3D(std::vector{to_rr_pos(pt)})
-                                .with_labels(std::vector{label});
-        rec.log(path, drawable);
-    }
-
-    void
-    draw_arrow(
-            const std::string&      path,
-            const Kernel::Point_3&  origin,
-            const Kernel::Vector_3& direction,
-            const std::string&      label
-    ) {
-        using ::rerun::components::Vector3D;
-        auto drawable = ::rerun::archetypes::Arrows3D()
-                                .with_vectors(std::vector{to_rr_vec(direction)})
-                                .with_origins(std::vector{to_rr_pos(origin)})
-                                .with_labels(std::vector{label});
-        rec.log(path, drawable);
-    }
-
-    void
-    draw_arrow(
-            const std::string&     path,
-            const Kernel::Point_3& origin,
-            const Vec3d&           direction,
-            const std::string&     label
-    ) {
-        draw_arrow(path, origin, internal::vector3_from_eigen(direction), label);
-    }
-#endif
-
-    CgalHalfEdge
-    get_halfedge(
-            const FaceIndex& f_id, const Kernel::Point_3& pt, const CgalMesh& mesh
-    ) {
-        for (const auto he : CGAL::halfedges_around_face(halfedge(f_id, mesh), mesh)) {
-            const Kernel::Segment_3 seg(
-                    mesh.point(source(he, mesh)), mesh.point(target(he, mesh))
-            );
-            if (CGAL::squared_distance(seg, pt) < 1e-12) return he;
-        }
-        throw std::runtime_error(
-                "Mesh::exponential_map: unable to find proper halfedge"
-        );
-    }
-
-    enum IntersectionType : std::uint8_t {
-        TRIANGLE_VERTEX_INTERSECTION,
-        TRIANGLE_EDGE_INTERSECTION
+    // Strictly inside f.
+    // Corners: source(h), target(h), target(next(h)), h = halfedge(f).
+    // db: barycentric velocity per unit arc length (sum(db) == 0).
+    struct InFace {
+        FaceIndex f;   // face
+        Vec3d     b;   // barycentric point description
+        Vec3d     db;  // vector direction in barycentric coordinates
     };
 
-    using IntersectionResult = std::pair<Kernel::Point_3, IntersectionType>;
+    // Direction originating at a halfedge interior and pointing inside face
+    struct OnEdge {
+        HalfEdgeIndex he;       // face(he) contains the vector
+        double        t = 0.0;  // coordinate in (0,1) on the he
+        Vec2d         d;        // direction in he coordinate system
+                                // d[0] along he(source -> target); d[1] > 0 he-normal
+    };
 
-    struct VectorInsideFace {};
+    // Direction along he moving towards target(he)
+    // If t == 0, then the origin is the vertex
+    struct AlongEdge {
+        HalfEdgeIndex he;       // handles position and vector direction
+        double        t = 0.0;  // coordinate in [0,1) on the he
+    };
 
-    struct VectorAlongEdge {};
+    // Direction is a rotation of "theta" from he origintating at source(he)
+    struct OnVertex {
+        HalfEdgeIndex he;
+        double        theta = 0.0;
+    };
 
-    IntersectionResult
-    compute_intersection(
-            const Kernel::Ray_3      ray,
-            const Kernel::Triangle_3 tri,
-            VectorInsideFace /* unused */
-    ) {
-        const auto& v0 = tri.vertex(0);
-        const auto& v1 = tri.vertex(1);
-        const auto& v2 = tri.vertex(2);
+    using ContinuationState = std::variant<InFace, OnEdge, AlongEdge, OnVertex>;
 
-        const Kernel::Segment_3 edge0(v0, v1);
-        const Kernel::Segment_3 edge1(v0, v2);
-        const Kernel::Segment_3 edge2(v1, v2);
-        const auto              i0 = internal::edge_ray_intersection(edge0, ray);
-        const auto              i1 = internal::edge_ray_intersection(edge1, ray);
-        const auto              i2 = internal::edge_ray_intersection(edge2, ray);
+    // Outcome of a continuation: the next state and the distance travelled to reach
+    // it. Steps travelling inside a face also store the followed ray
+    // b(s) = b + s*db in face f, so that the walk can stop before reaching "next".
+    struct Step {
+        ContinuationState next;
+        double            dist = 0.0;
+        FaceIndex         f;
+        Vec3d             b  = Vec3d::Zero();
+        Vec3d             db = Vec3d::Zero();
+    };
 
-        std::size_t sols_found = 0;
-        if (i0.has_value()) ++sols_found;
-        if (i1.has_value()) ++sols_found;
-        if (i2.has_value()) ++sols_found;
-
-        Kernel::Point_3 res;
-
-        if (sols_found == 2) {
-            if (i0.has_value()) res = i0.value();
-            else res = i1.value();
-            return std::make_pair(res, TRIANGLE_VERTEX_INTERSECTION);
+    // Functor for the variant that for each input continuation state outputs the next
+    // continuation step and the corresponding step length
+    struct ContinuationStepper {
+        MDV_NODISCARD Step
+        operator()(const InFace& state) const {
+            assert(std::abs(state.b.sum() - 1.0) < 1e-12);
+            assert(std::abs(state.db.sum()) < 1e-12);
+            return ray_step(state.f, state.b, state.db);
         }
 
-        if (i0.has_value()) {
-            res = i0.value();
-            assert(CGAL::squared_distance(edge0, res) < 1e-12);
-        }
-        if (i1.has_value()) {
-            res = i1.value();
-            assert(CGAL::squared_distance(edge1, res) < 1e-12);
-        }
-        if (i2.has_value()) {
-            res = i2.value();
-            assert(CGAL::squared_distance(edge2, res) < 1e-12);
-        }
-        return std::make_pair(res, TRIANGLE_EDGE_INTERSECTION);
-    }
-
-    /*
-     * Retrieves the halfedge on face "f" which is "most parallel" to the vector "v"
-     */
-    HalfEdgeIndex
-    get_most_parallel_halfedge(
-            const Kernel::Vector_3          v,
-            const FaceIndex                 f,
-            const internal::CgalImpl::Mesh& m
-    ) {
-        double        best_dot = 0.0;
-        HalfEdgeIndex closest_he{invalid_index};
-        for (const auto he : CGAL::halfedges_around_face(halfedge(f, m), m)) {
-            const Kernel::Vector_3 dir =
-                    m.point(source(he, m)) - m.point(target(he, m));
-            const double len      = std::sqrt(dir.squared_length());
-            const double this_dot = std::abs(dir * v) / len;
-            if (this_dot > best_dot) {
-                best_dot   = this_dot;
-                closest_he = he;
+        MDV_NODISCARD Step
+        operator()(const OnEdge& state) const {
+            if (CGAL::is_border(state.he, m)) {
+                throw std::runtime_error(
+                        fmt::format(
+                                "exponential_map: border reached at halfedge {}",
+                                static_cast<std::size_t>(opposite(state.he, m))
+                        )
+                );
             }
-        }
-        assert(closest_he != HalfEdgeIndex{invalid_index});
-        return closest_he;
-    }
+            assert(state.d.y() > 0.0);  // inbound
 
-    IntersectionResult
-    compute_intersection(
-            const Kernel::Point_3           p,
-            const FaceIndex                 f,
-            const Kernel::Vector_3          v,
-            const internal::CgalImpl::Mesh& m,
-            VectorAlongEdge /* unused */
-    ) {
-        const auto he = get_most_parallel_halfedge(v, f, m);
-        const auto v0 = m.point(source(he, m));
-        const auto v1 = m.point(target(he, m));
-        const auto d0 = v0 - p;
-        const auto d1 = v1 - p;
-
-        assert((d0 * v) * (d1 * v) <= 0.0);
-
-        if (d0 * v > 1e-18) return std::make_pair(v0, TRIANGLE_VERTEX_INTERSECTION);
-        return std::make_pair(v1, TRIANGLE_VERTEX_INTERSECTION);
-    }
-
-    /**
-     * @brief Given a vector "v" applied in point "p" on face "f", returns the
-     * intersection of the ray given by the vector itself with the face.
-     *
-     * The "type" is used to dispatch proper intersection calculation on wether the
-     * tangent vector lies inside the face, or along an edge of the face.
-     */
-    IntersectionResult
-    compute_intersection(
-            const Kernel::Point_3           p,
-            const FaceIndex                 f,
-            const Kernel::Vector_3          v,
-            const TangentVector::Type       type,
-            const internal::CgalImpl::Mesh& m
-    ) {
-        if (type == TangentVector::Type::INSIDE_FACE) [[likely]] {
-            const Kernel::Ray_3                     ray(p, v);
-            CGAL::Triangle_from_face_descriptor_map tri_gen(&m);
-            const Kernel::Triangle_3                tri = get(tri_gen, f);
-            return compute_intersection(ray, tri, VectorInsideFace{});
-        }
-        return compute_intersection(p, f, v, m, VectorAlongEdge{});
-    }
-
-    /**
-     * @brief Given a point "p" which is assumed to be a vertex for the face "f",
-     * retrieves the vertex id on the mesh "m" and the halfedge on "f" that has "v" as
-     * source.
-     */
-    std::pair<VertexIndex, HalfEdgeIndex>
-    get_vertex_halfedge_pair(
-            const Kernel::Point_3           p,
-            const FaceIndex                 f,
-            const internal::CgalImpl::Mesh& m
-    ) {
-        for (const auto he : CGAL::halfedges_around_face(CGAL::halfedge(f, m), m)) {
-            const auto v_id = source(he, m);
-            if ((m.point(v_id) - p).squared_length() < 1e-18)
-                return std::make_pair(v_id, he);
-        }
-        throw std::runtime_error("Provided point is not a vertex for the face");
-    }
-
-    struct PropagationResult {
-        Kernel::Vector_3    v;
-        FaceIndex           f;
-        TangentVector::Type type = TangentVector::INSIDE_FACE;
-    };
-
-    /*
-     * Given a vector "v" applied at point "p" on the edge of face "f" whose direction
-     * is outbound the face, gives the projected inbound vector on the contiguous face.
-     */
-    PropagationResult
-    propagate_along_edge(
-            const Kernel::Point_3           p,
-            const FaceIndex                 f,
-            const Kernel::Vector_3          v,
-            const internal::CgalImpl::Mesh& m
-    ) {
-        using CGAL::Polygon_mesh_processing::compute_face_normal;
-        const auto      he     = get_halfedge(f, p, m);
-        const FaceIndex next_f = m.face(CGAL::opposite(he, m));
-
-        if (next_f == FaceIndex{invalid_index})
-            throw std::runtime_error("Boarder reached when computing exponential map");
-
-        const auto& v0 = m.point(source(he, m));
-        const auto& v1 = m.point(target(he, m));
-        const Vec3d ax = internal::convert(v1 - v0).normalized();
-        const Vec3d n1 = internal::convert(compute_face_normal(f, m));
-        const Vec3d n2 = internal::convert(compute_face_normal(next_f, m));
-
-        // Binormal axis computation
-        const Vec3d b1 = -ax.cross(n1);
-        const Vec3d b2 = ax.cross(n2);
-
-        // Compute rotation
-        const Eigen::Quaterniond q            = quaternion_from_two_vectors(-b1, b2);
-        const Vec3d              v_next_eigen = q * internal::convert(v);
-        const auto               v_next = internal::vector3_from_eigen(v_next_eigen);
-
-        using mdv::condition::are_orthogonal, mdv::condition::is_unit_norm;
-        assert(are_orthogonal(b1, ax) && are_orthogonal(b1, n1) && is_unit_norm(b1));
-        assert(are_orthogonal(b2, ax) && are_orthogonal(b2, n2) && is_unit_norm(b2));
-        assert(are_orthogonal(v_next_eigen, n2));
-
-        return {.v = v_next, .f = next_f, .type = TangentVector::INSIDE_FACE};
-    }
-
-    /*
-     * Given a vector "v" applied at point "p" which is a vertex of face "f" whose
-     * direction is outbound the face, gives the projected inbound vector on the
-     * contiguous face.
-     */
-    PropagationResult
-    propagate_along_vertex(
-            const Kernel::Point_3           p,
-            const FaceIndex                 f,
-            const Kernel::Vector_3          v,
-            const internal::CgalImpl::Mesh& m
-    ) {
-        using HalfEdgeCirculator =
-                CGAL::Halfedge_around_source_circulator<internal::CgalImpl::Mesh>;
-        using CGAL::Polygon_mesh_processing::compute_face_normal;
-        using internal::convert, internal::total_curvature_deg,
-                internal::vector_inside_triangle, internal::vector3_from_eigen;
-        using mdv::condition::are_orthogonal;
-
-        const auto he_to_vec3 = [m](const HalfEdgeIndex& he_id) -> Kernel::Vector_3 {
-            return m.point(target(he_id, m)) - m.point(source(he_id, m));
-        };
-        const auto length = [](const Kernel::Vector_3& v) {
-            return CGAL::approximate_sqrt(v.squared_length());
-        };
-        const auto normalize = [length](const Kernel::Vector_3& v) -> Kernel::Vector_3 {
-            return v / length(v);
-        };
-
-        // Note: CGAL approximate angle works in degrees
-        const auto [v_id, start_he] = get_vertex_halfedge_pair(p, f, m);
-        const double tot_curv       = total_curvature_deg(m, v_id);
-        const double target_angle   = tot_curv * 0.5;
-        double traversed_angle      = CGAL::approximate_angle(-v, he_to_vec3(start_he));
-
-        assert(face(start_he, m) == f);
-
-        HalfEdgeCirculator he_circ(start_he, m);
-        while (traversed_angle < target_angle - 1e-9) {
-            const auto curr_he = *he_circ;
-            ++he_circ;
-            const auto next_he = *he_circ;
-            traversed_angle +=
-                    CGAL::approximate_angle(he_to_vec3(curr_he), he_to_vec3(next_he));
+            const auto j   = corner_index(state.he);
+            Vec3d      b   = Vec3d::Zero();
+            b(j)           = 1.0 - state.t;
+            b((j + 1) % 3) = state.t;
+            return ray_step(face(state.he, m), b, bary_velocity(state.he, state.d));
         }
 
-        const auto   next_f       = face(*he_circ, m);
-        const double excess_angle = traversed_angle - target_angle;
-        const auto   n            = convert(compute_face_normal(next_f, m));
-        const auto   d            = convert(normalize(he_to_vec3(*he_circ)));
+        MDV_NODISCARD Step
+        operator()(const AlongEdge& state) const {
+            assert(state.t >= 0.0 && state.t < 1.0);
 
-        if (mdv::condition::is_zero(excess_angle)) {
+            // At target(he) the backward direction is opposite(he) (fan angle 0):
+            // the straightest continuation leaves at half the total angle
+            const double        dist = (1.0 - state.t) * edge_vec(state.he).norm();
+            const HalfEdgeIndex back = opposite(state.he, m);
             return {
-                    .v    = normalize(he_to_vec3(*he_circ)) * length(v),
-                    .f    = next_f,
-                    .type = TangentVector::ALONG_EDGE,
+                    .next = OnVertex{.he = back, .theta = 0.5 * total_angle(back)},
+                    .dist = dist
             };
         }
 
-        const Eigen::AngleAxisd rot(excess_angle * M_PI / 180.0, n);
-        const Vec3d             vec_dir = rot * d;
+        MDV_NODISCARD Step
+        operator()(const OnVertex& state) const {
+            if (std::isnan(state.theta)) {
+                throw std::runtime_error(
+                        fmt::format(
+                                "exponential_map: border reached at vertex {}",
+                                static_cast<std::size_t>(source(state.he, m))
+                        )
+                );
+            }
+            assert(state.theta >= 0.0);
+            constexpr double eps_ang = 1e-9;  // angular snapping to fan edges
 
-        assert(are_orthogonal(n, d));
-        assert(are_orthogonal(vec_dir, n));
-        assert(vector_inside_triangle(
-                convert(he_to_vec3(*he_circ)),
-                vec_dir,
-                convert(he_to_vec3(*std::prev(he_circ)))
-        ));
-        return {
-                .v    = vector3_from_eigen(vec_dir * length(v)),
-                .f    = next_f,
-                .type = TangentVector::INSIDE_FACE,
-        };
-    }
+            // Fan walk from he until the corner c containing theta is found
+            HalfEdgeIndex c     = state.he;
+            double        alpha = state.theta;  // residual angle from c
+            do {                                // NOLINT do while loop
+                if (CGAL::is_border(c, m)) {
+                    throw std::runtime_error(
+                            fmt::format(
+                                    "exponential_map: border reached at vertex {}",
+                                    static_cast<std::size_t>(source(c, m))
+                            )
+                    );
+                }
+                const double        ca     = corner_angle(c);
+                const HalfEdgeIndex c_next = opposite(prev(c, m), m);
+                if (alpha <= ca) {
+                    if (alpha < eps_ang) {
+                        return {
+                                .next = AlongEdge{.he = c, .t = 0.0}
+                        };
+                    }
+                    if (alpha > ca - eps_ang) {
+                        return {
+                                .next = AlongEdge{.he = c_next, .t = 0.0}
+                        };
+                    }
 
-    PropagationResult
-    propagate_vector(
-            const IntersectionType          intersection_type,
-            const Kernel::Point_3           p,
-            const FaceIndex                 f,
-            const Kernel::Vector_3          v,
-            const internal::CgalImpl::Mesh& m
-    ) {
-        if (intersection_type == TRIANGLE_EDGE_INTERSECTION)
-            return propagate_along_edge(p, f, v, m);
-        return propagate_along_vertex(p, f, v, m);
-    }
+                    // Ray from corner source(c) inside face(c): the only exit is
+                    // next(c), since the other two coordinates are 0 with db > 0
+                    Vec3d b            = Vec3d::Zero();
+                    b(corner_index(c)) = 1.0;
+                    const Vec2d d(std::cos(alpha), std::sin(alpha));
+                    return ray_step(face(c, m), b, bary_velocity(c, d));
+                }
+                alpha -= ca;
+                c = c_next;
+            } while (c != state.he);
 
-    std::pair<Kernel::Point_3, FaceIndex>
-    exponential_map_impl(
-            const Kernel::Point_3           p0,
-            const FaceIndex                 f_id,
-            const Kernel::Vector_3          vec,
-            const TangentVector::Type       vec_type,
-            const internal::CgalImpl::Mesh& mesh,
-            Geodesic*                       geod
-    ) {
-        if (geod != nullptr) geod->emplace_back(internal::convert(p0));
-
-        const auto [pstar, pstar_type] =
-                compute_intersection(p0, f_id, vec, vec_type, mesh);
-
-#if RERUN_DEBUG_ENABLED
-        rec.set_time_sequence("iteration", iter_count);
-        ++iter_count;
-
-        CGAL::Triangle_from_face_descriptor_map tri_gen(&mesh);
-        const Kernel::Triangle_3                tri = get(tri_gen, f_id);
-        draw_triangle("initial_face", tri, "Starting face");
-        draw_point("p0", p0, "p0");
-        draw_point("pstar", pstar, "pstar");
-        draw_arrow("tv", p0, vec, "initial vector");
-#endif
-
-        const double dist_p0_pstar = CGAL::squared_distance(p0, pstar);
-        const double vec_len       = vec.squared_length();
-
-        // Check if the vector is within the face
-        if (vec_len < dist_p0_pstar) {
-            const Kernel::Point_3 res = p0 + vec;
-            return std::make_pair(res, f_id);
+            // theta >= total angle by rounding only: same as theta = 0
+            return {
+                    .next = AlongEdge{.he = state.he, .t = 0.0}
+            };
         }
 
-        const Kernel::Vector_3 v_cut  = pstar - p0;
-        const Kernel::Vector_3 v_left = vec - v_cut;
-        assert(v_left.squared_length() < vec.squared_length());
+        /*
+         * Initial state from the tangent vector (unit direction, the length is
+         * tracked by the caller). OnEdge states built here may lie within eps_t of a
+         * vertex: the OnEdge continuation does not rely on that invariant, which is
+         * only needed to avoid confusing the entry edge after a crossing.
+         */
+        MDV_NODISCARD ContinuationState
+        initial_state(const TangentVector& v) const {
+            const Point& p   = v.application_point();
+            const Vec3d& vec = v.cartesian_vector();
 
-        const auto [v_next, next_face_id, next_type] =
-                propagate_vector(pstar_type, pstar, f_id, v_left, mesh);
+            if (const auto* pf = p.get_as<PointInFace>()) {
+                const FaceIndex f = internal::to_cgal(pf->f);
+                return InFace{
+                        .f = f, .b = Vec3d(pf->coords()), .db = bary_velocity(f, vec)
+                };
+            }
 
-#if RERUN_DEBUG_ENABLED
-        const Kernel::Triangle_3 tri_next = get(tri_gen, next_face_id);
+            if (const auto* pe = p.get_as<PointOnEdge>()) {
+                const HalfEdgeIndex he = internal::to_cgal(pe->he);
+                if (v.type() == TangentVector::ALONG_EDGE) {
+                    assert(edge_vec(he).dot(vec) > 0.0);
+                    return AlongEdge{.he = he, .t = pe->t};
+                }
+                assert(face(he, m) == internal::to_cgal(v.face()));
+                const auto [x, y] = frame(he);
+                const Vec2d d     = Vec2d(vec.dot(x), vec.dot(y)).normalized();
+                return OnEdge{.he = he, .t = pe->t, .d = d};
+            }
 
-        draw_triangle("next_face", tri_next, "next face");
-        draw_arrow("v1", pstar, internal::convert(v_left), "vector");
-        draw_arrow("v2", pstar, internal::convert(v_next), "next vector");
-#endif
+            // Application point on vertex: halfedge() is outgoing in face()
+            assert(v.halfedge().has_value());
+            const HalfEdgeIndex he = internal::to_cgal(*v.halfedge());
+            if (v.type() == TangentVector::ALONG_EDGE) {
+                // Only parallelism is validated: pick the outgoing edge of the corner
+                // pointing along the vector
+                if (edge_vec(he).dot(vec) > 0.0) return AlongEdge{.he = he, .t = 0.0};
+                const HalfEdgeIndex other = opposite(prev(he, m), m);
+                if (edge_vec(other).dot(vec) > 0.0)
+                    return AlongEdge{.he = other, .t = 0.0};
+                throw std::runtime_error(
+                        fmt::format(
+                                "exponential_map: vector at vertex {} does not point "
+                                "along an outgoing edge",
+                                static_cast<std::size_t>(source(he, m))
+                        )
+                );
+            }
+            const Vec3d  e     = edge_vec(he);
+            const double theta = std::atan2(e.cross(vec).norm(), e.dot(vec));
+            return OnVertex{.he = he, .theta = theta};
+        }
 
-        // TODO: check that the updated vector points "internally" to the face
-        return exponential_map_impl(pstar, next_face_id, v_next, next_type, mesh, geod);
-    }
+        // Exact location of a state (the walk never stops on an InFace "next")
+        MDV_NODISCARD Point
+        location(const ContinuationState& state) const {
+            if (const auto* s = std::get_if<OnEdge>(&state))
+                return edge_point(s->he, s->t);
+            if (const auto* s = std::get_if<AlongEdge>(&state)) {
+                if (s->t == 0.0)
+                    return PointOnVertex{internal::from_cgal(source(s->he, m))};
+                return edge_point(s->he, s->t);
+            }
+            if (const auto* s = std::get_if<OnVertex>(&state))
+                return PointOnVertex{internal::from_cgal(source(s->he, m))};
+            const auto& s = std::get<InFace>(state);
+            return PointInFace{
+                    .f = internal::from_cgal(s.f), .bary = {s.b(0), s.b(1), s.b(2)}
+            };
+        }
+
+        // Point at parameter t on he, expressed on the non-border side
+        MDV_NODISCARD PointOnEdge
+        edge_point(const HalfEdgeIndex he, const double t) const {
+            if (CGAL::is_border(he, m))
+                return {.he = internal::from_cgal(opposite(he, m)), .t = 1.0 - t};
+            return {.he = internal::from_cgal(he), .t = t};
+        }
+
+        MDV_NODISCARD Vec3d
+        edge_vec(const HalfEdgeIndex he) const {
+            return internal::convert(m.point(target(he, m)) - m.point(source(he, m)));
+        }
+
+        const CgalMesh& m;
+
+    private:
+        static constexpr double eps_t = 1e-9;  // edge-parameter snapping to vertices
+
+        // Index of corner source(he) in face(he): corners are source(h), target(h),
+        // target(next(h)) with h = halfedge(face(he))
+        MDV_NODISCARD Eigen::Index
+                      corner_index(const HalfEdgeIndex he) const {
+            const HalfEdgeIndex h = halfedge(face(he, m), m);
+            if (he == h) return 0;
+            if (he == next(h, m)) return 1;
+            assert(he == prev(h, m));
+            return 2;
+        }
+
+        // Frame of he: x along he (source -> target), y in-plane pointing into face(he)
+        MDV_NODISCARD std::pair<Vec3d, Vec3d>
+                      frame(const HalfEdgeIndex he) const {
+            const Vec3d x = edge_vec(he).normalized();
+            const Vec3d n = edge_vec(he).cross(edge_vec(next(he, m))).normalized();
+            return {x, n.cross(x)};
+        }
+
+        /*
+         * Barycentric velocity in face f of the direction u, projected on the face
+         * plane and normalised (unit speed).
+         * db_i = u . grad(b_i), with grad(b_i) = n x (edge opposite corner i) / (2A).
+         */
+        MDV_NODISCARD Vec3d
+        bary_velocity(const FaceIndex f, const Vec3d& u) const {
+            const HalfEdgeIndex h = halfedge(f, m);
+            const std::array    opposite_he{next(h, m), prev(h, m), h};
+            const Vec3d         n = edge_vec(h).cross(edge_vec(next(h, m)));
+
+            const Vec3d n_hat = n.normalized();
+            const Vec3d u_hat = (u - (n_hat * n_hat.dot(u))).normalized();
+
+            Vec3d db;
+            for (std::size_t i = 0; i < 3; ++i) {
+                db(static_cast<Eigen::Index>(i)) =
+                        u_hat.dot(n.cross(edge_vec(opposite_he.at(i))))
+                        / n.squaredNorm();
+            }
+            return db;
+        }
+
+        // Barycentric velocity in face(he) of the unit direction d in the frame of he
+        MDV_NODISCARD Vec3d
+        bary_velocity(const HalfEdgeIndex he, const Vec2d& d) const {
+            const auto [x, y] = frame(he);
+            return bary_velocity(face(he, m), (d.x() * x) + (d.y() * y));
+        }
+
+        // Angle at source(c) inside face(c)
+        MDV_NODISCARD double
+        corner_angle(const HalfEdgeIndex c) const {
+            const Vec3d e1 = edge_vec(c);
+            const Vec3d e2 = -edge_vec(prev(c, m));
+            return std::atan2(e1.cross(e2).norm(), e1.dot(e2));
+        }
+
+        // Total angle around source(he), walking the fan c <- opposite(prev(c)).
+        // NaN on border vertices (open fan): the OnVertex continuation throws, so the
+        // walk may still stop exactly at a border vertex.
+        MDV_NODISCARD double
+        total_angle(const HalfEdgeIndex he) const {
+            double        angle = 0.0;
+            HalfEdgeIndex c     = he;
+            do {  // NOLINT do while loop
+                if (CGAL::is_border(c, m))
+                    return std::numeric_limits<double>::quiet_NaN();
+                angle += corner_angle(c);
+                c = opposite(prev(c, m), m);
+            } while (c != he);
+            return angle;
+        }
+
+        /*
+         * Ray b(s) = b + s*db in face f (corners: source(h), target(h),
+         * target(next(h)), h = halfedge(f)). Finds the first exit and classifies it
+         * as a vertex hit or an edge crossing. Coordinates with db_i >= 0 (e.g. the
+         * entry edge) are never candidates.
+         */
+        MDV_NODISCARD Step
+        ray_step(const FaceIndex f, const Vec3d& b, const Vec3d& db) const {
+            // Exit through the edge opposite corner k, the first coordinate to reach 0
+            Eigen::Index k    = -1;
+            double       dist = std::numeric_limits<double>::infinity();
+            for (Eigen::Index i = 0; i < 3; ++i) {
+                if (db(i) >= 0.0) continue;
+                const double s = -b(i) / db(i);
+                if (s < dist) {
+                    dist = s;
+                    k    = i;
+                }
+            }
+            if (k < 0) {
+                throw std::runtime_error(
+                        fmt::format(
+                                "exponential_map: no exit found from face {}",
+                                static_cast<std::size_t>(f)
+                        )
+                );
+            }
+
+            Vec3d bexit    = b + dist * db;  // bary coords at crossing
+            bexit(k)       = 0.0;
+            const double t = bexit((k + 2) % 3);  // coordinate along crossing he
+
+            const HalfEdgeIndex h = halfedge(f, m);
+            const std::array    opposite_he{next(h, m), prev(h, m), h};
+            const HalfEdgeIndex he = opposite_he[static_cast<std::size_t>(k)];
+
+            // 3D unit direction: u = db0*P0 + db1*P1 + db2*P2, with sum(db) == 0
+            const Vec3d u = db(1) * edge_vec(h) - db(2) * edge_vec(prev(h, m));
+
+            if ((t < eps_t) || (t > 1.0 - eps_t)) {
+                // Vertex hit: straightest geodesic, leave at half the total angle.
+                // h_ref is the halfedge of the face whose source is the hit vertex.
+                const HalfEdgeIndex h_ref = (t < eps_t) ? he : next(he, m);
+                const Vec3d         e     = edge_vec(h_ref);
+                const Vec3d         back  = -u;
+                const double beta = std::atan2(e.cross(back).norm(), e.dot(back));
+
+                const double angle = total_angle(h_ref);
+                const double theta = std::fmod(beta + (0.5 * angle), angle);
+                return {
+                        .next = OnVertex{.he = h_ref, .theta = theta},
+                        .dist = dist,
+                        .f    = f,
+                        .b    = b,
+                        .db   = db,
+                };
+            }
+
+            // Edge crossing: express u in the frame of he, then flip into opposite(he).
+            // A border twin only throws if the walk continues past it.
+            const HalfEdgeIndex twin = opposite(he, m);
+            const auto [x, y]        = frame(he);
+            const Vec2d d            = Vec2d(u.dot(x), u.dot(y)).normalized();
+            assert(d.y() < 0.0);  // outbound from face(he)
+            return {
+                    .next = OnEdge{.he = twin, .t = 1.0 - t, .d = -d},
+                    .dist = dist,
+                    .f    = f,
+                    .b    = b,
+                    .db   = db,
+            };
+        }
+    };
 }  // namespace
 
 Point
 exponential_map(const Mesh& mesh, const TangentVector& v, Geodesic* geod) {
-#if RERUN_DEBUG_ENABLED
-    rec.spawn().exit_on_failure();
-    logged_mesh = &mesh;
-    rec.log_static("mesh", to_rr(mesh));
-    rec.set_time_sequence("iteration", iter_count);
-    rec.log("tangent_vector", to_rr(mesh, std::vector{v}));
-    ++iter_count;
-#endif
-
     if (mdv::condition::is_zero_norm(v.cartesian_vector()))
         return v.application_point();
 
-    const auto  p0 = internal::point3_from_eigen(position(mesh, v.application_point()));
-    const auto  f_id       = internal::to_cgal(v.face());
-    const auto& m          = internal::cgal_mesh(mesh);
-    const auto  vec        = internal::vector3_from_eigen(v.cartesian_vector());
-    const auto [pfinal, f] = exponential_map_impl(p0, f_id, vec, v.type(), m, geod);
-    const auto res         = from_cartesian(mesh, internal::convert(pfinal));
-    if (geod != nullptr) geod->emplace_back(position(mesh, res));
-    return res;
+    constexpr std::size_t max_crossings = 1'000'000;
+
+    const ContinuationStepper stepper{.m = internal::cgal_mesh(mesh)};
+    const double              len     = v.cartesian_vector().norm();
+    const double              eps_len = 1e-12 * len;  // stop-vs-cross tie
+
+    const auto finish = [&](const Point& res) -> Point {
+        if (geod != nullptr) geod->emplace_back(position(mesh, res));
+        return res;
+    };
+
+    if (geod != nullptr) geod->emplace_back(position(mesh, v.application_point()));
+
+    ContinuationState state     = stepper.initial_state(v);
+    double            remaining = len;
+    for (std::size_t i = 0; i < max_crossings; ++i) {
+        const Step step = std::visit(stepper, state);
+
+        // Stop strictly before reaching the next state
+        if (remaining < step.dist - eps_len) {
+            if (const auto* s = std::get_if<AlongEdge>(&state)) {
+                const double t = s->t + (remaining / stepper.edge_vec(s->he).norm());
+                return finish(stepper.edge_point(s->he, t));
+            }
+            Vec3d b = (step.b + (remaining * step.db)).cwiseMax(0.0);
+            b /= b.sum();
+            return finish(Point(mesh, internal::from_cgal(step.f), b));
+        }
+
+        // Stop exactly at the next state
+        if (remaining <= step.dist + eps_len)
+            return finish(stepper.location(step.next));
+
+        remaining -= step.dist;
+        state = step.next;
+        if (geod != nullptr && step.dist > 0.0)
+            geod->emplace_back(position(mesh, stepper.location(state)));
+    }
+
+    throw std::runtime_error(
+            fmt::format("exponential_map: exceeded {} crossings", max_crossings)
+    );
 }
 }  // namespace mdv::mesh
