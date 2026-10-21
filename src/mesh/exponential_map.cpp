@@ -113,7 +113,18 @@ namespace {
         }
 
         MDV_NODISCARD Result
-        operator()(const AlongEdge& state) {}
+        operator()(const AlongEdge& state) const {
+            assert(state.t >= 0.0 && state.t < 1.0);
+
+            // At target(he) the backward direction is opposite(he) (fan angle 0):
+            // the straightest continuation leaves at half the total angle
+            const double        dist = (1.0 - state.t) * edge_vec(state.he).norm();
+            const HalfEdgeIndex back = opposite(state.he, m);
+            return {
+                    OnVertex{.he = back, .theta = 0.5 * total_angle(back)},
+                    dist
+            };
+        }
 
         MDV_NODISCARD Result
         operator()(const OnVertex& state) {}
@@ -126,6 +137,35 @@ namespace {
         MDV_NODISCARD Vec3d
         edge_vec(const HalfEdgeIndex he) const {
             return internal::convert(m.point(target(he, m)) - m.point(source(he, m)));
+        }
+
+        // Angle at source(c) inside face(c)
+        MDV_NODISCARD double
+        corner_angle(const HalfEdgeIndex c) const {
+            const Vec3d e1 = edge_vec(c);
+            const Vec3d e2 = -edge_vec(prev(c, m));
+            return std::atan2(e1.cross(e2).norm(), e1.dot(e2));
+        }
+
+        // Total angle around source(he), walking the fan c <- opposite(prev(c)).
+        // Throws on border vertices (open fan).
+        MDV_NODISCARD double
+        total_angle(const HalfEdgeIndex he) const {
+            double        angle = 0.0;
+            HalfEdgeIndex c     = he;
+            do {  // NOLINT do while loop
+                if (CGAL::is_border(c, m)) {
+                    throw std::runtime_error(
+                            fmt::format(
+                                    "exponential_map: border reached at vertex {}",
+                                    static_cast<std::size_t>(source(he, m))
+                            )
+                    );
+                }
+                angle += corner_angle(c);
+                c = opposite(prev(c, m), m);
+            } while (c != he);
+            return angle;
         }
 
         /*
@@ -175,24 +215,7 @@ namespace {
                 const Vec3d         back  = -u;
                 const double beta = std::atan2(e.cross(back).norm(), e.dot(back));
 
-                // Total angle around source(h_ref), walking c <- opposite(prev(c))
-                double        angle = 0.0;
-                HalfEdgeIndex c     = h_ref;
-                do {
-                    if (CGAL::is_border(c, m)) {
-                        throw std::runtime_error(
-                                fmt::format(
-                                        "exponential_map: border reached at vertex {}",
-                                        static_cast<std::size_t>(source(h_ref, m))
-                                )
-                        );
-                    }
-                    const Vec3d e1 = edge_vec(c);
-                    const Vec3d e2 = -edge_vec(prev(c, m));
-                    angle += std::atan2(e1.cross(e2).norm(), e1.dot(e2));
-                    c = opposite(prev(c, m), m);
-                } while (c != h_ref);
-
+                const double angle = total_angle(h_ref);
                 const double theta = std::fmod(beta + (0.5 * angle), angle);
                 return {
                         OnVertex{.he = h_ref, .theta = theta},
