@@ -6,6 +6,8 @@
 #include <CGAL/Polygon_mesh_processing/transform.h>
 #include <CGAL/Surface_mesh/Surface_mesh.h>
 #include <CGAL/Surface_mesh_shortest_path/barycentric.h>
+#include <cmath>
+#include <Eigen/Geometry>
 #include <filesystem>
 #include <optional>
 #include <stdexcept>
@@ -279,9 +281,6 @@ relative_face_rotation(
 
     const Vec3d n1 = internal::convert(compute_face_normal(this_face, mesh));
     const Vec3d n2 = internal::convert(compute_face_normal(opposite_face, mesh));
-
-    if (are_parallel(n1, n2)) return Eigen::Quaterniond::Identity();
-
     const auto& v0 = mesh.point(source(he, mesh));
     const auto& v1 = mesh.point(target(he, mesh));
     const Vec3d ax = internal::convert(v1 - v0).normalized();
@@ -290,7 +289,10 @@ relative_face_rotation(
     const Vec3d b1 = -ax.cross(n1);
     const Vec3d b2 = ax.cross(n2);
 
-    Eigen::Quaterniond res = quaternion_from_two_vectors(-b2, b1);
+    // Signed angle about the shared edge: exact for nearly flat and folded faces,
+    // where a parallel-normals shortcut or FromTwoVectors would be inaccurate.
+    const double             angle = std::atan2(ax.dot((-b2).cross(b1)), (-b2).dot(b1));
+    const Eigen::Quaterniond res(Eigen::AngleAxisd(angle, ax));
     assert(are_orthogonal(n1, b1));
     assert(are_orthogonal(n2, b2));
     assert(are_orthogonal(n1, res * b2));

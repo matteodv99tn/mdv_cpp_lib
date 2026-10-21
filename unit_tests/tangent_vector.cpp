@@ -1,5 +1,6 @@
 #include "mdv/mesh/tangent_vector.hpp"
 
+#include <array>
 #include <cstdlib>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -540,6 +541,34 @@ TEST(TangentVectorDeathTest, ExponentialMapNearVertexTerminates) {
                          0.89804960738758843}
                 );
                 static_cast<void>(exponential_map(mesh, v));
+                std::exit(0);
+            },
+            ::testing::ExitedWithCode(0),
+            ""
+    );
+}
+
+// Regression: faces 262 and 301 of bunny_simple.off meet at a dihedral angle of
+// 3.3e-4 rad, which are_parallel() treats as flat, so the target is not unfolded and
+// the ray misses the shared edge by ~2e-6, firing an assert in Debug. Run in a child
+// process so the failure is reported, not fatal.
+TEST(TangentVectorDeathTest, LogarithmicMapNearlyFlatAdjacentFaces) {
+    ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
+    const std::array<double, 3> bary_p{
+            0.19943035829971079, 0.69111529367767421, 0.10945434802261497
+    };
+    const std::array<double, 3> bary_y{
+            0.17820408346439054, 0.513834211021579, 0.30796170551403046
+    };
+    EXPECT_EXIT(
+            {
+                alarm(2);
+                const auto mesh = Mesh::from_file(
+                        config::meshes_directory() / "bunny_simple.off"
+                );
+                const Point p(PointInFace{FaceId{262}, bary_p});
+                const Point y(PointInFace{FaceId{301}, bary_y});
+                static_cast<void>(logarithmic_map(mesh, p, y));
                 std::exit(0);
             },
             ::testing::ExitedWithCode(0),
