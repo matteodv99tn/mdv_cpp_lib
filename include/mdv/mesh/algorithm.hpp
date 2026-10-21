@@ -40,7 +40,9 @@ CartesianPoint point_from_geodesic(
  * @param coordinates Normalized coordinates to sample.
  * @return Resampled geodesic polyline.
  */
-Geodesic geodesic_resample(const Geodesic& geod, std::vector<double> coordinates);
+Geodesic geodesic_resample(
+        const Geodesic& geod, const std::vector<double>& coordinates
+);
 
 /**
  * @brief Resamples a geodesic polyline into a T x 3 matrix.

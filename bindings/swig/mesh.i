@@ -159,7 +159,7 @@ namespace mdv::mesh {
     );
 
     std::vector<Eigen::Vector3d> geodesic_resample(
-            const std::vector<Eigen::Vector3d>& geod, std::vector<double> coordinates
+            const std::vector<Eigen::Vector3d>& geod, const std::vector<double>& coordinates
     );
 
     Eigen::MatrixXd geodesic_resample(
