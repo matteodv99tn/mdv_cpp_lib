@@ -1,10 +1,18 @@
+#include <array>
+#include <cassert>
 #include <CGAL/Polygon_mesh_processing/compute_normal.h>
+#include <cmath>
 #include <cstdint>
 #include <Eigen/Geometry>
+#include <fmt/format.h>
 #include <iterator>
+#include <limits>
 #include <stdexcept>
+#include <utility>
+#include <variant>
 
 #include "mdv/eigen_defines.hpp"
+#include "mdv/macros.hpp"
 #include "mdv/mesh/algorithm.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
 #include "mdv/mesh/fwd.hpp"
@@ -23,6 +31,158 @@ namespace {
     using VertexDescriptor = PointOnVertex;
     using CgalHalfEdge     = internal::CgalImpl::CgalHalfEdgeIndex;
     using CgalMesh         = internal::CgalImpl::Mesh;
+    using Point3           = internal::CgalImpl::Point3;
+    using Vec3             = internal::CgalImpl::Vec3;
+
+    // Strictly inside f.
+    // Corners: source(h), target(h), target(next(h)), h = halfedge(f).
+    // db: barycentric velocity per unit arc length (sum(db) == 0).
+    struct InFace {
+        FaceIndex f;   // face
+        Vec3d     b;   // barycentric point description
+        Vec3d     db;  // vector direction in barycentric coordinates
+    };
+
+    // Direction originating at a halfedge interior and pointing inside face
+    struct OnEdge {
+        HalfEdgeIndex he;       // face(he) contains the vector
+        double        t = 0.0;  // coordinate in (0,1) on the he
+        Vec2d         d;        // direction in he coordinate system
+                                // d[0] along he(source -> target); d[1] > 0 he-normal
+    };
+
+    // Direction along he moving towards target(he)
+    // If t == 0, then the origin is the vertex
+    struct AlongEdge {
+        HalfEdgeIndex he;       // handles position and vector direction
+        double        t = 0.0;  // coordinate in [0,1) on the he
+    };
+
+    // Direction is a rotation of "theta" from he origintating at source(he)
+    struct OnVertex {
+        HalfEdgeIndex he;
+        double        theta = 0.0;
+    };
+
+    using ContinuationState = std::variant<InFace, OnEdge, AlongEdge, OnVertex>;
+
+    // Functor for the variant that for each input continuation state outputs the next
+    // continuation step and the corresponding step length
+    struct ContinuationStepper {
+        using Result = std::pair<ContinuationState, double>;
+
+        MDV_NODISCARD Result
+        operator()(const InFace& state) const {
+            // Validate precondition
+            assert(std::abs(state.b.sum() - 1.0) < 1e-12);
+            assert(std::abs(state.db.sum()) < 1e-12);
+
+            constexpr double eps_t = 1e-9;  // edge-parameter snapping to vertices
+
+            const auto edge_vec = [this](const HalfEdgeIndex he) -> Vec3d {
+                return internal::convert(
+                        m.point(target(he, m)) - m.point(source(he, m))
+                );
+            };
+
+            // Exit through the edge opposite corner k, the first coordinate to reach 0
+            Eigen::Index k    = -1;
+            double       dist = std::numeric_limits<double>::infinity();
+            for (Eigen::Index i = 0; i < 3; ++i) {
+                if (state.db(i) >= 0.0) continue;
+                const double s = -state.b(i) / state.db(i);
+                if (s < dist) {
+                    dist = s;
+                    k    = i;
+                }
+            }
+            assert(k >= 0 && k < 3);
+            if (k < 0) {
+                throw std::runtime_error(
+                        fmt::format(
+                                "exponential_map: no exit found from face {}",
+                                static_cast<std::size_t>(state.f)
+                        )
+                );
+            }
+
+            Vec3d bexit    = state.b + dist * state.db;  // bary coords at crossing
+            bexit(k)       = 0.0;
+            const double t = bexit((k + 2) % 3);  // coordinate along crossing he
+
+            const HalfEdgeIndex h = halfedge(state.f, m);
+            const std::array    opposite_he{next(h, m), prev(h, m), h};
+            const HalfEdgeIndex he = opposite_he[static_cast<std::size_t>(k)];
+
+            // 3D unit direction: u = db0*P0 + db1*P1 + db2*P2, with sum(db) == 0
+            const Vec3d u =
+                    state.db(1) * edge_vec(h) - state.db(2) * edge_vec(prev(h, m));
+
+            if ((t < eps_t) || (t > 1.0 - eps_t)) {
+                // Vertex hit: straightest geodesic, leave at half the total angle.
+                // h_ref is the halfedge of the face whose source is the hit vertex.
+                const HalfEdgeIndex h_ref = (t < eps_t) ? he : next(he, m);
+                const Vec3d         e     = edge_vec(h_ref);
+                const Vec3d         back  = -u;
+                const double beta = std::atan2(e.cross(back).norm(), e.dot(back));
+
+                // Total angle around source(h_ref), walking c <- opposite(prev(c))
+                double        angle = 0.0;
+                HalfEdgeIndex c     = h_ref;
+                do {
+                    if (CGAL::is_border(c, m)) {
+                        throw std::runtime_error(
+                                fmt::format(
+                                        "exponential_map: border reached at vertex {}",
+                                        static_cast<std::size_t>(source(h_ref, m))
+                                )
+                        );
+                    }
+                    const Vec3d e1 = edge_vec(c);
+                    const Vec3d e2 = -edge_vec(prev(c, m));
+                    angle += std::atan2(e1.cross(e2).norm(), e1.dot(e2));
+                    c = opposite(prev(c, m), m);
+                } while (c != h_ref);
+
+                const double theta = std::fmod(beta + (0.5 * angle), angle);
+                return {
+                        OnVertex{.he = h_ref, .theta = theta},
+                        dist
+                };
+            }
+
+            // Edge crossing: express u in the frame of he, then flip into opposite(he)
+            const HalfEdgeIndex twin = opposite(he, m);
+            if (CGAL::is_border(twin, m)) {
+                throw std::runtime_error(
+                        fmt::format(
+                                "exponential_map: border reached at halfedge {}",
+                                static_cast<std::size_t>(he)
+                        )
+                );
+            }
+            const Vec3d x = edge_vec(he).normalized();
+            const Vec3d n = edge_vec(he).cross(edge_vec(next(he, m))).normalized();
+            const Vec3d y = n.cross(x);  // in-plane, pointing into face(he)
+            const Vec2d d = Vec2d(u.dot(x), u.dot(y)).normalized();
+            assert(d.y() < 0.0);  // outbound from face(he)
+            return {
+                    OnEdge{.he = twin, .t = 1.0 - t, .d = -d},
+                    dist
+            };
+        }
+
+        MDV_NODISCARD Result
+        operator()(const OnEdge& state) {}
+
+        MDV_NODISCARD Result
+        operator()(const AlongEdge& state) {}
+
+        MDV_NODISCARD Result
+        operator()(const OnVertex& state) {}
+
+        const CgalMesh& m;
+    };
 
     CgalHalfEdge
     get_halfedge(
