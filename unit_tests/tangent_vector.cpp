@@ -576,4 +576,29 @@ TEST(TangentVectorDeathTest, LogarithmicMapNearlyFlatAdjacentFaces) {
     );
 }
 
+// Regression: p and y lie in adjacent faces 698 and 737 of bunny_simple.off, both
+// beyond the same endpoint of the shared edge. The unfolded straight segment crosses
+// the edge line ~1.8e-3 past that vertex, so the geodesic wraps around it through
+// other faces instead of crossing the shared edge.
+TEST(MdvMesh, LogarithmicMapAdjacentFacesAroundVertex) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "bunny_simple.off");
+    const std::array<double, 3> bary_p{
+            0.1100772823236934, 0.40430569669135008, 0.48561702098495652
+    };
+    const std::array<double, 3> bary_y{
+            0.03446249395021167, 0.14693320112857253, 0.81860430492121583
+    };
+    const Point p(PointInFace{.f = FaceId{698}, .bary = bary_p});
+    const Point y(PointInFace{.f = FaceId{737}, .bary = bary_y});
+
+    // Exact geodesic distance; the two-face unfolding gives 0.050739899492189086
+    constexpr double expected = 0.05071506451342084;
+    double           d_py     = 0.0;
+    double           d_yp     = 0.0;
+    ASSERT_NO_THROW(d_py = logarithmic_map(mesh, p, y).cartesian_vector().norm());
+    ASSERT_NO_THROW(d_yp = logarithmic_map(mesh, y, p).cartesian_vector().norm());
+    EXPECT_NEAR(d_py, expected, 1e-9);
+    EXPECT_NEAR(d_yp, expected, 1e-9);
+}
+
 }  // namespace mdv::mesh
