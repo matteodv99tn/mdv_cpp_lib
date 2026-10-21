@@ -73,50 +73,99 @@ namespace {
 
         MDV_NODISCARD Result
         operator()(const InFace& state) const {
-            // Validate precondition
             assert(std::abs(state.b.sum() - 1.0) < 1e-12);
             assert(std::abs(state.db.sum()) < 1e-12);
+            return ray_step(state.f, state.b, state.db);
+        }
 
-            constexpr double eps_t = 1e-9;  // edge-parameter snapping to vertices
+        MDV_NODISCARD Result
+        operator()(const OnEdge& state) const {
+            assert(!CGAL::is_border(state.he, m));
+            assert(state.d.y() > 0.0);  // inbound
 
-            const auto edge_vec = [this](const HalfEdgeIndex he) -> Vec3d {
-                return internal::convert(
-                        m.point(target(he, m)) - m.point(source(he, m))
-                );
-            };
+            const FaceIndex     f = face(state.he, m);
+            const HalfEdgeIndex h = halfedge(f, m);
+            const std::array    opposite_he{next(h, m), prev(h, m), h};
 
+            // Corner index of source(he): halfedge h_i has source at corner i
+            const std::size_t j                       = (state.he == h)            ? 0
+                                                        : (state.he == next(h, m)) ? 1
+                                                                                   : 2;
+            Vec3d             b                       = Vec3d::Zero();
+            b(static_cast<Eigen::Index>(j))           = 1.0 - state.t;
+            b(static_cast<Eigen::Index>((j + 1) % 3)) = state.t;
+
+            // 3D unit direction from the frame of he
+            const Vec3d x = edge_vec(state.he).normalized();
+            const Vec3d n = edge_vec(state.he).cross(edge_vec(next(state.he, m)));
+            const Vec3d y = n.normalized().cross(x);  // in-plane, into face(he)
+            const Vec3d u = (state.d.x() * x) + (state.d.y() * y);
+
+            // Barycentric velocity: db_i = u . grad(b_i), with
+            // grad(b_i) = n x (edge opposite corner i) / (2A)
+            Vec3d db;
+            for (std::size_t i = 0; i < 3; ++i) {
+                db(static_cast<Eigen::Index>(i)) =
+                        u.dot(n.cross(edge_vec(opposite_he.at(i)))) / n.squaredNorm();
+            }
+
+            return ray_step(f, b, db);
+        }
+
+        MDV_NODISCARD Result
+        operator()(const AlongEdge& state) {}
+
+        MDV_NODISCARD Result
+        operator()(const OnVertex& state) {}
+
+        const CgalMesh& m;
+
+    private:
+        static constexpr double eps_t = 1e-9;  // edge-parameter snapping to vertices
+
+        MDV_NODISCARD Vec3d
+        edge_vec(const HalfEdgeIndex he) const {
+            return internal::convert(m.point(target(he, m)) - m.point(source(he, m)));
+        }
+
+        /*
+         * Ray b(s) = b + s*db in face f (corners: source(h), target(h),
+         * target(next(h)), h = halfedge(f)). Finds the first exit and classifies it
+         * as a vertex hit or an edge crossing. Coordinates with db_i >= 0 (e.g. the
+         * entry edge) are never candidates.
+         */
+        MDV_NODISCARD Result
+        ray_step(const FaceIndex f, const Vec3d& b, const Vec3d& db) const {
             // Exit through the edge opposite corner k, the first coordinate to reach 0
             Eigen::Index k    = -1;
             double       dist = std::numeric_limits<double>::infinity();
             for (Eigen::Index i = 0; i < 3; ++i) {
-                if (state.db(i) >= 0.0) continue;
-                const double s = -state.b(i) / state.db(i);
+                if (db(i) >= 0.0) continue;
+                const double s = -b(i) / db(i);
                 if (s < dist) {
                     dist = s;
                     k    = i;
                 }
             }
-            assert(k >= 0 && k < 3);
             if (k < 0) {
                 throw std::runtime_error(
                         fmt::format(
                                 "exponential_map: no exit found from face {}",
-                                static_cast<std::size_t>(state.f)
+                                static_cast<std::size_t>(f)
                         )
                 );
             }
 
-            Vec3d bexit    = state.b + dist * state.db;  // bary coords at crossing
+            Vec3d bexit    = b + dist * db;  // bary coords at crossing
             bexit(k)       = 0.0;
             const double t = bexit((k + 2) % 3);  // coordinate along crossing he
 
-            const HalfEdgeIndex h = halfedge(state.f, m);
+            const HalfEdgeIndex h = halfedge(f, m);
             const std::array    opposite_he{next(h, m), prev(h, m), h};
             const HalfEdgeIndex he = opposite_he[static_cast<std::size_t>(k)];
 
             // 3D unit direction: u = db0*P0 + db1*P1 + db2*P2, with sum(db) == 0
-            const Vec3d u =
-                    state.db(1) * edge_vec(h) - state.db(2) * edge_vec(prev(h, m));
+            const Vec3d u = db(1) * edge_vec(h) - db(2) * edge_vec(prev(h, m));
 
             if ((t < eps_t) || (t > 1.0 - eps_t)) {
                 // Vertex hit: straightest geodesic, leave at half the total angle.
@@ -171,17 +220,6 @@ namespace {
                     dist
             };
         }
-
-        MDV_NODISCARD Result
-        operator()(const OnEdge& state) {}
-
-        MDV_NODISCARD Result
-        operator()(const AlongEdge& state) {}
-
-        MDV_NODISCARD Result
-        operator()(const OnVertex& state) {}
-
-        const CgalMesh& m;
     };
 
     CgalHalfEdge
