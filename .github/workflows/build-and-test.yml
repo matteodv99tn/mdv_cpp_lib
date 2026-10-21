@@ -18,7 +18,7 @@ jobs:
       MDVCPPLIB_LLVM_CACHE_DIR: /opt/llvm-cache
     steps:
       - name: Install checkout prerequisites
-        run: pacman -Syu --noconfirm --needed git zstd
+        run: pacman -Syu --noconfirm --needed git zstd python
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-arch
       - uses: actions/cache@v4
@@ -38,7 +38,10 @@ jobs:
       # Only the matioCpp headers are generated at build time
       - name: Build generated headers
         run: cmake --build build --target matioCpp
+      # A fresh container never has a warm result cache
       - name: Run clang-tidy
+        env:
+          MDV_LINT_NO_CACHE: 1
         run: ./scripts/run_clang_tidy.sh
 
   build-arch:
