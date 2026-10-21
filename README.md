@@ -119,6 +119,7 @@ pre-commit run --all-files --hook-stage pre-push
 The clean build can also be run independently with `./scripts/run_clean_build.sh`.
 For performance reasone, the script requires Ninja and defaults to eight build jobs to limit RAM usage; set `MDV_JOBS` to override the number of build jobs.
 Linting has also a bounded number of workers (4) which can be overwritten by setting `MDV_LINT_JOBS`.
+`./scripts/run_clang_tidy.sh` caches the result of each file in `~/.cache/mdv-lint` (override with `MDV_LINT_CACHE_DIR`). Set `MDV_LINT_NO_CACHE=1` to disable it, and delete the cache directory after upgrading third-party libraries (Eigen, CGAL, ...) since changes inside them that keep path and size are not detected.
 
 
 ### Python bindings (developer workflow)
