@@ -83,33 +83,11 @@ namespace {
             assert(!CGAL::is_border(state.he, m));
             assert(state.d.y() > 0.0);  // inbound
 
-            const FaceIndex     f = face(state.he, m);
-            const HalfEdgeIndex h = halfedge(f, m);
-            const std::array    opposite_he{next(h, m), prev(h, m), h};
-
-            // Corner index of source(he): halfedge h_i has source at corner i
-            const std::size_t j                       = (state.he == h)            ? 0
-                                                        : (state.he == next(h, m)) ? 1
-                                                                                   : 2;
-            Vec3d             b                       = Vec3d::Zero();
-            b(static_cast<Eigen::Index>(j))           = 1.0 - state.t;
-            b(static_cast<Eigen::Index>((j + 1) % 3)) = state.t;
-
-            // 3D unit direction from the frame of he
-            const Vec3d x = edge_vec(state.he).normalized();
-            const Vec3d n = edge_vec(state.he).cross(edge_vec(next(state.he, m)));
-            const Vec3d y = n.normalized().cross(x);  // in-plane, into face(he)
-            const Vec3d u = (state.d.x() * x) + (state.d.y() * y);
-
-            // Barycentric velocity: db_i = u . grad(b_i), with
-            // grad(b_i) = n x (edge opposite corner i) / (2A)
-            Vec3d db;
-            for (std::size_t i = 0; i < 3; ++i) {
-                db(static_cast<Eigen::Index>(i)) =
-                        u.dot(n.cross(edge_vec(opposite_he.at(i)))) / n.squaredNorm();
-            }
-
-            return ray_step(f, b, db);
+            const auto j   = corner_index(state.he);
+            Vec3d      b   = Vec3d::Zero();
+            b(j)           = 1.0 - state.t;
+            b((j + 1) % 3) = state.t;
+            return ray_step(face(state.he, m), b, bary_velocity(state.he, state.d));
         }
 
         MDV_NODISCARD Result
@@ -127,7 +105,55 @@ namespace {
         }
 
         MDV_NODISCARD Result
-        operator()(const OnVertex& state) {}
+        operator()(const OnVertex& state) const {
+            assert(state.theta >= 0.0);
+            constexpr double eps_ang = 1e-9;  // angular snapping to fan edges
+
+            // Fan walk from he until the corner c containing theta is found
+            HalfEdgeIndex c     = state.he;
+            double        alpha = state.theta;  // residual angle from c
+            do {                                // NOLINT do while loop
+                if (CGAL::is_border(c, m)) {
+                    throw std::runtime_error(
+                            fmt::format(
+                                    "exponential_map: border reached at vertex {}",
+                                    static_cast<std::size_t>(source(c, m))
+                            )
+                    );
+                }
+                const double        ca     = corner_angle(c);
+                const HalfEdgeIndex c_next = opposite(prev(c, m), m);
+                if (alpha <= ca) {
+                    if (alpha < eps_ang) {
+                        return {
+                                AlongEdge{.he = c, .t = 0.0},
+                                0.0
+                        };
+                    }
+                    if (alpha > ca - eps_ang) {
+                        return {
+                                AlongEdge{.he = c_next, .t = 0.0},
+                                0.0
+                        };
+                    }
+
+                    // Ray from corner source(c) inside face(c): the only exit is
+                    // next(c), since the other two coordinates are 0 with db > 0
+                    Vec3d b            = Vec3d::Zero();
+                    b(corner_index(c)) = 1.0;
+                    const Vec2d d(std::cos(alpha), std::sin(alpha));
+                    return ray_step(face(c, m), b, bary_velocity(c, d));
+                }
+                alpha -= ca;
+                c = c_next;
+            } while (c != state.he);
+
+            // theta >= total angle by rounding only: same as theta = 0
+            return {
+                    AlongEdge{.he = state.he, .t = 0.0},
+                    0.0
+            };
+        }
 
         const CgalMesh& m;
 
@@ -137,6 +163,39 @@ namespace {
         MDV_NODISCARD Vec3d
         edge_vec(const HalfEdgeIndex he) const {
             return internal::convert(m.point(target(he, m)) - m.point(source(he, m)));
+        }
+
+        // Index of corner source(he) in face(he): corners are source(h), target(h),
+        // target(next(h)) with h = halfedge(face(he))
+        MDV_NODISCARD Eigen::Index
+                      corner_index(const HalfEdgeIndex he) const {
+            const HalfEdgeIndex h = halfedge(face(he, m), m);
+            if (he == h) return 0;
+            if (he == next(h, m)) return 1;
+            assert(he == prev(h, m));
+            return 2;
+        }
+
+        /*
+         * Barycentric velocity in face(he) of the unit direction d, expressed in the
+         * frame of he: x along he (source -> target), y in-plane into face(he).
+         * db_i = u . grad(b_i), with grad(b_i) = n x (edge opposite corner i) / (2A).
+         */
+        MDV_NODISCARD Vec3d
+        bary_velocity(const HalfEdgeIndex he, const Vec2d& d) const {
+            const Vec3d x = edge_vec(he).normalized();
+            const Vec3d n = edge_vec(he).cross(edge_vec(next(he, m)));
+            const Vec3d y = n.normalized().cross(x);
+            const Vec3d u = (d.x() * x) + (d.y() * y);
+
+            const HalfEdgeIndex h = halfedge(face(he, m), m);
+            const std::array    opposite_he{next(h, m), prev(h, m), h};
+            Vec3d               db;
+            for (std::size_t i = 0; i < 3; ++i) {
+                db(static_cast<Eigen::Index>(i)) =
+                        u.dot(n.cross(edge_vec(opposite_he.at(i)))) / n.squaredNorm();
+            }
+            return db;
         }
 
         // Angle at source(c) inside face(c)
