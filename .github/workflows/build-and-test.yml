@@ -7,24 +7,70 @@ on:
     branches: [main, devel, devel-v2]
 
 jobs:
-  formatting:
+  # clang-tidy diagnostics depend on the system headers: Arch is the reference platform.
+  lint:
+    name: archlinux / format + clang-tidy
     runs-on: ubuntu-latest
+    container: archlinux:base-devel
     env:
-      MDVCPPLIB_LLVM_CACHE_DIR: ${{ github.workspace }}/.llvm-cache
+      CC: clang
+      CXX: clang++
+      MDVCPPLIB_LLVM_CACHE_DIR: /opt/llvm-cache
     steps:
+      - name: Install checkout prerequisites
+        run: pacman -Syu --noconfirm --needed git zstd
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-arch
       - uses: actions/cache@v4
         with:
           path: ${{ env.MDVCPPLIB_LLVM_CACHE_DIR }}
-          key: llvm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get_llvm.sh') }}
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-      - run: python -m pip install pre-commit
+          key: llvm-arch-${{ runner.arch }}-${{ hashFiles('scripts/get_llvm.sh') }}
       - name: Check formatting
-        run: pre-commit run --all-files --hook-stage pre-commit --show-diff-on-failure
+        run: |
+          ./scripts/run_clang_format.sh
+          # The host-owned checkout is inspected by root inside the container.
+          git -c safe.directory="$GITHUB_WORKSPACE" diff --exit-code
+      - name: Configure tests and Rerun executables
+        run: >-
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DBUILD_TESTING=ON -DBUILD_EXECUTABLES=ON -DUSE_RERUN=ON
+      # Only the matioCpp headers are generated at build time
+      - name: Build generated headers
+        run: cmake --build build --target matioCpp
+      - name: Run clang-tidy
+        run: ./scripts/run_clang_tidy.sh
 
-  build-and-test:
+  build-arch:
+    name: archlinux / ${{ matrix.compiler.name }} / ${{ matrix.build_type }}
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - {name: GCC, cc: gcc, cxx: g++}
+          - {name: Clang, cc: clang, cxx: clang++}
+        build_type: [Debug, Release]
+    env:
+      CC: ${{ matrix.compiler.cc }}
+      CXX: ${{ matrix.compiler.cxx }}
+    steps:
+      - name: Install checkout prerequisites
+        run: pacman -Syu --noconfirm --needed git
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-arch
+      - name: Configure tests and Rerun executables
+        run: >-
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DBUILD_TESTING=ON -DBUILD_EXECUTABLES=ON -DUSE_RERUN=ON
+      - name: Build
+        run: cmake --build build --parallel 2
+      - name: Test
+        run: ctest --test-dir build --parallel 2 --output-on-failure --no-tests=error
+
+  build-ubuntu:
     name: ${{ matrix.os }} / ${{ matrix.compiler.name }} / ${{ matrix.build_type }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -34,11 +80,10 @@ jobs:
         compiler:
           - {name: GCC, cc: gcc, cxx: g++}
           - {name: Clang, cc: clang, cxx: clang++}
-        build_type: [Debug, Release]
+        build_type: [Debug]
     env:
       CC: ${{ matrix.compiler.cc }}
       CXX: ${{ matrix.compiler.cxx }}
-      MDVCPPLIB_LLVM_CACHE_DIR: ${{ github.workspace }}/.llvm-cache
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
@@ -63,11 +108,3 @@ jobs:
         run: cmake --build build --parallel 2
       - name: Test
         run: ctest --test-dir build --parallel 2 --output-on-failure --no-tests=error
-      - uses: actions/cache@v4
-        if: matrix.os == 'ubuntu-latest' && matrix.compiler.name == 'Clang' && matrix.build_type == 'Debug'
-        with:
-          path: ${{ env.MDVCPPLIB_LLVM_CACHE_DIR }}
-          key: llvm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/get_llvm.sh') }}
-      - name: Run clang-tidy
-        if: matrix.os == 'ubuntu-latest' && matrix.compiler.name == 'Clang' && matrix.build_type == 'Debug'
-        run: ./scripts/run_clang_tidy.sh

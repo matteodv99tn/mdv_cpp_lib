@@ -1,0 +1,22 @@
+name: Set up Arch Linux
+description: Install the build dependencies and the precompiled Rerun SDK on Arch Linux
+
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: ./cmake/install_dependencies.sh
+    - name: Install precompiled Rerun SDK
+      shell: bash
+      run: |
+        mkdir -p /opt/rerun-sdk
+        curl -fL --retry 3 \
+          https://github.com/matteodv99tn/rerun-sdk-precompiled/releases/download/v0.25.1/rerun_cpp_sdk-0.25.1.tar.gz |
+          tar -xz -C /opt/rerun-sdk
+        echo "CMAKE_PREFIX_PATH=/opt/rerun-sdk" >> "$GITHUB_ENV"
+    - name: Build external dependencies
+      shell: bash
+      run: |
+        cmake -S cmake -B cmake/build
+        cmake --build cmake/build --parallel 2

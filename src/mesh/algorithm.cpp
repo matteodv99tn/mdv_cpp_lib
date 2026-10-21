@@ -78,7 +78,7 @@ point_from_geodesic(const Geodesic& geod, const double s_input, const double* le
 }
 
 Geodesic
-geodesic_resample(const Geodesic& geod, std::vector<double> coordinates) {
+geodesic_resample(const Geodesic& geod, const std::vector<double>& coordinates) {
     Geodesic     res;
     const double len = length(geod);
     res.reserve(coordinates.size());
