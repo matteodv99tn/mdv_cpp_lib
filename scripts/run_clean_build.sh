@@ -3,6 +3,10 @@ set -euo pipefail
 
 script_dir=${0%/*}
 ws_dir=$(realpath "$script_dir/..")
+
+# Dependency checkouts must not inherit the hook's repository context.
+unset $(git -C "$ws_dir" rev-parse --local-env-vars)
+
 build_dir=$(mktemp -d)
 trap 'rm -rf "$build_dir"' EXIT
 
