@@ -138,15 +138,13 @@ build_geodesic(const Mesh& mesh, const Point& from, const Point& to) {
             );
             auto midpt = internal::edge_ray_intersection(segment, ray);
 
-            if (!midpt.has_value()) {
-                throw std::runtime_error(
-                        "Expected ray intersection, but intersection not found!"
-                );
+            if (midpt.has_value()) {
+                return {position(mesh, from),
+                        internal::convert(midpt.value()),
+                        position(mesh, to)};
             }
-
-            return {position(mesh, from),
-                    internal::convert(midpt.value()),
-                    position(mesh, to)};
+            // The unfolded segment misses the shared edge: the geodesic wraps
+            // around one of its endpoints, so defer to the exact solver below.
         }
     }
 
