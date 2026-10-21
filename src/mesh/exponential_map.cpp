@@ -13,30 +13,6 @@
 #include "mdv/utils/conditions.hpp"
 #include "mdv/utils/eigen_solvers.hpp"
 
-// \cond DOXYGEN_IGNORE
-
-// Uncomment the following line to enable the compilation with the integrated rerun
-// logger that will display all the steps of the shortest path computation
-
-// #define DEBUG_EXPONENTIAL_MAP
-
-#if defined(DEBUG_EXPONENTIAL_MAP) && defined(MDV_WITH_RERUN_SDK)
-#define RERUN_DEBUG_ENABLED true
-#else
-#define RERUN_DEBUG_ENABLED false
-#endif
-
-#if RERUN_DEBUG_ENABLED
-#include <thread>
-
-#include <rerun.hpp>
-#include <rerun/recording_stream.hpp>
-
-#include "mdv/rerun.hpp"
-#endif
-
-// \endcond
-
 namespace mdv::mesh {
 
 namespace {
@@ -47,74 +23,6 @@ namespace {
     using VertexDescriptor = PointOnVertex;
     using CgalHalfEdge     = internal::CgalImpl::CgalHalfEdgeIndex;
     using CgalMesh         = internal::CgalImpl::Mesh;
-
-#if RERUN_DEBUG_ENABLED
-    rerun::RecordingStream rec("exponential_map_debug", "exponential_map");
-    std::int64_t           iter_count  = 0;
-    const Mesh*            logged_mesh = nullptr;
-    mdv::RerunConverter    to_rr;
-
-    ::rerun::components::Position3D
-    to_rr_pos(const Kernel::Point_3& in) {
-        return {static_cast<float>(in.x()),
-                static_cast<float>(in.y()),
-                static_cast<float>(in.z())};
-    }
-
-    ::rerun::components::Vector3D
-    to_rr_vec(const Kernel::Vector_3& in) {
-        return {static_cast<float>(in.x()),
-                static_cast<float>(in.y()),
-                static_cast<float>(in.z())};
-    }
-
-    void
-    draw_triangle(
-            const std::string&        path,
-            const Kernel::Triangle_3& tri,
-            const std::string&        label
-    ) {
-        const Vec3d tv0 = internal::convert(tri.vertex(0));
-        const Vec3d tv1 = internal::convert(tri.vertex(1));
-        const Vec3d tv2 = internal::convert(tri.vertex(2));
-        rec.log(path,
-                to_rr(std::vector{tv0, tv1, tv2, tv0}).with_labels(std::vector{label}));
-    }
-
-    void
-    draw_point(
-            const std::string& path, const Kernel::Point_3& pt, const std::string& label
-    ) {
-        auto drawable = ::rerun::archetypes::Points3D(std::vector{to_rr_pos(pt)})
-                                .with_labels(std::vector{label});
-        rec.log(path, drawable);
-    }
-
-    void
-    draw_arrow(
-            const std::string&      path,
-            const Kernel::Point_3&  origin,
-            const Kernel::Vector_3& direction,
-            const std::string&      label
-    ) {
-        using ::rerun::components::Vector3D;
-        auto drawable = ::rerun::archetypes::Arrows3D()
-                                .with_vectors(std::vector{to_rr_vec(direction)})
-                                .with_origins(std::vector{to_rr_pos(origin)})
-                                .with_labels(std::vector{label});
-        rec.log(path, drawable);
-    }
-
-    void
-    draw_arrow(
-            const std::string&     path,
-            const Kernel::Point_3& origin,
-            const Vec3d&           direction,
-            const std::string&     label
-    ) {
-        draw_arrow(path, origin, internal::vector3_from_eigen(direction), label);
-    }
-#endif
 
     CgalHalfEdge
     get_halfedge(
@@ -425,18 +333,6 @@ namespace {
         const auto [pstar, pstar_type] =
                 compute_intersection(p0, f_id, vec, vec_type, mesh);
 
-#if RERUN_DEBUG_ENABLED
-        rec.set_time_sequence("iteration", iter_count);
-        ++iter_count;
-
-        CGAL::Triangle_from_face_descriptor_map tri_gen(&mesh);
-        const Kernel::Triangle_3                tri = get(tri_gen, f_id);
-        draw_triangle("initial_face", tri, "Starting face");
-        draw_point("p0", p0, "p0");
-        draw_point("pstar", pstar, "pstar");
-        draw_arrow("tv", p0, vec, "initial vector");
-#endif
-
         const double dist_p0_pstar = CGAL::squared_distance(p0, pstar);
         const double vec_len       = vec.squared_length();
 
@@ -453,14 +349,6 @@ namespace {
         const auto [v_next, next_face_id, next_type] =
                 propagate_vector(pstar_type, pstar, f_id, v_left, mesh);
 
-#if RERUN_DEBUG_ENABLED
-        const Kernel::Triangle_3 tri_next = get(tri_gen, next_face_id);
-
-        draw_triangle("next_face", tri_next, "next face");
-        draw_arrow("v1", pstar, internal::convert(v_left), "vector");
-        draw_arrow("v2", pstar, internal::convert(v_next), "next vector");
-#endif
-
         // TODO: check that the updated vector points "internally" to the face
         return exponential_map_impl(pstar, next_face_id, v_next, next_type, mesh, geod);
     }
@@ -468,15 +356,6 @@ namespace {
 
 Point
 exponential_map(const Mesh& mesh, const TangentVector& v, Geodesic* geod) {
-#if RERUN_DEBUG_ENABLED
-    rec.spawn().exit_on_failure();
-    logged_mesh = &mesh;
-    rec.log_static("mesh", to_rr(mesh));
-    rec.set_time_sequence("iteration", iter_count);
-    rec.log("tangent_vector", to_rr(mesh, std::vector{v}));
-    ++iter_count;
-#endif
-
     if (mdv::condition::is_zero_norm(v.cartesian_vector()))
         return v.application_point();
 
