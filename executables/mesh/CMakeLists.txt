@@ -36,3 +36,12 @@ target_link_libraries(
     mesh_planar_morphism
     mdvcpplib
 )
+
+add_executable(
+    explog_consistency
+    ${CMAKE_CURRENT_LIST_DIR}/explog_consistency.cpp
+)
+target_link_libraries(
+    explog_consistency
+    mdvcpplib
+)
