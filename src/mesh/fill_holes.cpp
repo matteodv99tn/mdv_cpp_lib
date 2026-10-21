@@ -1,8 +1,13 @@
 #include <CGAL/boost/graph/graph_traits_Surface_mesh.h>
 #include <CGAL/iterator.h>
-#include <CGAL/Polygon_mesh_processing/border.h>
 #include <CGAL/Polygon_mesh_processing/triangulate_hole.h>
 #include <fmt/format.h>
+
+#if __has_include(<CGAL/boost/graph/border.h>)
+#include <CGAL/boost/graph/border.h>
+#else
+#include <CGAL/Polygon_mesh_processing/border.h>
+#endif
 
 #include <range/v3/algorithm.hpp>
 
@@ -34,7 +39,12 @@ Mesh::fill_holes(const Mesh& mesh) {
 
     std::vector<HalfedgeId> border_cycles;
 
+    // CGAL 6.2 moved boundary extraction out of Polygon_mesh_processing.
+#if __has_include(<CGAL/boost/graph/border.h>)
+    CGAL::extract_boundary_cycles(m, std::back_inserter(border_cycles));
+#else
     pmp::extract_boundary_cycles(m, std::back_inserter(border_cycles));
+#endif
     fmt::print("Found {} border cycles\n", border_cycles.size());
 
     // Sort by length of boarder -> avoid filling of last hole!
