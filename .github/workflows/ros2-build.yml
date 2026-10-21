@@ -1,4 +1,4 @@
-name: ROS2 humble package build
+name: ROS 2 package build
 
 on:
   push:
@@ -11,16 +11,37 @@ on:
       - main
       - devel
       - devel-v2
-          
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   humble_source:
+    name: Humble / Ubuntu 22.04
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      ROS_DISTRO: humble
+      CMAKE_GENERATOR: Ninja
+      CMAKE_BUILD_PARALLEL_LEVEL: 2
     steps:
-      - uses: ros-tooling/setup-ros@v0.7
+      - uses: actions/checkout@v4
+      - uses: ros-tooling/setup-ros@0.7.19
         with:
           required-ros-distributions: humble
 
-      - uses: ros-tooling/action-ros-ci@v0.3
-        with:
-          package-name: mdvcpplib
-          target-ros2-distro: humble
+      - name: Install package dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+          rosdep update --rosdistro "$ROS_DISTRO"
+          rosdep install --from-paths . --ignore-src --rosdistro "$ROS_DISTRO" -y
+
+      - name: Build ROS 2 package
+        shell: bash
+        run: |
+          source "/opt/ros/$ROS_DISTRO/setup.bash"
+          colcon build --base-paths . --packages-select mdvcpplib \
+            --event-handlers console_direct+ --symlink-install \
+            --cmake-args -DBUILD_TESTING=OFF -DBUILD_EXECUTABLES=OFF -DUSE_RERUN=OFF

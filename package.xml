@@ -14,6 +14,10 @@
   <depend>fmt</depend>
   <depend>spdlog</depend>
   <depend>libmsgsl-dev</depend>
+  <depend>matio</depend>
+  <depend>rclcpp</depend>
+  <depend>tf2_ros</depend>
+  <depend>geometry_msgs</depend>
   <build_depend>range-v3</build_depend>
 
   <test_depend>gtest</test_depend>
