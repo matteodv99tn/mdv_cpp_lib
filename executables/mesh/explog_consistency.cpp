@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fmt/format.h>
+#include <fstream>
 #include <limits>
 #include <numeric>
 #include <optional>
@@ -44,10 +45,11 @@ dump(const Mesh& mesh, const Point& p) {
     const auto pos = vec_to_str(position(mesh, p));
     if (const auto* v = p.get_as<PointOnVertex>())
         return fmt::format("PointOnVertex{{v={}}} at {}", v->v.value, pos);
-    if (const auto* e = p.get_as<PointOnEdge>())
+    if (const auto* e = p.get_as<PointOnEdge>()) {
         return fmt::format(
                 "PointOnEdge{{he={}, t={:.17g}}} at {}", e->he.value, e->t, pos
         );
+    }
     const auto* f = p.get_as<PointInFace>();
     return fmt::format(
             "PointInFace{{f={}, bary=[{:.17g}, {:.17g}, {:.17g}]}} at {}",
@@ -135,7 +137,7 @@ parallel_samples(
         std::string_view             name,
         const std::filesystem::path& mesh_path,
         std::size_t                  n,
-        F&&                          f
+        F&&                          f  // NOLINT
 ) {
     using namespace std::chrono;
 
@@ -183,8 +185,28 @@ quantile(const std::vector<double>& sorted, double q) {
     return sorted[idx];
 }
 
+// Failed samples are written with NaN error and scale
 void
-report(std::string_view name, const std::vector<Sample>& samples) {
+write_csv(const std::filesystem::path& file, const std::vector<Sample>& samples) {
+    std::ofstream out(file);
+    if (!out) throw std::runtime_error(fmt::format("Cannot open {}", file.string()));
+
+    out << "index,scale,error\n";
+    for (std::size_t i = 0; i < samples.size(); ++i) {
+        out << fmt::format(
+                "{},{:.17g},{:.17g}\n", i, samples[i].scale, samples[i].error
+        );
+    }
+}
+
+void
+report(std::string_view           name,
+       std::string_view           mesh_name,
+       const std::vector<Sample>& samples) {
+    const auto csv = std::filesystem::path(fmt::format("{}-{}.csv", name, mesh_name));
+    write_csv(csv, samples);
+    fmt::print("{}: samples written to {}\n", name, csv.string());
+
     std::vector<double> errors;
     errors.reserve(samples.size());
     for (const auto& s : samples)
@@ -217,8 +239,8 @@ int
 main(int argc, char* argv[]) {
     const std::vector<std::string> args(argv + 1, argv + argc);  // NOLINT
 
-    const std::string       mesh_name  = args.size() > 0 ? args[0] : "bunny_simple.off";
-    const std::size_t       num_points = args.size() > 1 ? std::stoul(args[1]) : 5000;
+    const std::string       mesh_name  = args.size() > 0 ? args[0] : "torus_simple.off";
+    const std::size_t       num_points = args.size() > 1 ? std::stoul(args[1]) : 2000;
     constexpr std::uint64_t seed       = 0;
 
     const auto mesh_path = mdv::config::meshes_directory() / mesh_name;
@@ -236,20 +258,21 @@ main(int argc, char* argv[]) {
                 return log_exp_sample(m, pt_a[i], pt_b[i]);
             }
     );
-    report("log-exp", le);
+    const std::string mesh_stem = std::filesystem::path(mesh_name).stem().string();
+    report("log-exp", mesh_stem, le);
 
     double d_max = 0.0;
     for (const auto& s : le)
         if (!std::isnan(s.scale)) d_max = std::max(d_max, s.scale);
     fmt::print("Max geodesic distance: {}\n", d_max);
 
-    const auto vectors = random_tangents(sampler, pt_a, 1e-3, 0.5 * d_max, seed);
+    const auto vectors = random_tangents(sampler, pt_a, 1e-3, 0.3 * d_max, seed);
     const auto el      = parallel_samples(
             pool, "exp-log", mesh_path, num_points, [&](const Mesh& m, std::size_t i) {
                 return exp_log_sample(m, vectors[i]);
             }
     );
-    report("exp-log", el);
+    report("exp-log", mesh_stem, el);
 
     return 0;
 }
