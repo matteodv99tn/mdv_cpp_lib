@@ -232,6 +232,35 @@ internal `1e-6` boundary margin. Empty or entirely zero-area meshes are rejected
 Weights snapshot the mesh at construction: rebuild the sampler after topology
 edits or non-uniform scaling/shear. Uniform scaling preserves relative weights.
 
+## Distance to a point set
+
+`GeodesicDistanceField` precomputes geodesic trees for a fixed point set and returns
+the minimum distance along the surface to any source, without constructing paths.
+
+```python
+from mdv.mesh import GeodesicDistanceField, Sampler
+
+sampler = Sampler(mesh, 42)
+sources = sampler.points_on_edges(20)
+distance = GeodesicDistanceField(mesh, sources)
+d = distance(sampler.point_in_face())  # float
+ds = distance(sampler.points_in_faces(10))  # float64 array, shape (10,)
+```
+
+Sources must be nonempty. Both sources and queries accept `Point` or `Vertex`
+objects belonging to the exact supplied mesh. The wrapper retains the mesh, not
+the source sequence. Rebuild after geometry/topology changes (including scaling
+and transforms). Queries with no reachable source return positive infinity;
+empty query batches return an empty array. Calls on one field are not concurrent.
+Isolated vertices and wire edges are not surface locations and are rejected.
+Independent cached trees avoid CGAL multi-source visibility/boundary bugs, so
+query work and storage scale with the number of distinct sources. Queries never
+rebuild trees or construct polylines.
+
+The C++ interface lives in `mdv/mesh/geodesic_distance_field.hpp`, is CGAL-free,
+and takes `std::span<const Point>` for sources and query batches. It borrows the
+mesh, which must outlive the field. The field is movable and non-copyable.
+
 ## Debugging and troubleshooting
 
 - If import fails, verify that both `_MODULE_impl.py` and `_libMODULE.so` are in
