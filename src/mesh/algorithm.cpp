@@ -2,8 +2,12 @@
 
 #include <atomic>
 #include <CGAL/Polygon_mesh_processing/compute_normal.h>
+#include <CGAL/squared_distance_3.h>
+#include <cmath>
 #include <Eigen/Geometry>
+#include <limits>
 #include <map>
+#include <numbers>
 
 #include <BS_thread_pool.hpp>
 #include <range/v3/algorithm/for_each.hpp>
@@ -49,6 +53,118 @@ length(const Geodesic& geod) {
     const double sum =
             rs::accumulate(geod | rv::sliding(2) | rv::transform(segment_length), 0.0);
     return sum;
+}
+
+TangentVector
+unit_tangent(const Mesh& mesh, const Geodesic& curve, double s) {
+    if (!std::isfinite(s) || s < 0.0 || s > 1.0)
+        throw std::runtime_error("unit_tangent: s must be finite and in [0, 1]");
+    if (curve.size() < 2 || mesh.num_faces() == 0)
+        throw std::runtime_error("unit_tangent: expected a curve and a nonempty mesh");
+
+    std::vector<double> lengths;
+    double              total = 0.0;
+    std::size_t         last  = 0;
+    for (const auto& point : curve) {
+        if (!point.allFinite())
+            throw std::runtime_error("unit_tangent: curve points must be finite");
+    }
+    for (std::size_t i = 0; i + 1 < curve.size(); ++i) {
+        const Vec3d  delta = curve[i + 1] - curve[i];
+        const double len   = std::hypot(delta.x(), delta.y(), delta.z());
+        lengths.push_back(len);
+        total += len;
+        if (len > 0.0) last = i;
+    }
+    if (!std::isfinite(total) || total <= 0.0) {
+        throw std::runtime_error(
+                "unit_tangent: curve must have positive finite length"
+        );
+    }
+
+    constexpr double coordinate_eps = 8 * std::numeric_limits<double>::epsilon();
+    if (1.0 - s < coordinate_eps) s = 1.0;
+
+    double      travelled = 0.0;
+    std::size_t i         = 0;
+    for (; i < lengths.size(); ++i) {
+        if (lengths[i] == 0.0) continue;
+        const double end = travelled + lengths[i];
+        // Roundoff at an exact corner must not select its incoming segment.
+        if (s == 0.0 || s < end / total - coordinate_eps || i == last) break;
+        travelled = end;
+    }
+    const double t =
+            s == 1.0 ? 1.0 : std::clamp((s * total - travelled) / lengths[i], 0.0, 1.0);
+    auto point = from_cartesian(mesh, (1.0 - t) * curve[i] + t * curve[i + 1]);
+    bool allow_corner_snap     = t > 0.5;
+    constexpr double tolerance = 1e-9;
+    for (;;) {
+        const Vec3d delta     = curve[i + 1] - curve[i];
+        const Vec3d direction = delta / lengths[i];
+
+        // Locate the segment's face, not just the sample: at crossings the latter may
+        // choose the incoming face, whereas the curve determines the outgoing frame.
+        const auto& m        = internal::cgal_mesh(mesh);
+        const auto [f, bary] = internal::CgalImpl::ShortestPath::locate(
+                internal::point3_from_eigen(curve[i] + 0.5 * delta),
+                mesh.cgal()._aabb_tree,
+                m,
+                get(CGAL::vertex_point, m)
+        );
+        const auto vs = vertices(mesh, internal::from_cgal(f));
+        const internal::CgalImpl::Kernel::Triangle_3 triangle(
+                m.point(internal::to_cgal(vs[0])),
+                m.point(internal::to_cgal(vs[1])),
+                m.point(internal::to_cgal(vs[2]))
+        );
+        for (const auto& endpoint : {curve[i], curve[i + 1]}) {
+            if (CGAL::squared_distance(internal::point3_from_eigen(endpoint), triangle)
+                > tolerance * tolerance) {
+                throw std::runtime_error(
+                        "unit_tangent: segment must lie in one mesh triangle; include "
+                        "edge "
+                        "crossings"
+                );
+            }
+        }
+        const auto preferred = internal::from_cgal(f);
+        if (s != 1.0) {
+            try {
+                return {mesh, point, direction, preferred};
+            } catch (const std::runtime_error&) {
+                if (!allow_corner_snap
+                    || location_type(point) == LocationType::INSIDE_FACE)
+                    throw;
+                // A valid segment's direction can become outbound only when point
+                // classification snaps the sample to its exit edge/vertex. Reuse
+                // the constructor's checks, not another snapping tolerance.
+            }
+            // Only the original sample near a segment's end may snap forward;
+            // never hide errors at the next segment's start.
+            allow_corner_snap = false;
+            if (i == last) {
+                s     = 1.0;
+                point = from_cartesian(mesh, curve[i + 1]);
+            } else {
+                ++i;
+                while (lengths[i] == 0.0) ++i;
+                point = from_cartesian(mesh, curve[i]);
+            }
+            continue;
+        }
+        const TangentVector backward(mesh, point, -direction, preferred);
+        const auto          type = location_type(point);
+        if (type == LocationType::INSIDE_FACE
+            || (type == LocationType::ON_EDGE
+                && backward.type() == TangentVector::ALONG_EDGE))
+            return {mesh, point, direction, preferred};
+        const double angle =
+                type == LocationType::ON_VERTEX
+                        ? total_angle(mesh, point.get_as<PointOnVertex>()->v) / 2
+                        : std::numbers::pi;
+        return backward.rotated(mesh, angle);
+    }
 }
 
 CartesianPoint

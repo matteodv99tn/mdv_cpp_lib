@@ -71,6 +71,7 @@ TangentVector::TangentVector(
     if (point_type == LocationType::ON_EDGE) {
         validate_app_point_on_edge(mesh);
         _f = mesh::face(mesh, *_he);
+        if (!_f.is_valid()) _f = mesh::face(mesh, twin(mesh, *_he));
         return;
     }
 
@@ -114,7 +115,9 @@ TangentVector::validate_app_point_on_edge(const Mesh& mesh) {
         fill_halfedge(mesh);
     };
 
-
+    if (!_vec.isZero(0.0)
+        && direction(mesh, *_he).normalized().cross(_vec.normalized()).norm() < 1e-12)
+        _type = ALONG_EDGE;
     if (_type == ALONG_EDGE) {
         const auto he_dir = direction(mesh, *_he);
         if (!are_parallel(he_dir, _vec)) {
@@ -129,7 +132,8 @@ TangentVector::validate_app_point_on_edge(const Mesh& mesh) {
 
     // If inside face
     auto is_valid_halfedge = [this, &mesh](HalfEdgeId he) -> bool {
-        return are_orthogonal(normal(mesh, mesh::face(mesh, he)), _vec)
+        const auto f = mesh::face(mesh, he);
+        return f.is_valid() && are_orthogonal(normal(mesh, f), _vec)
                && inbound_direction(mesh, he).dot(_vec) > 0.0;
     };
 
@@ -155,6 +159,21 @@ TangentVector::validate_app_point_on_vertex(const Mesh& mesh) {
             );
         }
         return;
+    }
+
+    // Exact directions along either corner edge need the ALONG_EDGE frame too.
+    if (!_vec.isZero(0.0)) {
+        for (const auto h : {*_he, twin(mesh, prev(mesh, *_he))}) {
+            const Vec3d edge = direction(mesh, h).normalized();
+            const Vec3d unit = _vec.normalized();
+            if (edge.dot(unit) > 0.0 && edge.cross(unit).norm() < 1e-12) {
+                _he          = h;
+                const auto f = mesh::face(mesh, h);
+                if (f.is_valid()) _f = f;
+                _type = ALONG_EDGE;
+                return;
+            }
+        }
     }
 
     // If inside face

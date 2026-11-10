@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <gtest/gtest.h>
+#include <limits>
 #include <numbers>
 #include <string_view>
+#include <tuple>
 #include <unordered_set>
 #include <vector>
 
@@ -14,6 +16,295 @@
 
 namespace mdv::mesh {
 namespace fs = std::filesystem;
+
+TEST(MeshGeodesic, UnitTangentUsesArcLengthAndOutgoingCorners) {
+    const auto     mesh = Mesh::from_file(config::meshes_directory() / "square.off");
+    const Geodesic curve{
+            {0.1, 0.1, 0},
+            {0.1, 0.1, 0},
+            {0.4, 0.1, 0},
+            {0.4, 0.1, 0},
+            {0.4, 0.3, 0},
+            {0.4, 0.3, 0}
+    };
+    const double corner = (curve[2] - curve[1]).norm() / length(curve);
+    for (const auto& [s, position_expected, direction_expected] :
+         std::vector<std::tuple<double, Vec3d, Vec3d>>{
+                 {0,      {0.1, 0.1, 0},  {1, 0, 0}},
+                 {0.3,    {0.25, 0.1, 0}, {1, 0, 0}},
+                 {corner, {0.4, 0.1, 0},  {0, 1, 0}},
+                 {0.8,    {0.4, 0.2, 0},  {0, 1, 0}},
+                 {1,      {0.4, 0.3, 0},  {0, 1, 0}}
+    }) {
+        const auto v = unit_tangent(mesh, curve, s);
+        EXPECT_NEAR(
+                (position(mesh, v.application_point()) - position_expected).norm(),
+                0.0,
+                1e-12
+        );
+        EXPECT_NEAR((v.cartesian_vector() - direction_expected).norm(), 0.0, 1e-12);
+        EXPECT_NEAR(v.cartesian_vector().norm(), 1.0, 1e-12);
+    }
+    const Geodesic reversed(curve.rbegin(), curve.rend());
+    EXPECT_NEAR(
+            (unit_tangent(mesh, reversed, 0.7).cartesian_vector()
+             + unit_tangent(mesh, curve, 0.3).cartesian_vector())
+                    .norm(),
+            0.0,
+            1e-12
+    );
+}
+
+TEST(MeshGeodesic, UnitTangentUnfoldsEndpointAndChoosesOutgoingFace) {
+    const auto     mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const Geodesic curve{
+            {50, -20, 40},
+            {50, -20, 50},
+            {40, -20, 50}
+    };
+    const auto at_corner = unit_tangent(mesh, curve, 0.5);
+    EXPECT_NEAR((at_corner.cartesian_vector() - Vec3d{-1, 0, 0}).norm(), 0.0, 1e-12);
+    const auto continued = unit_tangent(mesh, Geodesic{curve[0], curve[1]}, 1.0);
+    EXPECT_EQ(continued.face(), at_corner.face());
+    EXPECT_NEAR(
+            (continued.cartesian_vector() - at_corner.cartesian_vector()).norm(),
+            0.0,
+            1e-12
+    );
+    EXPECT_TRUE(same_location(
+            mesh, continued.application_point(), at_corner.application_point()
+    ));
+    EXPECT_NO_THROW(exponential_map(mesh, continued));
+    const auto geodesic = build_geodesic(
+            mesh,
+            from_cartesian(mesh, curve.front()),
+            from_cartesian(mesh, curve.back())
+    );
+    for (double s : {0.0, 0.25, 0.5, 0.75, 1.0}) {
+        const auto v = unit_tangent(mesh, geodesic, s);
+        EXPECT_NEAR(
+                (position(mesh, v.application_point())
+                 - point_from_geodesic(geodesic, s))
+                        .norm(),
+                0.0,
+                1e-9
+        );
+        EXPECT_NEAR(v.cartesian_vector().norm(), 1.0, 1e-12);
+    }
+}
+
+TEST(MeshGeodesic, UnitTangentAtVerticesAndAlongEdges) {
+    const auto  mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const Vec3d vertex{-50, -50, -50};
+    const Vec3d start{-50, -40, -30};
+    const Vec3d finish{-40, -50, -30};
+    const auto  at_corner = unit_tangent(mesh, Geodesic{start, vertex, finish}, 0.5);
+    EXPECT_NEAR(
+            (at_corner.cartesian_vector() - (finish - vertex).normalized()).norm(),
+            0.0,
+            1e-12
+    );
+    const auto p = from_cartesian(mesh, vertex);
+    const auto backward =
+            TangentVector::from_ambient_vector(mesh, p, (start - vertex).normalized());
+    const double half_turn = total_angle(mesh, p.get_as<PointOnVertex>()->v) / 2;
+    const auto   continued = unit_tangent(mesh, Geodesic{start, vertex}, 1);
+    EXPECT_NEAR(
+            (continued.cartesian_vector()
+             - backward.rotated(mesh, half_turn).cartesian_vector())
+                    .norm(),
+            0.0,
+            1e-12
+    );
+    EXPECT_NO_THROW(exponential_map(mesh, continued));
+    const Geodesic along_edge{
+            vertex, {-50, -50, 0}
+    };
+    for (double s : {0.0, 0.5, 1.0}) {
+        const auto v = unit_tangent(mesh, along_edge, s);
+        EXPECT_EQ(v.type(), TangentVector::ALONG_EDGE);
+        EXPECT_NEAR((v.cartesian_vector() - Vec3d{0, 0, 1}).norm(), 0.0, 1e-12);
+        EXPECT_NO_THROW(exponential_map(mesh, v));
+    }
+}
+
+TEST(MeshGeodesic, UnitTangentBoundaryDirections) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "square.off");
+    for (const Geodesic& curve : std::vector<Geodesic>{
+                 {{0, 0.25, 0}, {0.25, 0.25, 0}},
+                 {{0, 0, 0},    {0.25, 0.25, 0}}
+    }) {
+        const auto v = unit_tangent(mesh, curve, 0);
+        EXPECT_NEAR(v.cartesian_vector().norm(), 1.0, 1e-12);
+        auto short_step = v;
+        short_step.scale(0.01);
+        EXPECT_NO_THROW(exponential_map(mesh, short_step));
+        const Geodesic reversed(curve.rbegin(), curve.rend());
+        EXPECT_THROW(
+                static_cast<void>(unit_tangent(mesh, reversed, 1)), std::runtime_error
+        );
+    }
+    for (const Geodesic& curve : std::vector<Geodesic>{
+                 {{0.1, 0, 0}, {0.8, 0, 0}},
+                 {{0.8, 0, 0}, {0.1, 0, 0}},
+                 {{0, 0, 0},   {0.8, 0, 0}}
+    }) {
+        for (double s : {0.0, 0.5, 1.0}) {
+            const auto  v        = unit_tangent(mesh, curve, s);
+            const Vec3d expected = (curve.back() - curve.front()).normalized();
+            EXPECT_EQ(v.type(), TangentVector::ALONG_EDGE);
+            EXPECT_TRUE(v.face().is_valid());
+            EXPECT_NEAR((v.cartesian_vector() - expected).norm(), 0.0, 1e-12);
+        }
+    }
+}
+
+TEST(MeshGeodesic, UnitTangentRejectsInvalidInputs) {
+    const auto     mesh = Mesh::from_file(config::meshes_directory() / "square.off");
+    const Geodesic curve{
+            {0.1, 0.1, 0},
+            {0.2, 0.1, 0}
+    };
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double inf = std::numeric_limits<double>::infinity();
+    for (double s : {-0.01, 1.01, nan, inf, -inf}) {
+        EXPECT_THROW(
+                static_cast<void>(unit_tangent(mesh, curve, s)), std::runtime_error
+        );
+    }
+    for (const Geodesic& invalid : std::vector<Geodesic>{
+                 {},
+                 {curve[0]},
+                 {curve[0], curve[0]},
+                 {curve[0], {nan, 0, 0}},
+                 {curve[0], {inf, 0, 0}},
+                 {{0.1, 0.1, 1}, {0.2, 0.1, 1}},
+                 {{0.1, 0.1, 0}, {0.9, 0.9, 0}}
+    }) {
+        EXPECT_THROW(
+                static_cast<void>(unit_tangent(mesh, invalid, 0.5)), std::runtime_error
+        );
+    }
+}
+
+TEST(MeshGeodesic, UnitTangentNearCornersUsesSnappedOutgoingFrame) {
+    const auto     mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const Geodesic curve{
+            {50, -20, 40},
+            {50, -20, 50},
+            {40, -20, 50}
+    };
+    const auto corner      = unit_tangent(mesh, curve, 0.5);
+    const auto near_corner = unit_tangent(mesh, curve, 0.5 - 1e-12);
+    EXPECT_NEAR(
+            (near_corner.cartesian_vector() - corner.cartesian_vector()).norm(),
+            0.0,
+            1e-12
+    );
+    EXPECT_TRUE(same_location(
+            mesh, near_corner.application_point(), corner.application_point()
+    ));
+    for (const Geodesic& incoming : std::vector<Geodesic>{
+                 {curve[0],      curve[1]     },
+                 {{50, -45, 40}, {50, -50, 50}}
+    }) {
+        const auto end = unit_tangent(mesh, incoming, 1);
+        for (double remaining : {1e-10, 2e-8}) {
+            const auto near_end =
+                    unit_tangent(mesh, incoming, 1 - remaining / length(incoming));
+            EXPECT_NEAR(near_end.cartesian_vector().norm(), 1.0, 1e-12);
+            // Once the point classifier snaps to the endpoint, use its continuation.
+            if ((position(mesh, near_end.application_point())
+                 - position(mesh, end.application_point()))
+                        .norm()
+                < 1e-12) {
+                EXPECT_NEAR(
+                        (near_end.cartesian_vector() - end.cartesian_vector()).norm(),
+                        0.0,
+                        1e-12
+                );
+            }
+        }
+    }
+}
+
+TEST(MeshGeodesic, UnitTangentSegmentToleranceDoesNotGrowWithLength) {
+    auto mesh = Mesh::from_file(config::meshes_directory() / "square.off");
+    mesh.scale(100);
+    const Geodesic curve{
+            {10,        10,        0},
+            {50 + 1e-8, 50 + 1e-8, 0}
+    };
+    const Geodesic reversed(curve.rbegin(), curve.rend());
+    for (const auto& input : {curve, reversed}) {
+        try {
+            static_cast<void>(unit_tangent(mesh, input, input == curve ? 1 : 0));
+            FAIL() << "Expected invalid segment rejection";
+        } catch (const std::runtime_error& e) {
+            EXPECT_NE(
+                    std::string(e.what()).find("segment must lie in one mesh triangle"),
+                    std::string::npos
+            );
+        }
+    }
+}
+
+TEST(MeshGeodesic, UnitTangentShallowCreaseAndNearVertexSnaps) {
+    const auto     mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const Geodesic incoming{
+            {50, -20, 49},
+            {50, 30,  50}
+    };
+    const Geodesic corner{
+            incoming[0], incoming[1], {40, 30, 50}
+    };
+    const auto expected = unit_tangent(mesh, incoming, 1);
+    for (double remaining : {2e-8, 4e-8}) {
+        const auto near_end =
+                unit_tangent(mesh, incoming, 1 - remaining / length(incoming));
+        EXPECT_NEAR(
+                (near_end.cartesian_vector() - expected.cartesian_vector()).norm(),
+                0.0,
+                1e-12
+        );
+        const double s           = (length(incoming) - remaining) / length(corner);
+        const auto   near_corner = unit_tangent(mesh, corner, s);
+        EXPECT_NEAR(
+                (near_corner.cartesian_vector() - Vec3d{-1, 0, 0}).norm(), 0.0, 1e-12
+        );
+    }
+    const Geodesic near_vertex{
+            {50, -45, 40       },
+            {50, -50, 50 - 1e-8}
+    };
+    const auto endpoint = unit_tangent(mesh, near_vertex, 1);
+    const auto snapped =
+            unit_tangent(mesh, near_vertex, 1 - 1e-8 / length(near_vertex));
+    EXPECT_NEAR(
+            (snapped.cartesian_vector() - endpoint.cartesian_vector()).norm(),
+            0.0,
+            1e-12
+    );
+}
+
+TEST(MeshGeodesic, UnitTangentDoesNotHideInvalidStartFrame) {
+    const auto     mesh = Mesh::from_file(config::meshes_directory() / "square.off");
+    const Geodesic curve{
+            {0,   0,                    0},
+            {0.8, 0.8 * std::tan(1e-7), 0}
+    };
+    // The existing corner validator rejects this nearly edge-aligned direction.
+    // It must not be "recovered" by returning a tangent at the far endpoint.
+    EXPECT_THROW(static_cast<void>(unit_tangent(mesh, curve, 0)), std::runtime_error);
+    const Geodesic at_corner{
+            {0.1, 0.1, 0},
+            curve[0], curve[1]
+    };
+    const double s = ((at_corner[1] - at_corner[0]).norm() - 1e-10) / length(at_corner);
+    EXPECT_THROW(
+            static_cast<void>(unit_tangent(mesh, at_corner, s)), std::runtime_error
+    );
+}
 
 TEST(MeshGeodesic, ResamplePreservesCoordinateOrderAndClampsEndpoints) {
     const Geodesic geod{

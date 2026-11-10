@@ -83,6 +83,14 @@ import_array();
     }
 }
 
+%exception mdv::mesh::unit_tangent {
+    try {
+        $action
+    } catch (const std::exception& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what());
+    }
+}
+
 namespace mdv::mesh {
 
     Eigen::Vector3d position(const mdv::mesh::Mesh&, mdv::mesh::VertexId);
@@ -172,6 +180,10 @@ namespace mdv::mesh {
     Eigen::Vector3d tip(const mdv::mesh::Mesh&, const mdv::mesh::TangentVector&);
 
     double length(const std::vector<Eigen::Vector3d>& geod);
+
+    mdv::mesh::TangentVector unit_tangent(
+            const mdv::mesh::Mesh&, const std::vector<Eigen::Vector3d>& curve, double s
+    );
 
     Eigen::Vector3d point_from_geodesic(
             const std::vector<Eigen::Vector3d>& geod, double s

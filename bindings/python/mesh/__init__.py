@@ -11,6 +11,7 @@ from .algorithms import (  # type: ignore[attr-defined]
     parallel_transport,
     point_from_geodesic,
     solve_path,
+    unit_tangent,
 )
 from .tangent_vector import TangentVector
 from .face import Face
@@ -44,6 +45,7 @@ __all__ = [
     "exponential_map",
     "mesh_directory",
     "solve_path",
+    "unit_tangent",
 ]
 
 

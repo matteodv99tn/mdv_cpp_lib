@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
 from . import _mesh_impl as _impl  # type: ignore[import-not-found,attr-defined]
-from ._validation import as_vector
+from ._validation import as_matrix, as_vector
 
 if TYPE_CHECKING:
     from .geodesic import Geodesic
@@ -29,6 +29,52 @@ def length(geodesic: "Geodesic") -> float:
         Geodesic length.
     """
     return _impl.length(geodesic._geodesic_impl)  # type: ignore[attr-defined]
+
+
+def unit_tangent(mesh: "Mesh", curve: "Geodesic | ArrayLike", s: float) -> "TangentVector":
+    """Return an anchored unit tangent at normalised arc length.
+
+    Parameters
+    ----------
+    mesh : Mesh
+        Mesh containing the curve.
+    curve : Geodesic or array_like, shape (N, 3)
+        Surface polyline with each segment contained in one mesh triangle.
+        Include mesh-edge crossings. Consecutive duplicate points are ignored.
+    s : float
+        Finite normalised arc length in [0, 1].
+
+    Returns
+    -------
+    TangentVector
+        Unit tangent following curve order and retaining the mesh owner.
+        At interior corners the outgoing segment is used. At s=1 the final
+        direction is continued intrinsically across the endpoint's edge or
+        vertex (half the incident-angle sum at a vertex).
+        Samples numerically snapped to a curve corner use the same convention.
+
+    Raises
+    ------
+    ValueError
+        If an array input does not have shape (N, 3).
+    RuntimeError
+        For invalid coordinates, nonfinite or zero-length curves, an invalid
+        sampled segment, or endpoint continuation crossing a boundary edge or
+        passing through a boundary vertex. Travel along boundary edges is valid.
+    """
+    from .geodesic import Geodesic
+    from .tangent_vector import TangentVector
+
+    if isinstance(curve, Geodesic):
+        polyline = curve._geodesic_impl
+    else:
+        points = as_matrix(curve, shape=(-1, 3), name="curve")
+        polyline = _impl.Geodesic()
+        for point in points:
+            polyline.push_back(point)
+    return TangentVector.from_impl(
+        _impl.unit_tangent(mesh._mesh_impl, polyline, float(s)), mesh=mesh
+    )
 
 
 def point_from_geodesic(geodesic: "Geodesic", s: float) -> NDArray[np.float64]:
