@@ -118,6 +118,7 @@ add_library(
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/mesh.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/cgal_impl.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/cgal_geodesic.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/geodesic_distance_field.cpp
 
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/point.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/sampler.cpp
@@ -147,6 +148,7 @@ add_library(
 
 set_source_files_properties(
     ${CMAKE_CURRENT_LIST_DIR}/src/mesh/cgal_geodesic.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/mesh/geodesic_distance_field.cpp
     PROPERTIES COMPILE_FLAGS "-O3"
 )
 
