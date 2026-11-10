@@ -68,6 +68,21 @@ import_array();
 %rename(point_face) mdv::mesh::face(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
 %rename(point_describe) mdv::mesh::describe(const mdv::mesh::Mesh&, const mdv::mesh::Point&);
 
+%exception mdv::mesh::TangentVector::rotate {
+    try {
+        $action
+    } catch (const std::exception& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what());
+    }
+}
+%exception mdv::mesh::TangentVector::rotated {
+    try {
+        $action
+    } catch (const std::exception& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what());
+    }
+}
+
 namespace mdv::mesh {
 
     Eigen::Vector3d position(const mdv::mesh::Mesh&, mdv::mesh::VertexId);
@@ -144,6 +159,10 @@ namespace mdv::mesh {
         void normalise();
 
         mdv::mesh::TangentVector normalised() const;
+
+        void rotate(const mdv::mesh::Mesh&, double angle_rad);
+
+        mdv::mesh::TangentVector rotated(const mdv::mesh::Mesh&, double angle_rad) const;
 
         mdv::mesh::Point application_point() const;
 

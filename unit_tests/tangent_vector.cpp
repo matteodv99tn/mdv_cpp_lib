@@ -6,6 +6,7 @@
 #include <Eigen/Geometry>
 #include <filesystem>
 #include <gtest/gtest.h>
+#include <limits>
 #include <numbers>
 #include <stdexcept>
 #include <unistd.h>
@@ -513,6 +514,213 @@ TEST(TangentVector, FrameAndNormalisationSurviveMeshMove) {
     auto        moved        = std::move(mesh);
     EXPECT_NEAR(v.cartesian_vector().dot(normal(moved, v.face())), 0.0, 1e-12);
     EXPECT_NEAR((tip(moved, v) - original_tip).norm(), 0.0, 1e-12);
+}
+
+TEST(TangentVector, IntrinsicRotationIdentities) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const std::vector<Vec3d> positions{
+            {50,  -20, 5  },
+            {-50, 0,   -50},
+            {-50, -50, -50}
+    };
+    for (const auto& location : positions) {
+        const auto   p    = from_cartesian(mesh, location);
+        const auto   v    = TangentVector::from_ambient_vector(mesh, p, {0, 2, 3});
+        const double turn = location_type(p) == LocationType::ON_VERTEX
+                                    ? total_angle(mesh, p.get_as<PointOnVertex>()->v)
+                                    : 2 * std::numbers::pi;
+        for (double angle : {0.0, 0.37, -1.2, turn, -3 * turn, 7 * turn + 0.37}) {
+            SCOPED_TRACE(angle);
+            auto copy = v;
+            copy.rotate(mesh, angle);
+            const auto rotated = v.rotated(mesh, angle);
+            EXPECT_NEAR(
+                    (copy.cartesian_vector() - rotated.cartesian_vector()).norm(),
+                    0.0,
+                    1e-11
+            );
+            EXPECT_NEAR(
+                    rotated.cartesian_vector().norm(),
+                    v.cartesian_vector().norm(),
+                    1e-11
+            );
+            EXPECT_TRUE(same_location(mesh, rotated.application_point(), p));
+            EXPECT_NEAR(
+                    rotated.cartesian_vector().dot(normal(mesh, rotated.face())),
+                    0.0,
+                    1e-11
+            );
+            EXPECT_NEAR(
+                    (rotated.rotated(mesh, -angle).cartesian_vector()
+                     - v.cartesian_vector())
+                            .norm(),
+                    0.0,
+                    1e-11
+            );
+            EXPECT_NEAR(
+                    (rotated.rotated(mesh, 0.63).cartesian_vector()
+                     - v.rotated(mesh, angle + 0.63).cartesian_vector())
+                            .norm(),
+                    0.0,
+                    1e-11
+            );
+            // A freshly validated vector must accept the resulting face frame.
+            EXPECT_NO_THROW(TangentVector(
+                    mesh,
+                    rotated.application_point(),
+                    rotated.cartesian_vector(),
+                    rotated.face()
+            ));
+        }
+        EXPECT_NEAR(
+                (v.rotated(mesh, turn).cartesian_vector() - v.cartesian_vector())
+                        .norm(),
+                0.0,
+                1e-11
+        );
+    }
+}
+
+TEST(TangentVector, RotationUsesOrientedFaceNormal) {
+    const auto          mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const auto          p    = from_cartesian(mesh, {50, -20, 5});
+    const TangentVector v(mesh, p, {0, 2, 0});
+    for (double angle :
+         {std::numbers::pi / 2, -std::numbers::pi / 2, std::numbers::pi}) {
+        const Vec3d expected =
+                Eigen::AngleAxisd(angle, normal(mesh, v.face())) * v.cartesian_vector();
+        EXPECT_NEAR(
+                (v.rotated(mesh, angle).cartesian_vector() - expected).norm(),
+                0.0,
+                1e-12
+        );
+    }
+    EXPECT_EQ(v.cartesian_vector(), Vec3d(0, 2, 0));
+}
+
+TEST(TangentVector, RotationUnfoldsCreaseAndClassifiesEdgeAlignment) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const auto p    = from_cartesian(mesh, {-50, 0, -50});
+    const auto v    = TangentVector::from_ambient_vector(mesh, p, {0, 2, 0});
+    ASSERT_EQ(v.type(), TangentVector::ALONG_EDGE);
+    const auto  h        = *v.halfedge();
+    const auto  opposite = twin(mesh, h);
+    const Vec3d x        = direction(mesh, h).normalized();
+    const auto  across   = v.rotated(mesh, 1.5 * std::numbers::pi);
+    const Vec3d expected = 2 * normal(mesh, face(mesh, opposite)).cross(-x);
+    EXPECT_EQ(across.face(), face(mesh, opposite));
+    EXPECT_EQ(across.halfedge(), opposite);
+    EXPECT_EQ(across.type(), TangentVector::INSIDE_FACE);
+    EXPECT_NEAR((across.cartesian_vector() - expected).norm(), 0.0, 1e-12);
+    EXPECT_TRUE(same_location(mesh, across.application_point(), p));
+    const auto aligned = v.rotated(mesh, std::numbers::pi);
+    EXPECT_EQ(aligned.type(), TangentVector::ALONG_EDGE);
+    EXPECT_EQ(aligned.halfedge(), opposite);
+    EXPECT_NEAR((aligned.cartesian_vector() + v.cartesian_vector()).norm(), 0.0, 1e-12);
+    EXPECT_NO_THROW(exponential_map(mesh, across));
+    EXPECT_NO_THROW(exponential_map(mesh, aligned));
+}
+
+TEST(TangentVector, RotationUsesVertexConeAngle) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const auto p    = from_cartesian(mesh, {-50, -50, -50});
+    const auto v    = TangentVector::from_ambient_vector(mesh, p, {0, 0, 2});
+    ASSERT_EQ(v.type(), TangentVector::ALONG_EDGE);
+    const auto   h       = *v.halfedge();
+    const Vec3d  x       = direction(mesh, h).normalized();
+    const Vec3d  end     = -direction(mesh, prev(mesh, h)).normalized();
+    const double width   = std::atan2(x.cross(end).norm(), x.dot(end));
+    const auto   aligned = v.rotated(mesh, width);
+    EXPECT_EQ(aligned.type(), TangentVector::ALONG_EDGE);
+    EXPECT_EQ(aligned.halfedge(), twin(mesh, prev(mesh, h)));
+    EXPECT_NEAR((aligned.cartesian_vector() - 2 * end).norm(), 0.0, 1e-12);
+    const double turn = total_angle(mesh, p.get_as<PointOnVertex>()->v);
+    EXPECT_NEAR(turn, 1.5 * std::numbers::pi, 1e-12);
+    EXPECT_NEAR(
+            (v.rotated(mesh, turn).cartesian_vector() - v.cartesian_vector()).norm(),
+            0.0,
+            1e-12
+    );
+    EXPECT_GT(
+            (v.rotated(mesh, 2 * std::numbers::pi).cartesian_vector()
+             - v.cartesian_vector())
+                    .norm(),
+            1.0
+    );
+    EXPECT_NO_THROW(exponential_map(mesh, aligned));
+}
+
+TEST(TangentVector, RotationNearSectorSeamsDoesNotThrow) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    for (const Vec3d& location : std::vector<Vec3d>{
+                 {-50, 0,   -50},
+                 {-50, -50, -50}
+    }) {
+        const auto   p         = from_cartesian(mesh, location);
+        const Vec3d  direction = location_type(p) == LocationType::ON_EDGE
+                                         ? Vec3d{0, 2, 0}
+                                         : Vec3d{0, 0, 2};
+        const auto   v         = TangentVector::from_ambient_vector(mesh, p, direction);
+        const double turn = location_type(p) == LocationType::ON_VERTEX
+                                    ? total_angle(mesh, p.get_as<PointOnVertex>()->v)
+                                    : 2 * std::numbers::pi;
+        for (double delta : {-1.0004e-12, -1e-12, -9.998e-13, 9.998e-13, 1e-12}) {
+            for (double seam : {0.0, std::numbers::pi, turn}) {
+                SCOPED_TRACE(seam + delta);
+                const auto rotated = v.rotated(mesh, seam + delta);
+                EXPECT_NEAR(rotated.cartesian_vector().norm(), 2.0, 1e-12);
+                EXPECT_NEAR(
+                        (rotated.cartesian_vector()
+                         - v.rotated(mesh, seam).cartesian_vector())
+                                .norm(),
+                        0.0,
+                        1e-10
+                );
+                EXPECT_TRUE(same_location(mesh, rotated.application_point(), p));
+            }
+        }
+    }
+}
+
+TEST(TangentVector, RotationRejectsNonfiniteAnglesAndPreservesZero) {
+    const auto    mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const auto    p    = from_cartesian(mesh, {50, -20, 5});
+    TangentVector v(mesh, p, {0, 2, 3});
+    for (double angle :
+         {std::numeric_limits<double>::infinity(),
+          -std::numeric_limits<double>::infinity(),
+          std::numeric_limits<double>::quiet_NaN()}) {
+        EXPECT_THROW(v.rotate(mesh, angle), std::runtime_error);
+        EXPECT_EQ(v.cartesian_vector(), Vec3d(0, 2, 3));
+    }
+    v.scale(0);
+    v.rotate(mesh, 0.8);
+    EXPECT_EQ(v.cartesian_vector(), Vec3d::Zero());
+    EXPECT_EQ(v.application_point(), p);
+}
+
+TEST(TangentVector, RotationRejectsBoundaryFansWithoutMutation) {
+    const auto mesh     = Mesh::from_file(config::meshes_directory() / "square.off");
+    const auto vertices = mesh.get_vertex_matrix();
+    for (Index i = 0; i < mesh.num_vertices(); ++i) {
+        const Point   p(PointOnVertex{VertexId{i}});
+        const FaceId  f{i == 2 ? 1U : 0U};
+        const auto    h = halfedge(mesh, VertexId{i}, f);
+        TangentVector v(
+                mesh, p, direction(mesh, h) - direction(mesh, prev(mesh, h)), f
+        );
+        const Vec3d original = v.cartesian_vector();
+        EXPECT_THROW(v.rotate(mesh, 0.2), std::runtime_error);
+        EXPECT_EQ(v.cartesian_vector(), original);
+        EXPECT_NO_THROW(v.rotate(mesh, 0));
+    }
+    // square.off has a boundary edge between vertices 0 and 1.
+    const Vec3d midpoint = (vertices.row(0) + vertices.row(1)).transpose() / 2;
+    const auto  p        = from_cartesian(mesh, midpoint);
+    ASSERT_EQ(location_type(p), LocationType::ON_EDGE);
+    const auto    h = p.get_as<PointOnEdge>()->he;
+    TangentVector v(mesh, p, inbound_direction(mesh, h));
+    EXPECT_THROW(v.rotate(mesh, 0.2), std::runtime_error);
 }
 
 // Regression: the geodesic crosses edge 67-1382 about 1e-8 away from vertex 67; the

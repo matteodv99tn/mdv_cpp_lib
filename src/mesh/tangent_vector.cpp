@@ -1,6 +1,10 @@
 #include "mdv/mesh/tangent_vector.hpp"
 
 #include <CGAL/Surface_mesh/Surface_mesh.h>
+#include <cmath>
+#include <Eigen/Geometry>
+#include <numbers>
+#include <vector>
 
 #include <range/v3/algorithm/max_element.hpp>
 #include <range/v3/all.hpp>
@@ -397,6 +401,77 @@ TangentVector::normalised() const {
     TangentVector res(*this);
     res.normalise();
     return res;
+}
+
+void
+TangentVector::rotate(const Mesh& mesh, double angle_rad) {
+    *this = rotated(mesh, angle_rad);
+}
+
+TangentVector
+TangentVector::rotated(const Mesh& mesh, double angle_rad) const {
+    if (!std::isfinite(angle_rad))
+        throw std::runtime_error("Rotation angle must be finite");
+    TangentVector result(*this);
+    if (angle_rad == 0.0 || _vec.isZero(0.0)) return result;
+
+    constexpr double full_turn = 2.0 * std::numbers::pi;
+    if (location_type(_pt) == LocationType::INSIDE_FACE) {
+        result._vec = Eigen::AngleAxisd(
+                              std::remainder(angle_rad, full_turn), normal(mesh, _f)
+                      )
+                      * _vec;
+        return result;
+    }
+
+    // Each sector starts along h and turns positively into its incident face.
+    const bool on_edge = location_type(_pt) == LocationType::ON_EDGE;
+    std::vector<std::pair<HalfEdgeId, double>> sectors;
+    double                                     total = 0.0;
+    auto                                       h     = *_he;
+    for (;;) {
+        if (!mesh::face(mesh, h).is_valid())
+            throw std::runtime_error("Cannot rotate at a boundary edge or vertex");
+        const Vec3d  x     = direction(mesh, h).normalized();
+        const Vec3d  end   = -direction(mesh, prev(mesh, h)).normalized();
+        const double width = on_edge ? std::numbers::pi
+                                     : std::atan2(x.cross(end).norm(), x.dot(end));
+        sectors.emplace_back(h, width);
+        total += width;
+        h = on_edge ? twin(mesh, h) : twin(mesh, prev(mesh, h));
+        if (h == *_he) break;
+    }
+
+    const Vec3d  x       = direction(mesh, *_he).normalized();
+    const Vec3d  y       = normal(mesh, _f).cross(x);
+    const double initial = std::atan2(_vec.dot(y), _vec.dot(x));
+    double       theta   = std::fmod(initial + std::fmod(angle_rad, total), total);
+    if (theta < 0.0) theta += total;
+
+    constexpr double eps = 1e-12;
+    if (total - theta < eps) theta = 0.0;
+    h = *_he;
+    for (const auto& [sector, width] : sectors) {
+        if (theta < width - eps) {
+            h = sector;
+            break;
+        }
+        theta -= width;
+    }
+    // Rounding at the last sector's end wraps back to the first sector.
+    if (theta < eps) theta = 0.0;
+    result._he       = h;
+    result._f        = mesh::face(mesh, h);
+    result._type     = theta == 0.0 ? ALONG_EDGE : INSIDE_FACE;
+    const Vec3d axis = direction(mesh, h).normalized();
+    result._vec      = _vec.stableNorm()
+                       * (std::cos(theta) * axis
+                          + std::sin(theta) * normal(mesh, result._f).cross(axis));
+    if (on_edge) {
+        const auto& point = *_pt.get_as<PointOnEdge>();
+        result._pt        = h == point.he ? point : flip(mesh, point);
+    }
+    return result;
 }
 
 namespace internal {

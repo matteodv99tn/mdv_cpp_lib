@@ -36,6 +36,12 @@ except ImportError:  # pragma: no cover - generated at build time
         def normalised(self):
             raise RuntimeError("SWIG bindings are not built yet.")
 
+        def rotate(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
+        def rotated(self, *_args, **_kwargs):
+            raise RuntimeError("SWIG bindings are not built yet.")
+
         def application_point(self):
             raise RuntimeError("SWIG bindings are not built yet.")
 
@@ -170,6 +176,41 @@ class TangentVector:
     def application_point(self) -> Point:
         """Return the application point for this vector."""
         return Point(self._tv_impl.application_point(), mesh=self._mesh)
+
+    def rotate(self, angle_rad: float) -> None:
+        """Rotate intrinsically in place, preserving magnitude and location.
+
+        Parameters
+        ----------
+        angle_rad : float
+            Signed radians, positive about the oriented face normal. At a vertex,
+            a full turn is the incident-angle sum, not necessarily 2*pi.
+
+        Raises
+        ------
+        RuntimeError
+            If the angle is nonfinite, or a nonzero vector is rotated by a nonzero
+            angle at a boundary edge/vertex. Zero vectors remain unchanged.
+        """
+        self._tv_impl.rotate(self._mesh._mesh_impl, float(angle_rad))
+
+    def rotated(self, angle_rad: float) -> "TangentVector":
+        """Return an intrinsically rotated copy; see :meth:`rotate`.
+
+        Parameters
+        ----------
+        angle_rad : float
+            Signed rotation in radians.
+
+        Returns
+        -------
+        TangentVector
+            Rotated copy retaining its owning mesh. The original is unchanged.
+        """
+        return TangentVector.from_impl(
+            self._tv_impl.rotated(self._mesh._mesh_impl, float(angle_rad)),
+            mesh=self._mesh,
+        )
 
     def type(self) -> int:
         """Return the tangent vector type enum value."""
