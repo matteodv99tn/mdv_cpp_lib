@@ -112,7 +112,10 @@ build_geodesic(const Mesh& mesh, const Point& from, const Point& to) {
 
     const auto from_id = internal::to_cgal(face(mesh, from));
     const auto to_id   = internal::to_cgal(face(mesh, to));
-    if (from_id == to_id) return {position(mesh, from), position(mesh, to)};
+    // Border halfedges have a null incident face. Two null handles do not
+    // establish that the points share a triangle.
+    if (from_id != internal::CgalImpl::Mesh::null_face() && from_id == to_id)
+        return {position(mesh, from), position(mesh, to)};
 
 
     if (from.get_as<PointInFace>() != nullptr && to.get_as<PointInFace>() != nullptr) {
