@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 #include <fmt/format.h>
 #include <iterator>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -138,7 +139,8 @@ namespace {
                         pts2[static_cast<std::size_t>(j)],
                         &mesh.cgal()._aabb_tree
                 );
-                res(i, j) = length(geod);
+                res(i, j) = geod.empty() ? std::numeric_limits<double>::infinity()
+                                         : length(geod);
             }
         }
 
@@ -243,7 +245,8 @@ namespace {
                         pts2[static_cast<std::size_t>(j)],
                         &mesh.cgal()._aabb_tree
                 );
-                res(i, j) = length(path);
+                res(i, j) = path.empty() ? std::numeric_limits<double>::infinity()
+                                         : length(path);
             }
         };
 

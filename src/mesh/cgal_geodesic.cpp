@@ -130,7 +130,8 @@ CgalGeodesicConstructor::operator()(const Point& from, const Point& to) {
         Geodesic g2 =
                 construct_geodesic(mesh, *shpath_to, from, false, _reference_tree);
 
-        if (length(g1) < length(g2)) return g1;
+        if (g1.empty()) return g2;
+        if (g2.empty() || length(g1) < length(g2)) return g1;
         return g2;
     }
 #ifdef MDV_CACHE_GEODESICS

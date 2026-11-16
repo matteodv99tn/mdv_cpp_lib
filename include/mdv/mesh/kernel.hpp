@@ -55,7 +55,7 @@ struct StationaryDistanceKernel {
      *
      * @param pts1 First point set.
      * @param pts2 Second point set.
-     * @return Distance matrix.
+     * @return Distance matrix; unreachable pairs are positive infinity.
      */
     MDV_NODISCARD virtual Eigen::MatrixXd distance_matrix(
             const InputVector& pts1, const InputVector& pts2
@@ -65,7 +65,7 @@ struct StationaryDistanceKernel {
      * @brief Computes distance matrix for cached points.
      *
      * @param pts1 Cached point set.
-     * @return Distance matrix.
+     * @return Distance matrix; unreachable pairs are positive infinity.
      */
     MDV_NODISCARD virtual Eigen::MatrixXd
     distance_matrix(const InputVector& pts1) {
@@ -131,6 +131,9 @@ struct StationaryDistanceKernel {
  * Computes geodesic distances between points on a surface and evaluates
  * stationary kernels, supporting learning methods that rely on intrinsic
  * geometry.
+ * Unreachable pairs (for example, distinct connected components) have distance
+ * positive infinity and squared-exponential covariance zero for finite positive
+ * lengthscales.
  */
 class MeshKernel : public StationaryDistanceKernel<Point> {
 public:
@@ -151,7 +154,7 @@ public:
      *
      * @param pts1 First point set.
      * @param pts2 Second point set.
-     * @return Distance matrix.
+     * @return Distance matrix; unreachable pairs are positive infinity.
      */
     MDV_NODISCARD
     Eigen::MatrixXd distance_matrix(
@@ -221,7 +224,7 @@ public:
      *
      * @param pts1 First point set.
      * @param pts2 Second point set.
-     * @return Distance matrix.
+     * @return Distance matrix; unreachable pairs are positive infinity.
      */
     MDV_NODISCARD
     Eigen::MatrixXd distance_matrix(
@@ -232,7 +235,7 @@ public:
      * @brief Computes distances from cached points to a new point set.
      *
      * @param pts2 Point set to compare against cached points.
-     * @return Distance matrix.
+     * @return Distance matrix; unreachable pairs are positive infinity.
      */
     MDV_NODISCARD Eigen::MatrixXd distance_matrix(const InputVector& pts2) override;
 
