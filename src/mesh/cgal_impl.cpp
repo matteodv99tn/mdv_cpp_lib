@@ -94,7 +94,9 @@ CgalImpl::from_file(const fs::path& file_path, Logger::SharedPtr&& logger) {
 
 CgalImpl::FaceLocation
 face_location(
-        const CgalImpl::Mesh& m, const Point& point, const CgalImpl::AabbTree* tree
+        const CgalImpl::Mesh&                      m,
+        const Point&                               point,
+        [[maybe_unused]] const CgalImpl::AabbTree* tree
 ) {
     auto vertex_descriptor = [&m](const PointOnVertex& pt) -> CgalImpl::FaceLocation {
         const auto v_id = to_cgal(pt.v);
@@ -114,23 +116,15 @@ face_location(
         };
     };
 
-    auto edge_descriptor =
-            [&m, tree](const PointOnEdge& pt) mutable -> CgalImpl::FaceLocation {
-        // Preserve the old AABB location, including its choice of edge side.
+    auto edge_descriptor = [&m](const PointOnEdge& pt) -> CgalImpl::FaceLocation {
         const auto h = to_cgal(pt.he);
         if (!pt.he.is_valid() || !m.has_valid_index(h) || m.is_removed(h))
             throw std::runtime_error("Invalid point halfedge");
-        CgalImpl::AabbTree fallback_tree;
-        if (tree == nullptr) {
-            CgalImpl::ShortestPath::build_aabb_tree(
-                    m, fallback_tree, get(CGAL::vertex_point, m)
-            );
-            tree = &fallback_tree;
-        }
-        const Kernel::Ray_3 ray(m.point(source(h, m)), m.point(target(h, m)));
-        return CgalImpl::ShortestPath::locate(
-                ray.point(pt.t), *tree, m, get(CGAL::vertex_point, m)
-        );
+        auto f = face(h, m);
+        if (f == CgalImpl::Mesh::null_face()) f = face(opposite(h, m), m);
+        // Reprojection can replace the exact zero weight with a signed roundoff
+        // value, making CGAL miss edge-aligned pseudo-source windows.
+        return face_location(m, Point{pt}, from_cgal(f));
     };
     return std::visit(
             Overload{

@@ -169,7 +169,7 @@ public:
  *
  * @param mesh CGAL mesh.
  * @param pt Mesh point.
- * @param tree Borrowed tree for mesh; null builds a temporary tree for edge points.
+ * @param tree Retained for compatibility; edge locations use mesh topology.
  * @return CGAL face location.
  */
 CgalImpl::FaceLocation face_location(
