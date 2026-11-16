@@ -55,7 +55,7 @@ struct StationaryDistanceKernel {
      *
      * @param pts1 First point set.
      * @param pts2 Second point set.
-     * @return Distance matrix; unreachable pairs are positive infinity.
+     * @return Distance matrix.
      */
     MDV_NODISCARD virtual Eigen::MatrixXd distance_matrix(
             const InputVector& pts1, const InputVector& pts2
@@ -65,7 +65,7 @@ struct StationaryDistanceKernel {
      * @brief Computes distance matrix for cached points.
      *
      * @param pts1 Cached point set.
-     * @return Distance matrix; unreachable pairs are positive infinity.
+     * @return Distance matrix.
      */
     MDV_NODISCARD virtual Eigen::MatrixXd
     distance_matrix(const InputVector& pts1) {
@@ -200,10 +200,9 @@ protected:
 /**
  * @brief Cached, inexact geodesic kernel for repeated queries.
  *
- * This kernel is deemes "inexact" because if points are defined on half-edges, the
- * shortest path algorithm may give wrong geodesics in some cases (to be further
- * investigated). In most practical cases, the InexactMeshKernel is still the preferred
- * kernel for faster evaluation.
+ * Reuses one source-rooted tree per cached point, including edge sources.
+ * Unreachable pairs have positive-infinity distance and zero squared-exponential
+ * covariance for finite positive lengthscales.
  */
 class InexactMeshKernel : public MeshKernel {
 public:

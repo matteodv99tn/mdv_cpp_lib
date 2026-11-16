@@ -350,23 +350,6 @@ CgalGeodesicConstructor::operator()(const Point& from, const Point& to) {
     const auto& mesh = *_reference_mesh;
 
 
-    // Handle the special case of edge descriptor that leads to strange behaviors
-    using EdgeDescriptor = PointOnEdge;
-    if (from.get_as<EdgeDescriptor>() != nullptr
-        || to.get_as<EdgeDescriptor>() != nullptr) {
-        ShortestPathPtr shpath_from = std::make_unique<ShortestPath>(*_reference_mesh);
-        set_source(mesh, *shpath_from, from, _reference_tree);
-        Geodesic g1 = construct_geodesic(mesh, *shpath_from, to, true, _reference_tree);
-
-        ShortestPathPtr shpath_to = std::make_unique<ShortestPath>(*_reference_mesh);
-        set_source(mesh, *shpath_to, to, _reference_tree);
-        Geodesic g2 =
-                construct_geodesic(mesh, *shpath_to, from, false, _reference_tree);
-
-        if (g1.empty()) return g2;
-        if (g2.empty() || length(g1) < length(g2)) return g1;
-        return g2;
-    }
 #ifdef MDV_CACHE_GEODESICS
     for (const Geodesic& g : _geodesic_cache) {
         if (are_equal(g.front(), point_position(mesh, from))

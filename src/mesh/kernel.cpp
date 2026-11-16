@@ -6,6 +6,7 @@
 #include <fmt/format.h>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 
@@ -255,6 +256,9 @@ MeshKernel::MeshKernel(const Mesh& mesh) : _mesh(&mesh) {
 
 Eigen::MatrixXd
 MeshKernel::distance_matrix(const InputVector& pts1, const InputVector& pts2) const {
+    // Each nonempty candidate is a reconstructed surface path between the same
+    // endpoints. Taking the shorter direction compensates for omitted windows;
+    // infinity denotes an absent candidate and cannot win against a valid path.
     const Eigen::MatrixXd D12 = DistanceEvaluator{}(*_mesh, pts1, pts2);
     const Eigen::MatrixXd D21 = DistanceEvaluator{}(*_mesh, pts2, pts1);
     assert(D12.cols() == D21.rows() && D12.rows() == D21.cols());
