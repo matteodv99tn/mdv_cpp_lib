@@ -99,7 +99,7 @@ namespace {
     class DistanceEvaluator {
     public:
         using InputVector             = MeshKernel::InputVector;
-        using ShortestPath            = internal::CgalImpl::ShortestPath;
+        using ShortestPath            = internal::CgalGeodesicConstructor::ShortestPath;
         using CgalGeodesicConstructor = internal::CgalGeodesicConstructor;
 
         Eigen::MatrixXd
@@ -164,10 +164,10 @@ namespace {
 namespace internal {
     struct Data {
         using InputVector  = MeshKernel::InputVector;
-        using ShortestPath = internal::CgalImpl::ShortestPath;
+        using ShortestPath = internal::CgalGeodesicConstructor::ShortestPath;
 
-        InputVector               pts1;
-        std::vector<ShortestPath> shpath_objs;
+        InputVector                                pts1;
+        std::vector<std::unique_ptr<ShortestPath>> shpath_objs;
 
         Data(const Mesh& mesh, InputVector points) : pts1(std::move(points)) {
             using internal::CgalGeodesicConstructor;
@@ -175,17 +175,12 @@ namespace internal {
             const auto& m = internal::cgal_mesh(mesh);
 
             shpath_objs.reserve(pts1.size());
-            for (const auto& pt : pts1) shpath_objs.emplace_back(m);
+            for (const auto& pt : pts1)
+                shpath_objs.push_back(std::make_unique<ShortestPath>(m));
 
             const auto process_i = [&](const std::size_t i) {
                 CgalGeodesicConstructor::set_source(
-                        m, shpath_objs[i], pts1[i], &mesh.cgal()._aabb_tree
-                );
-                CgalGeodesicConstructor::construct_geodesic(
-                        m,
-                        shpath_objs[i],
-                        PointOnVertex{VertexId{0}},
-                        &mesh.cgal()._aabb_tree
+                        m, *shpath_objs[i], pts1[i], &mesh.cgal()._aabb_tree
                 );
             };
             thread_pool().detach_loop(0, pts1.size(), process_i);
@@ -224,7 +219,7 @@ namespace internal {
 
 namespace {
 
-    using ShortestPath = internal::CgalImpl::ShortestPath;
+    using ShortestPath = internal::CgalGeodesicConstructor::ShortestPath;
     using internal::CgalGeodesicConstructor;
 
     void
@@ -241,7 +236,7 @@ namespace {
             for (long j = 0; j < res.cols(); ++j) {
                 const auto path = CgalGeodesicConstructor::construct_geodesic(
                         internal::cgal_mesh(mesh),
-                        data.shpath_objs[static_cast<std::size_t>(i)],
+                        *data.shpath_objs[static_cast<std::size_t>(i)],
                         pts2[static_cast<std::size_t>(j)],
                         &mesh.cgal()._aabb_tree
                 );

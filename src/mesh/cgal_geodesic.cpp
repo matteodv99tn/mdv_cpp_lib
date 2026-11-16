@@ -1,5 +1,8 @@
 #include "mdv/mesh/cgal_geodesic.hpp"
 
+#include <CGAL/version.h>
+#include <stdexcept>
+
 #include <range/v3/algorithm/transform.hpp>
 
 #include "mdv/mesh/algorithm.hpp"
@@ -11,6 +14,14 @@ namespace mdv::mesh::internal {
 namespace rs = ::ranges;
 
 namespace {
+    CgalImpl::CgalHalfEdgeIndex
+    checked_halfedge(const CgalImpl::Mesh& mesh, const PointOnEdge& e) {
+        const auto h = to_cgal(e.he);
+        if (!e.he.is_valid() || !mesh.has_valid_index(h) || mesh.is_removed(h))
+            throw std::runtime_error("Invalid point halfedge");
+        return h;
+    }
+
     CartesianPoint
     point_position(const CgalImpl::Mesh& m, const Point& p) {
         if (const auto* v = p.get_as<PointOnVertex>())
@@ -37,6 +48,39 @@ CgalGeodesicConstructor::set_source(
     if (const auto* pt = source_point.get_as<PointOnVertex>()) {
         assert(pt->v.value < mesh.num_vertices());
         shpath.add_source_point(to_cgal(pt->v));
+    } else if (source_point.get_as<PointOnEdge>() != nullptr) {
+        auto location = face_location(mesh, source_point, tree);
+        // Since CGAL 5.5, expand_root passes endpoint weights as edge parameters:
+        // expand_edge_root calls face_location(he, source_weight), although
+        // face_location expects the target weight. Compensate at registration.
+        // Keep native EDGE_SOURCE nodes: degenerate FACE_SOURCE roots can
+        // produce parallel lines during polyline traceback.
+#if CGAL_VERSION_NR >= 1050501000
+        std::array<std::size_t, 2> nonzero{};
+        std::size_t                j = 0;
+        for (std::size_t i = 0; i < 3; ++i) {
+            if (location.second[i] != 0) nonzero[j++] = i;
+        }
+        std::swap(location.second[nonzero[0]], location.second[nonzero[1]]);
+#else
+        const auto h = checked_halfedge(mesh, *source_point.get_as<PointOnEdge>());
+        // CGAL 5.4's native edge roots omit interior propagation windows and
+        // can create a fictitious null-face triangle at a border. Exact face
+        // roots cover the incident triangles without building reverse trees.
+        shpath.legacy_traits.edge_face_roots = true;
+#endif
+        shpath.edge_source     = point3_from_eigen(point_position(mesh, source_point));
+        shpath.edge_descriptor = *source_point.get_as<PointOnEdge>();
+        shpath.add_source_point(location);
+#if CGAL_VERSION_NR < 1050501000
+        for (const auto side : {h, opposite(h, mesh)}) {
+            const auto f = face(side, mesh);
+            if (f != CgalImpl::Mesh::null_face() && f != location.first)
+                shpath.add_source_point(
+                        face_location(mesh, source_point, from_cgal(f))
+                );
+        }
+#endif
     } else {
         shpath.add_source_point(face_location(mesh, source_point, tree));
     }
@@ -65,6 +109,8 @@ CgalGeodesicConstructor::construct_geodesic(
                 face_id, barycentric_coords, std::back_inserter(cgal_geod)
         );
     }
+    if (shpath.edge_source && !cgal_geod.empty())
+        cgal_geod.back() = *shpath.edge_source;
     if (cgal_geod.size() == 0) { return {}; }
 
     Geodesic geod(cgal_geod.size());
@@ -96,6 +142,8 @@ CgalGeodesicConstructor::construct_geodesic(
                 face_id, barycentric_coords, std::back_inserter(cgal_geod)
         );
     }
+    if (shpath.edge_source && !cgal_geod.empty())
+        cgal_geod.back() = *shpath.edge_source;
     if (cgal_geod.size() == 0) { return {}; }
 
     Geodesic geod(cgal_geod.size());
