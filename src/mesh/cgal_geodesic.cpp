@@ -144,9 +144,9 @@ CgalGeodesicConstructor::operator()(const Point& from, const Point& to) {
 #endif  // MDV_CACHE_GEODESICS
 
     for (const auto& [pt, sp_obj] : _shortest_path_cache) {
-        if (are_equal(point_position(mesh, from), point_position(mesh, pt)))
+        if (from == pt)
             return construct_geodesic(mesh, *sp_obj, to, true, _reference_tree);
-        if (are_equal(point_position(mesh, to), point_position(mesh, pt)))
+        if (to == pt)
             return construct_geodesic(mesh, *sp_obj, from, false, _reference_tree);
     }
 
