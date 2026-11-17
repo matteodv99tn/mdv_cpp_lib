@@ -60,7 +60,9 @@ public:
      * Positive angles follow the right-hand rule about the oriented face normal.
      *
      * @throws std::runtime_error For nonfinite angles or nonzero rotation of a
-     * nonzero vector at a boundary edge/vertex. Leaves this vector unchanged on error.
+     * nonzero vector at a boundary edge/vertex, or a vector outside its vertex
+     * frame (for example after negative scaling). Leaves this vector unchanged on
+     * error.
      */
     void rotate(const Mesh&, double angle_rad);
 

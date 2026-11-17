@@ -152,7 +152,11 @@ TangentVector::validate_app_point_on_vertex(const Mesh& mesh) {
     assert(location_type(_pt) == LocationType::ON_VERTEX);
 
     if (_type == ALONG_EDGE) {
-        if (!are_parallel(direction(mesh, *_he).normalized(), _vec.normalized())) {
+        // At a vertex an edge frame is an outgoing ray, not an unoriented line.
+        // Zero projections have no direction and retain any incident edge frame.
+        if (_vec.isZero(0.0)) return;
+        const Vec3d edge = direction(mesh, *_he).normalized();
+        if (edge.dot(_vec) <= 0.0 || !are_parallel(edge, _vec.normalized())) {
             throw std::runtime_error(
                     "Unable to construct tangent vector on vertex with vector along an "
                     "halfedge"
@@ -360,11 +364,12 @@ TangentVector::from_ambient_vector_on_vertex(
 
     // Candidates inside faces
     const auto project_on_halfedge = [&vec, &mesh](const HeIndex he_id) -> Vec3d {
-        const Vec3d proj = project_along_direction(
-                vec, direction(mesh, internal::from_cgal(he_id))
-        );
-        if (proj.dot(vec) <= 0.0) return Vec3d::Zero();
-        return proj;
+        const Vec3d dir = direction(mesh, internal::from_cgal(he_id)).normalized();
+        // Clamp to the outgoing ray; proj.dot(vec) cannot detect a negative
+        // coefficient because it is the squared length of the projection.
+        const double coefficient = dir.dot(vec);
+        if (coefficient <= 0.0) return Vec3d::Zero();
+        return coefficient * dir;
     };
     const auto along_edge_candidates =
             halfedges | rv::transform([project_on_halfedge, &m](const HeIndex& he_id) {
@@ -464,7 +469,11 @@ TangentVector::rotated(const Mesh& mesh, double angle_rad) const {
     const Vec3d  x       = direction(mesh, *_he).normalized();
     const Vec3d  y       = normal(mesh, _f).cross(x);
     const double initial = std::atan2(_vec.dot(y), _vec.dot(x));
-    double       theta   = std::fmod(initial + std::fmod(angle_rad, total), total);
+    // Mesh-free negative scaling can invalidate a vertex's outgoing face frame.
+    // Do not silently reinterpret that vector elsewhere on the cone.
+    if (!on_edge && (initial < 0.0 || initial > sectors.front().second))
+        throw std::runtime_error("Cannot rotate a vector outside its vertex frame");
+    double theta = std::fmod(initial + std::fmod(angle_rad, total), total);
     if (theta < 0.0) theta += total;
 
     constexpr double eps = 1e-12;

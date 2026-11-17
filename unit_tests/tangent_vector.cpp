@@ -663,6 +663,17 @@ TEST(TangentVector, VertexProjectionDoesNotCreateAntiparallelEdgeFrame) {
             0.0,
             1e-12
     );
+    EXPECT_EQ(v.cartesian_vector(), Vec3d::Zero());
+}
+
+TEST(TangentVector, RotationRejectsNegativelyScaledVertexFrameWithoutMutation) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const auto p    = from_cartesian(mesh, {-50, -50, -50});
+    auto       v    = TangentVector::from_ambient_vector(mesh, p, {0, 0, 1});
+    v.scale(-1.0);
+    const Vec3d original = v.cartesian_vector();
+    EXPECT_THROW(v.rotate(mesh, 1.5 * std::numbers::pi), std::runtime_error);
+    EXPECT_EQ(v.cartesian_vector(), original);
 }
 
 TEST(TangentVector, NearVertexEdgeRotationsHaveReusableFramesAtEveryScale) {
