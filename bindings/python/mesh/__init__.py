@@ -17,6 +17,7 @@ from .tangent_vector import TangentVector
 from .face import Face
 from .flat_parameterisation import FlatParameterisation
 from .geodesic import Geodesic
+from .geodesic_distance_field import GeodesicDistanceField
 from .gaussian_process import InexactGaussianProcess
 from .inexact_kernel import InexactMeshKernel
 from .kernel import MeshKernel
@@ -29,6 +30,7 @@ __all__ = [
     "Face",
     "FlatParameterisation",
     "Geodesic",
+    "GeodesicDistanceField",
     "InexactGaussianProcess",
     "InexactMeshKernel",
     "Mesh",

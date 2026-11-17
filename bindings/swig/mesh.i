@@ -9,10 +9,12 @@
 #include "mdv/mesh/flat_parameterisation.hpp"
 #include "mdv/mesh/tangent_vector.hpp"
 #include "mdv/mesh/sampler.hpp"
+#include "mdv/mesh/geodesic_distance_field.hpp"
 %}
 
 %include "std_string.i"
 %include "std_vector.i"
+%template(DistanceVector) std::vector<double>;
 %include "stdint.i"
 %include "eigen.i"
 
@@ -345,6 +347,21 @@ namespace mdv::mesh {
     }
 }
 namespace mdv::mesh {
+    class GeodesicDistanceField {
+    public:
+        ~GeodesicDistanceField();
+        double operator()(const mdv::mesh::Point& query) const;
+        %extend {
+            GeodesicDistanceField(const mdv::mesh::Mesh& mesh,
+                                  const std::vector<mdv::mesh::Point>& sources) {
+                return new mdv::mesh::GeodesicDistanceField(mesh, sources);
+            }
+            std::vector<double> evaluate(const std::vector<mdv::mesh::Point>& queries) const {
+                return (*$self)(queries);
+            }
+        }
+    };
+
     class Sampler {
     public:
         Sampler(const mdv::mesh::Mesh&, std::uint64_t seed);
@@ -359,6 +376,14 @@ namespace mdv::mesh {
     };
 }
 %exception;
+
+%exception point_from_vertex {
+    try {
+        $action
+    } catch (const std::exception& e) {
+        SWIG_exception_fail(SWIG_RuntimeError, e.what());
+    }
+}
 
 %inline %{
     mdv::mesh::Point point_from_vertex(const mdv::mesh::Mesh& mesh, mdv::mesh::VertexId v) {

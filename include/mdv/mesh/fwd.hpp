@@ -24,6 +24,9 @@ namespace mdv::mesh {
  */
 class Mesh;
 
+/** @brief Minimum geodesic distance to a fixed set of mesh points. */
+class GeodesicDistanceField;
+
 /**
  * @brief Point on a mesh (vertex/edge/face).
  */
