@@ -650,6 +650,59 @@ TEST(TangentVector, RotationUsesVertexConeAngle) {
     EXPECT_NO_THROW(exponential_map(mesh, aligned));
 }
 
+TEST(TangentVector, VertexProjectionDoesNotCreateAntiparallelEdgeFrame) {
+    const auto   mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const auto   p    = from_cartesian(mesh, {-50, -50, 50});
+    const auto   v    = TangentVector::from_ambient_vector(mesh, p, {0, 0, 1});
+    const double turn = total_angle(mesh, p.get_as<PointOnVertex>()->v);
+    EXPECT_NEAR(turn, 1.5 * std::numbers::pi, 1e-12);
+    if (v.type() == TangentVector::ALONG_EDGE && !v.cartesian_vector().isZero(0.0))
+        EXPECT_GT(v.cartesian_vector().dot(direction(mesh, *v.halfedge())), 0.0);
+    EXPECT_NEAR(
+            (v.rotated(mesh, turn).cartesian_vector() - v.cartesian_vector()).norm(),
+            0.0,
+            1e-12
+    );
+}
+
+TEST(TangentVector, NearVertexEdgeRotationsHaveReusableFramesAtEveryScale) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
+    const auto p    = from_cartesian(mesh, {-50, -50, -50});
+    const auto v    = TangentVector::from_ambient_vector(mesh, p, {0, 0, 1});
+    for (double scale : {1e-9, 1.0, 1e9}) {
+        for (double angle : {-1e-8, -1e-10, 1e-10, 1e-8}) {
+            SCOPED_TRACE(scale);
+            SCOPED_TRACE(angle);
+            auto rotated = v.rotated(mesh, angle);
+            rotated.scale(scale);
+            EXPECT_NO_THROW(
+                    TangentVector(mesh, p, rotated.cartesian_vector(), rotated.face())
+            );
+            EXPECT_NO_THROW(parallel_transport(mesh, rotated, p));
+        }
+    }
+}
+
+TEST(TangentVector, UnitTangentAcceptsNearVertexEdgePath) {
+    const auto mesh = Mesh::from_file(config::meshes_directory() / "square.off");
+    for (double angle : {1e-10, 1e-8}) {
+        const Geodesic curve{
+                {0,   0,                     0},
+                {0.8, 0.8 * std::tan(angle), 0}
+        };
+        EXPECT_NO_THROW({
+            const auto tangent = unit_tangent(mesh, curve, 0);
+            EXPECT_NEAR(position(mesh, tangent.application_point()).norm(), 0.0, 1e-12);
+            EXPECT_NEAR(
+                    (tangent.cartesian_vector() - (curve[1] - curve[0]).normalized())
+                            .norm(),
+                    0.0,
+                    1e-12
+            );
+        });
+    }
+}
+
 TEST(TangentVector, RotationNearSectorSeamsDoesNotThrow) {
     const auto mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
     for (const Vec3d& location : std::vector<Vec3d>{
