@@ -15,6 +15,22 @@ namespace mdv::mesh {
  */
 double length(const Geodesic& geod);
 
+/**
+ * @brief Unit tangent at normalized arc length s along a surface polyline.
+ *
+ * Segments must lie in individual mesh triangles (include mesh-edge crossings).
+ * Duplicate consecutive points are ignored. At interior corners, the outgoing
+ * segment is used. At s=1, the final segment is continued intrinsically: across
+ * an edge by unfolding, or at a vertex by half its incident-angle sum.
+ * Samples numerically snapped to a curve corner follow the same convention.
+ * Continuation across a boundary edge or through a boundary vertex is rejected;
+ * travel along a boundary edge is supported.
+ *
+ * @throws std::runtime_error For nonfinite/out-of-range s, nonfinite points,
+ * zero/nonfinite total length, or an invalid sampled segment/continuation.
+ */
+MDV_NODISCARD TangentVector unit_tangent(const Mesh&, const Geodesic& curve, double s);
+
 
 /**
  * @brief Retrieves a point at a normalized curvilinear coordinate on a geodesic.

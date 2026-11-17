@@ -94,21 +94,23 @@ mdv::SpdLogger::get_log_level() const {
 
 void
 mdv::SpdLogger::log_message(const std::string msg, const LogLevel lvl) const {
+    // Logger has already formatted msg; use spdlog's raw-message overload.
+    const spdlog::string_view_t message(msg);
     switch (lvl) {
         case Logger::Trace:
-            _concrete_logger->trace("{}", msg);
+            _concrete_logger->log(spdlog::level::trace, message);
             break;
         case Logger::Debug:
-            _concrete_logger->debug("{}", msg);
+            _concrete_logger->log(spdlog::level::debug, message);
             break;
         case Logger::Info:
-            _concrete_logger->info("{}", msg);
+            _concrete_logger->log(spdlog::level::info, message);
             break;
         case Logger::Warning:
-            _concrete_logger->warn("{}", msg);
+            _concrete_logger->log(spdlog::level::warn, message);
             break;
         case Logger::Error:
-            _concrete_logger->error("{}", msg);
+            _concrete_logger->log(spdlog::level::err, message);
             break;
     }
 }

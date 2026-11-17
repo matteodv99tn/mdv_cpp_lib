@@ -1,6 +1,10 @@
 #include "mdv/mesh/tangent_vector.hpp"
 
 #include <CGAL/Surface_mesh/Surface_mesh.h>
+#include <cmath>
+#include <Eigen/Geometry>
+#include <numbers>
+#include <vector>
 
 #include <range/v3/algorithm/max_element.hpp>
 #include <range/v3/all.hpp>
@@ -18,6 +22,8 @@ namespace rs = ::ranges;
 namespace rv = ::ranges::views;
 
 namespace {
+    constexpr double direction_eps = 1e-12;
+
     mdv::Vec3d
     normal_projection(const mdv::Vec3d& vec, const mdv::Vec3d& normal) {
         assert(mdv::condition::is_unit_norm(normal));
@@ -67,6 +73,7 @@ TangentVector::TangentVector(
     if (point_type == LocationType::ON_EDGE) {
         validate_app_point_on_edge(mesh);
         _f = mesh::face(mesh, *_he);
+        if (!_f.is_valid()) _f = mesh::face(mesh, twin(mesh, *_he));
         return;
     }
 
@@ -110,7 +117,9 @@ TangentVector::validate_app_point_on_edge(const Mesh& mesh) {
         fill_halfedge(mesh);
     };
 
-
+    if (!_vec.isZero(0.0)
+        && direction(mesh, *_he).normalized().cross(_vec.normalized()).norm() < 1e-12)
+        _type = ALONG_EDGE;
     if (_type == ALONG_EDGE) {
         const auto he_dir = direction(mesh, *_he);
         if (!are_parallel(he_dir, _vec)) {
@@ -125,7 +134,8 @@ TangentVector::validate_app_point_on_edge(const Mesh& mesh) {
 
     // If inside face
     auto is_valid_halfedge = [this, &mesh](HalfEdgeId he) -> bool {
-        return are_orthogonal(normal(mesh, mesh::face(mesh, he)), _vec)
+        const auto f = mesh::face(mesh, he);
+        return f.is_valid() && are_orthogonal(normal(mesh, f), _vec)
                && inbound_direction(mesh, he).dot(_vec) > 0.0;
     };
 
@@ -144,13 +154,33 @@ TangentVector::validate_app_point_on_vertex(const Mesh& mesh) {
     assert(location_type(_pt) == LocationType::ON_VERTEX);
 
     if (_type == ALONG_EDGE) {
-        if (!are_parallel(direction(mesh, *_he).normalized(), _vec.normalized())) {
+        // At a vertex an edge frame is an outgoing ray, not an unoriented line.
+        // Zero projections have no direction and retain any incident edge frame.
+        if (_vec.isZero(0.0)) return;
+        const Vec3d edge = direction(mesh, *_he).normalized();
+        const Vec3d unit = _vec / _vec.stableNorm();
+        if (edge.dot(unit) <= 0.0 || edge.cross(unit).norm() > direction_eps) {
             throw std::runtime_error(
                     "Unable to construct tangent vector on vertex with vector along an "
                     "halfedge"
             );
         }
         return;
+    }
+
+    // Exact directions along either corner edge need the ALONG_EDGE frame too.
+    if (!_vec.isZero(0.0)) {
+        for (const auto h : {*_he, twin(mesh, prev(mesh, *_he))}) {
+            const Vec3d edge = direction(mesh, h).normalized();
+            const Vec3d unit = _vec / _vec.stableNorm();
+            if (edge.dot(unit) > 0.0 && edge.cross(unit).norm() <= direction_eps) {
+                _he          = h;
+                const auto f = mesh::face(mesh, h);
+                if (f.is_valid()) _f = f;
+                _type = ALONG_EDGE;
+                return;
+            }
+        }
     }
 
     // If inside face
@@ -337,11 +367,12 @@ TangentVector::from_ambient_vector_on_vertex(
 
     // Candidates inside faces
     const auto project_on_halfedge = [&vec, &mesh](const HeIndex he_id) -> Vec3d {
-        const Vec3d proj = project_along_direction(
-                vec, direction(mesh, internal::from_cgal(he_id))
-        );
-        if (proj.dot(vec) <= 0.0) return Vec3d::Zero();
-        return proj;
+        const Vec3d dir = direction(mesh, internal::from_cgal(he_id)).normalized();
+        // Clamp to the outgoing ray; proj.dot(vec) cannot detect a negative
+        // coefficient because it is the squared length of the projection.
+        const double coefficient = dir.dot(vec);
+        if (coefficient <= 0.0) return Vec3d::Zero();
+        return coefficient * dir;
     };
     const auto along_edge_candidates =
             halfedges | rv::transform([project_on_halfedge, &m](const HeIndex& he_id) {
@@ -399,33 +430,111 @@ TangentVector::normalised() const {
     return res;
 }
 
+void
+TangentVector::rotate(const Mesh& mesh, double angle_rad) {
+    *this = rotated(mesh, angle_rad);
+}
+
+TangentVector
+TangentVector::rotated(const Mesh& mesh, double angle_rad) const {
+    if (!std::isfinite(angle_rad))
+        throw std::runtime_error("Rotation angle must be finite");
+    TangentVector result(*this);
+    if (angle_rad == 0.0 || _vec.isZero(0.0)) return result;
+
+    constexpr double full_turn = 2.0 * std::numbers::pi;
+    if (location_type(_pt) == LocationType::INSIDE_FACE) {
+        result._vec = Eigen::AngleAxisd(
+                              std::remainder(angle_rad, full_turn), normal(mesh, _f)
+                      )
+                      * _vec;
+        return result;
+    }
+
+    // Each sector starts along h and turns positively into its incident face.
+    const bool on_edge = location_type(_pt) == LocationType::ON_EDGE;
+    std::vector<std::pair<HalfEdgeId, double>> sectors;
+    double                                     total = 0.0;
+    auto                                       h     = *_he;
+    for (;;) {
+        if (!mesh::face(mesh, h).is_valid())
+            throw std::runtime_error("Cannot rotate at a boundary edge or vertex");
+        const Vec3d  x     = direction(mesh, h).normalized();
+        const Vec3d  end   = -direction(mesh, prev(mesh, h)).normalized();
+        const double width = on_edge ? std::numbers::pi
+                                     : std::atan2(x.cross(end).norm(), x.dot(end));
+        sectors.emplace_back(h, width);
+        total += width;
+        h = on_edge ? twin(mesh, h) : twin(mesh, prev(mesh, h));
+        if (h == *_he) break;
+    }
+
+    const Vec3d  x       = direction(mesh, *_he).normalized();
+    const Vec3d  y       = normal(mesh, _f).cross(x);
+    const double initial = std::atan2(_vec.dot(y), _vec.dot(x));
+    // Mesh-free negative scaling can invalidate a vertex's outgoing face frame.
+    // Do not silently reinterpret that vector elsewhere on the cone.
+    if (!on_edge
+        && (initial < -direction_eps
+            || initial > sectors.front().second + direction_eps))
+        throw std::runtime_error("Cannot rotate a vector outside its vertex frame");
+    double theta = std::fmod(initial + std::fmod(angle_rad, total), total);
+    if (theta < 0.0) theta += total;
+
+    constexpr double eps = direction_eps;
+    if (total - theta < eps) theta = 0.0;
+    h = *_he;
+    for (const auto& [sector, width] : sectors) {
+        if (theta < width - eps) {
+            h = sector;
+            break;
+        }
+        theta -= width;
+    }
+    // Rounding at the last sector's end wraps back to the first sector.
+    if (theta < eps) theta = 0.0;
+    result._he       = h;
+    result._f        = mesh::face(mesh, h);
+    result._type     = theta == 0.0 ? ALONG_EDGE : INSIDE_FACE;
+    const Vec3d axis = direction(mesh, h).normalized();
+    result._vec      = _vec.stableNorm()
+                       * (std::cos(theta) * axis
+                          + std::sin(theta) * normal(mesh, result._f).cross(axis));
+    if (on_edge) {
+        const auto& point = *_pt.get_as<PointOnEdge>();
+        result._pt        = h == point.he ? point : flip(mesh, point);
+    }
+    return result;
+}
+
 namespace internal {
 
     bool
     vector_inside_triangle(const Vec3d& v1, const Vec3d& v2, const Vec3d& v3) {
-        if (v1.squaredNorm() < 1e-12 || v2.squaredNorm() < 1e-12
-            || v3.squaredNorm() < 1e-12)
-            return false;
+        if (v1.isZero(0.0) || v2.isZero(0.0) || v3.isZero(0.0)) return false;
 
-        const Vec3d c1 = v1.cross(v2);
-        const Vec3d c2 = v2.cross(v3);
-        const Vec3d c3 = v1.cross(v3);
-
-        if (c1.squaredNorm() < 1e-12 || c2.squaredNorm() < 1e-12
-            || c3.squaredNorm() < 1e-12)
-            return false;
+        const Vec3d a = v1 / v1.stableNorm();
+        const Vec3d b = v2 / v2.stableNorm();
+        const Vec3d c = v3 / v3.stableNorm();
+        const Vec3d n = a.cross(c);
+        if (n.isZero(0.0)) return false;
 
         if (!are_coplanar(v1, v2, v3))
             throw std::runtime_error("Cannot compute order of non-coplanar vector");
 
-        return c1.dot(c2) > 0.0 && c1.dot(c3) > 0.0;
+        // Strict oriented side tests accept every interior direction, including
+        // those just beyond the constructor's angular edge-snapping tolerance.
+        // Absolute cross-product cutoffs create a scale-dependent rejection gap.
+        return a.cross(b).dot(n) > 0.0 && b.cross(c).dot(n) > 0.0;
     }
 
     bool
     are_coplanar(const Vec3d& v1, const Vec3d& v2, const Vec3d& v3) {
-        const Vec3d c1 = v1.cross(v2);
-        const Vec3d c2 = v2.cross(v3);
-        return mdv::condition::are_parallel(c1, c2);
+        if (v1.isZero(0.0) || v2.isZero(0.0) || v3.isZero(0.0)) return false;
+        const Vec3d n = (v1 / v1.stableNorm()).cross(v3 / v3.stableNorm());
+        if (n.isZero(0.0)) return false;
+        return std::abs((n / n.stableNorm()).dot(v2 / v2.stableNorm()))
+               <= direction_eps;
     }
 
 }  // namespace internal

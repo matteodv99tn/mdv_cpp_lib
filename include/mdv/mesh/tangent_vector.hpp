@@ -56,6 +56,19 @@ public:
     void                        normalise();
     MDV_NODISCARD TangentVector normalised() const;
 
+    /** @brief Rotate intrinsically in radians, preserving magnitude and location.
+     * Positive angles follow the right-hand rule about the oriented face normal.
+     *
+     * @throws std::runtime_error For nonfinite angles or nonzero rotation of a
+     * nonzero vector at a boundary edge/vertex, or a vector outside its vertex
+     * frame (for example after negative scaling). Leaves this vector unchanged on
+     * error.
+     */
+    void rotate(const Mesh&, double angle_rad);
+
+    /** @brief Return an intrinsically rotated copy; see rotate(). */
+    MDV_NODISCARD TangentVector rotated(const Mesh&, double angle_rad) const;
+
 private:
     TangentVector(
             const Mesh&, Point, Vec3d, Type, std::optional<FaceId> = std::nullopt
