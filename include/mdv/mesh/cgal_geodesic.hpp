@@ -1,7 +1,9 @@
 #ifndef MDV_MESH_CGAL_GEODESIC_HPP
 #define MDV_MESH_CGAL_GEODESIC_HPP
 
+#include <CGAL/version.h>
 #include <list>
+#include <optional>
 
 #include "mdv/eigen_defines.hpp"
 #include "mdv/mesh/cgal_impl.hpp"
@@ -18,8 +20,63 @@ namespace mdv::mesh::internal {
  * geodesics between points on a mesh, which are key for surface learning tasks.
  */
 class CgalGeodesicConstructor {
+#if CGAL_VERSION_NR < 1050501000
+    struct LegacyTraits : CgalImpl::ShortestPathTraits {
+        bool edge_face_roots = false;
+
+        struct Classify_barycentric_coordinates {  // NOLINT(readability-identifier-naming)
+            bool edge_face_roots;
+
+            auto
+            operator()(const Barycentric_coordinates& b) const {
+                auto result = CgalImpl::ShortestPathTraits::
+                        Classify_barycentric_coordinates{}(b);
+                if (edge_face_roots
+                    && result.first
+                               == CGAL::Surface_mesh_shortest_paths_3::
+                                       BARYCENTRIC_COORDINATES_ON_BOUNDARY)
+                    result.first = CGAL::Surface_mesh_shortest_paths_3::
+                            BARYCENTRIC_COORDINATES_ON_BOUNDED_SIDE;
+                return result;
+            }
+        };
+
+        Classify_barycentric_coordinates
+        classify_barycentric_coordinates_object() const {
+            return {edge_face_roots};
+        }
+    };
+
+    // CGAL 5.4 borrows its traits object. Keep it alive before the path base
+    // is constructed and until after that base has been destroyed.
+    struct LegacyTraitsHolder {
+        LegacyTraits legacy_traits;
+    };
+
+    using LegacyPaths = CGAL::Surface_mesh_shortest_path<LegacyTraits>;
+#endif
+
 public:
-    using ShortestPath = CgalImpl::ShortestPath;
+#if CGAL_VERSION_NR < 1050501000
+    struct ShortestPath : LegacyTraitsHolder,
+                          LegacyPaths {
+        explicit ShortestPath(const CgalImpl::Mesh& mesh) :
+                LegacyTraitsHolder{}, LegacyPaths(mesh, legacy_traits) {}
+
+        ShortestPath(const ShortestPath&)            = delete;
+        ShortestPath& operator=(const ShortestPath&) = delete;
+        ShortestPath(ShortestPath&&)                 = delete;
+        ShortestPath& operator=(ShortestPath&&)      = delete;
+#else
+    struct ShortestPath : CgalImpl::ShortestPath {
+        using CgalImpl::ShortestPath::ShortestPath;
+#endif
+
+        // Edge roots need reversed registration weights in affected CGAL
+        // versions, but traceback must still end at the original source.
+        std::optional<CgalImpl::Point3> edge_source;
+        std::optional<PointOnEdge>      edge_descriptor;
+    };
 
     using ShortestPathPtr = std::unique_ptr<ShortestPath>;
 

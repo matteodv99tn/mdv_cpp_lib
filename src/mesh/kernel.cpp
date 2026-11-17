@@ -5,6 +5,8 @@
 #include <Eigen/Dense>
 #include <fmt/format.h>
 #include <iterator>
+#include <limits>
+#include <memory>
 #include <stdexcept>
 #include <utility>
 
@@ -98,7 +100,7 @@ namespace {
     class DistanceEvaluator {
     public:
         using InputVector             = MeshKernel::InputVector;
-        using ShortestPath            = internal::CgalImpl::ShortestPath;
+        using ShortestPath            = internal::CgalGeodesicConstructor::ShortestPath;
         using CgalGeodesicConstructor = internal::CgalGeodesicConstructor;
 
         Eigen::MatrixXd
@@ -138,7 +140,8 @@ namespace {
                         pts2[static_cast<std::size_t>(j)],
                         &mesh.cgal()._aabb_tree
                 );
-                res(i, j) = length(geod);
+                res(i, j) = geod.empty() ? std::numeric_limits<double>::infinity()
+                                         : length(geod);
             }
         }
 
@@ -162,10 +165,10 @@ namespace {
 namespace internal {
     struct Data {
         using InputVector  = MeshKernel::InputVector;
-        using ShortestPath = internal::CgalImpl::ShortestPath;
+        using ShortestPath = internal::CgalGeodesicConstructor::ShortestPath;
 
-        InputVector               pts1;
-        std::vector<ShortestPath> shpath_objs;
+        InputVector                                pts1;
+        std::vector<std::unique_ptr<ShortestPath>> shpath_objs;
 
         Data(const Mesh& mesh, InputVector points) : pts1(std::move(points)) {
             using internal::CgalGeodesicConstructor;
@@ -173,17 +176,12 @@ namespace internal {
             const auto& m = internal::cgal_mesh(mesh);
 
             shpath_objs.reserve(pts1.size());
-            for (const auto& pt : pts1) shpath_objs.emplace_back(m);
+            for (const auto& pt : pts1)
+                shpath_objs.push_back(std::make_unique<ShortestPath>(m));
 
             const auto process_i = [&](const std::size_t i) {
                 CgalGeodesicConstructor::set_source(
-                        m, shpath_objs[i], pts1[i], &mesh.cgal()._aabb_tree
-                );
-                CgalGeodesicConstructor::construct_geodesic(
-                        m,
-                        shpath_objs[i],
-                        PointOnVertex{VertexId{0}},
-                        &mesh.cgal()._aabb_tree
+                        m, *shpath_objs[i], pts1[i], &mesh.cgal()._aabb_tree
                 );
             };
             thread_pool().detach_loop(0, pts1.size(), process_i);
@@ -222,7 +220,7 @@ namespace internal {
 
 namespace {
 
-    using ShortestPath = internal::CgalImpl::ShortestPath;
+    using ShortestPath = internal::CgalGeodesicConstructor::ShortestPath;
     using internal::CgalGeodesicConstructor;
 
     void
@@ -239,11 +237,12 @@ namespace {
             for (long j = 0; j < res.cols(); ++j) {
                 const auto path = CgalGeodesicConstructor::construct_geodesic(
                         internal::cgal_mesh(mesh),
-                        data.shpath_objs[static_cast<std::size_t>(i)],
+                        *data.shpath_objs[static_cast<std::size_t>(i)],
                         pts2[static_cast<std::size_t>(j)],
                         &mesh.cgal()._aabb_tree
                 );
-                res(i, j) = length(path);
+                res(i, j) = path.empty() ? std::numeric_limits<double>::infinity()
+                                         : length(path);
             }
         };
 
@@ -257,6 +256,9 @@ MeshKernel::MeshKernel(const Mesh& mesh) : _mesh(&mesh) {
 
 Eigen::MatrixXd
 MeshKernel::distance_matrix(const InputVector& pts1, const InputVector& pts2) const {
+    // Each nonempty candidate is a reconstructed surface path between the same
+    // endpoints. Taking the shorter direction compensates for omitted windows;
+    // infinity denotes an absent candidate and cannot win against a valid path.
     const Eigen::MatrixXd D12 = DistanceEvaluator{}(*_mesh, pts1, pts2);
     const Eigen::MatrixXd D21 = DistanceEvaluator{}(*_mesh, pts2, pts1);
     assert(D12.cols() == D21.rows() && D12.rows() == D21.cols());
