@@ -680,8 +680,8 @@ TEST(TangentVector, NearVertexEdgeRotationsHaveReusableFramesAtEveryScale) {
     const auto mesh = Mesh::from_file(config::meshes_directory() / "cube.stl");
     const auto p    = from_cartesian(mesh, {-50, -50, -50});
     const auto v    = TangentVector::from_ambient_vector(mesh, p, {0, 0, 1});
-    for (double scale : {1e-9, 1.0, 1e9}) {
-        for (double angle : {-1e-8, -1e-10, 1e-10, 1e-8}) {
+    for (double scale : {1e-200, 1e-9, 1.0, 1e9, 1e200}) {
+        for (double angle : {-1e-8, -1e-10, -1.0004e-12, 1.0004e-12, 1e-10, 1e-8}) {
             SCOPED_TRACE(scale);
             SCOPED_TRACE(angle);
             auto rotated = v.rotated(mesh, angle);
@@ -711,6 +711,24 @@ TEST(TangentVector, UnitTangentAcceptsNearVertexEdgePath) {
                     1e-12
             );
         });
+    }
+}
+
+TEST(TangentVector, NearEdgeCornerOrderIsScaleIndependentAndRejectsOutside) {
+    for (double scale : {1e-200, 1.0, 1e200}) {
+        for (double angle : {1e-10, 1e-8}) {
+            SCOPED_TRACE(scale);
+            SCOPED_TRACE(angle);
+            const Vec3d a = scale * Vec3d::UnitX();
+            const Vec3d c = scale * Vec3d::UnitY();
+            EXPECT_TRUE(
+                    internal::vector_inside_triangle(a, scale * Vec3d{1, angle, 0}, c)
+            );
+            EXPECT_FALSE(
+                    internal::vector_inside_triangle(a, scale * Vec3d{1, -angle, 0}, c)
+            );
+            EXPECT_FALSE(internal::vector_inside_triangle(a, a, c));
+        }
     }
 }
 

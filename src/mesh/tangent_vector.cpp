@@ -22,6 +22,8 @@ namespace rs = ::ranges;
 namespace rv = ::ranges::views;
 
 namespace {
+    constexpr double direction_eps = 1e-12;
+
     mdv::Vec3d
     normal_projection(const mdv::Vec3d& vec, const mdv::Vec3d& normal) {
         assert(mdv::condition::is_unit_norm(normal));
@@ -156,7 +158,8 @@ TangentVector::validate_app_point_on_vertex(const Mesh& mesh) {
         // Zero projections have no direction and retain any incident edge frame.
         if (_vec.isZero(0.0)) return;
         const Vec3d edge = direction(mesh, *_he).normalized();
-        if (edge.dot(_vec) <= 0.0 || !are_parallel(edge, _vec.normalized())) {
+        const Vec3d unit = _vec / _vec.stableNorm();
+        if (edge.dot(unit) <= 0.0 || edge.cross(unit).norm() > direction_eps) {
             throw std::runtime_error(
                     "Unable to construct tangent vector on vertex with vector along an "
                     "halfedge"
@@ -169,8 +172,8 @@ TangentVector::validate_app_point_on_vertex(const Mesh& mesh) {
     if (!_vec.isZero(0.0)) {
         for (const auto h : {*_he, twin(mesh, prev(mesh, *_he))}) {
             const Vec3d edge = direction(mesh, h).normalized();
-            const Vec3d unit = _vec.normalized();
-            if (edge.dot(unit) > 0.0 && edge.cross(unit).norm() < 1e-12) {
+            const Vec3d unit = _vec / _vec.stableNorm();
+            if (edge.dot(unit) > 0.0 && edge.cross(unit).norm() <= direction_eps) {
                 _he          = h;
                 const auto f = mesh::face(mesh, h);
                 if (f.is_valid()) _f = f;
@@ -471,12 +474,14 @@ TangentVector::rotated(const Mesh& mesh, double angle_rad) const {
     const double initial = std::atan2(_vec.dot(y), _vec.dot(x));
     // Mesh-free negative scaling can invalidate a vertex's outgoing face frame.
     // Do not silently reinterpret that vector elsewhere on the cone.
-    if (!on_edge && (initial < 0.0 || initial > sectors.front().second))
+    if (!on_edge
+        && (initial < -direction_eps
+            || initial > sectors.front().second + direction_eps))
         throw std::runtime_error("Cannot rotate a vector outside its vertex frame");
     double theta = std::fmod(initial + std::fmod(angle_rad, total), total);
     if (theta < 0.0) theta += total;
 
-    constexpr double eps = 1e-12;
+    constexpr double eps = direction_eps;
     if (total - theta < eps) theta = 0.0;
     h = *_he;
     for (const auto& [sector, width] : sectors) {
@@ -506,29 +511,30 @@ namespace internal {
 
     bool
     vector_inside_triangle(const Vec3d& v1, const Vec3d& v2, const Vec3d& v3) {
-        if (v1.squaredNorm() < 1e-12 || v2.squaredNorm() < 1e-12
-            || v3.squaredNorm() < 1e-12)
-            return false;
+        if (v1.isZero(0.0) || v2.isZero(0.0) || v3.isZero(0.0)) return false;
 
-        const Vec3d c1 = v1.cross(v2);
-        const Vec3d c2 = v2.cross(v3);
-        const Vec3d c3 = v1.cross(v3);
-
-        if (c1.squaredNorm() < 1e-12 || c2.squaredNorm() < 1e-12
-            || c3.squaredNorm() < 1e-12)
-            return false;
+        const Vec3d a = v1 / v1.stableNorm();
+        const Vec3d b = v2 / v2.stableNorm();
+        const Vec3d c = v3 / v3.stableNorm();
+        const Vec3d n = a.cross(c);
+        if (n.isZero(0.0)) return false;
 
         if (!are_coplanar(v1, v2, v3))
             throw std::runtime_error("Cannot compute order of non-coplanar vector");
 
-        return c1.dot(c2) > 0.0 && c1.dot(c3) > 0.0;
+        // Strict oriented side tests accept every interior direction, including
+        // those just beyond the constructor's angular edge-snapping tolerance.
+        // Absolute cross-product cutoffs create a scale-dependent rejection gap.
+        return a.cross(b).dot(n) > 0.0 && b.cross(c).dot(n) > 0.0;
     }
 
     bool
     are_coplanar(const Vec3d& v1, const Vec3d& v2, const Vec3d& v3) {
-        const Vec3d c1 = v1.cross(v2);
-        const Vec3d c2 = v2.cross(v3);
-        return mdv::condition::are_parallel(c1, c2);
+        if (v1.isZero(0.0) || v2.isZero(0.0) || v3.isZero(0.0)) return false;
+        const Vec3d n = (v1 / v1.stableNorm()).cross(v3 / v3.stableNorm());
+        if (n.isZero(0.0)) return false;
+        return std::abs((n / n.stableNorm()).dot(v2 / v2.stableNorm()))
+               <= direction_eps;
     }
 
 }  // namespace internal

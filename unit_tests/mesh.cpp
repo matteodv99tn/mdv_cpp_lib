@@ -287,22 +287,32 @@ TEST(MeshGeodesic, UnitTangentShallowCreaseAndNearVertexSnaps) {
     );
 }
 
-TEST(MeshGeodesic, UnitTangentDoesNotHideInvalidStartFrame) {
+TEST(MeshGeodesic, UnitTangentPreservesNearEdgeStartFrame) {
     const auto     mesh = Mesh::from_file(config::meshes_directory() / "square.off");
     const Geodesic curve{
             {0,   0,                    0},
             {0.8, 0.8 * std::tan(1e-7), 0}
     };
-    // The existing corner validator rejects this nearly edge-aligned direction.
-    // It must not be "recovered" by returning a tangent at the far endpoint.
-    EXPECT_THROW(static_cast<void>(unit_tangent(mesh, curve, 0)), std::runtime_error);
+    // A valid near-edge direction must stay at the requested start, not be
+    // "recovered" by returning a tangent at the far endpoint.
+    const auto tangent = unit_tangent(mesh, curve, 0);
+    EXPECT_NEAR(position(mesh, tangent.application_point()).norm(), 0.0, 1e-12);
+    EXPECT_NEAR(
+            (tangent.cartesian_vector() - (curve[1] - curve[0]).normalized()).norm(),
+            0.0,
+            1e-12
+    );
     const Geodesic at_corner{
             {0.1, 0.1, 0},
             curve[0], curve[1]
     };
     const double s = ((at_corner[1] - at_corner[0]).norm() - 1e-10) / length(at_corner);
-    EXPECT_THROW(
-            static_cast<void>(unit_tangent(mesh, at_corner, s)), std::runtime_error
+    const auto   corner_tangent = unit_tangent(mesh, at_corner, s);
+    EXPECT_NEAR(position(mesh, corner_tangent.application_point()).norm(), 0.0, 1e-12);
+    EXPECT_NEAR(
+            (corner_tangent.cartesian_vector() - tangent.cartesian_vector()).norm(),
+            0.0,
+            1e-12
     );
 }
 
