@@ -21,7 +21,8 @@ namespace mdv::mesh {
  * topology while the field exists; reconstruct the field after such changes.
  * Source storage is not borrowed. Points must refer to the supplied mesh; mesh
  * membership cannot be inferred from mesh-free handles.
- * Isolated vertices and wire edges are not surface locations and are rejected.
+ * Vertices without incident faces and wire edges are not surface locations and
+ * are rejected.
  *
  * Queries on the same field must not run concurrently, including const queries.
  * The field is movable, not copyable. A moved-from field may only be destroyed

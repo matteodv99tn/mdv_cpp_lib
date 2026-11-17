@@ -55,7 +55,11 @@ namespace {
         if (!id.is_valid() || !mesh.has_valid_index(v) || mesh.is_removed(v)
             || mesh.halfedge(v) == Backend::Mesh::null_halfedge())
             throw std::runtime_error("Invalid or isolated distance-field vertex");
-        return v;
+        // A non-null halfedge can belong to a wire, not to the surface.
+        for (const auto f : CGAL::faces_around_target(mesh.halfedge(v), mesh)) {
+            if (f != Backend::Mesh::null_face()) return v;
+        }
+        throw std::runtime_error("Distance-field vertex has no incident face");
     }
 
     template <typename Function>
