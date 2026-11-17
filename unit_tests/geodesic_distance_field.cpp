@@ -3,12 +3,17 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <gtest/gtest.h>
 #include <limits>
 #include <string>
 #include <tuple>
 #include <type_traits>
 #include <utility>
+
+#if GTEST_HAS_DEATH_TEST && !defined(_WIN32)
+#include <unistd.h>
+#endif
 
 #include "mdv/config.hpp"
 #include "mdv/mesh/algorithm.hpp"
@@ -481,5 +486,79 @@ TEST(GeodesicDistanceField, DisconnectedComponents) {
     EXPECT_THROW((GeodesicDistanceField(mesh, invalid)), std::runtime_error);
     EXPECT_THROW((void)field(invalid[0]), std::runtime_error);
 }
+
+#if GTEST_HAS_DEATH_TEST && !defined(_WIN32)
+namespace {
+    class GeodesicDistanceFieldDeathTest : public ::testing::Test {
+    protected:
+        Mesh _mesh = Mesh::from_file(config::meshes_directory() / "square.off");
+        std::array<Point, 2> _wire_vertices;
+        Point                _surface_vertex;
+
+        void
+        SetUp() override {
+            auto& m = _mesh.cgal()._mesh;
+            m.clear();
+            const auto a = m.add_vertex({0, 0, 0});
+            const auto b = m.add_vertex({1, 0, 0});
+            const auto c = m.add_vertex({0, 1, 0});
+            ASSERT_NE(m.add_face(a, b, c), internal::CgalImpl::Mesh::null_face());
+            _surface_vertex = PointOnVertex{internal::from_cgal(a)};
+            const auto d    = m.add_vertex({3, 0, 0});
+            const auto e    = m.add_vertex({4, 0, 0});
+            const auto h    = m.add_edge(d, e);
+            const auto twin = m.opposite(h);
+            // add_edge alone does not link the wire's halfedge cycle or vertices.
+            m.set_next(h, twin);
+            m.set_next(twin, h);
+            m.set_halfedge(d, twin);
+            m.set_halfedge(e, h);
+            ASSERT_TRUE(m.is_valid());
+            ASSERT_EQ(m.face(h), internal::CgalImpl::Mesh::null_face());
+            ASSERT_EQ(m.face(twin), internal::CgalImpl::Mesh::null_face());
+            _wire_vertices = {
+                    Point(PointOnVertex{internal::from_cgal(d)}),
+                    Point(PointOnVertex{internal::from_cgal(e)})
+            };
+        }
+    };
+}  // namespace
+
+TEST_F(GeodesicDistanceFieldDeathTest, RejectsWireOnlyVertexSource) {
+    for (const auto& vertex : _wire_vertices) {
+        const std::array sources{vertex};
+        // CGAL can loop forever on a wire source: bound the child, not the suite.
+        EXPECT_EXIT(
+                {
+                    alarm(5);
+                    EXPECT_THROW(
+                            (GeodesicDistanceField(_mesh, sources)), std::runtime_error
+                    );
+                    std::_Exit(::testing::Test::HasFailure() ? 1 : 0);
+                },
+                ::testing::ExitedWithCode(0),
+                ""
+        );
+    }
+}
+
+TEST_F(GeodesicDistanceFieldDeathTest, RejectsWireOnlyVertexQuery) {
+    const std::array sources{_surface_vertex};
+    for (const auto& vertex : _wire_vertices) {
+        const std::array queries{vertex};
+        EXPECT_EXIT(
+                {
+                    alarm(5);
+                    const GeodesicDistanceField field(_mesh, sources);
+                    EXPECT_THROW((void)field(vertex), std::runtime_error);
+                    EXPECT_THROW((void)field(queries), std::runtime_error);
+                    std::_Exit(::testing::Test::HasFailure() ? 1 : 0);
+                },
+                ::testing::ExitedWithCode(0),
+                ""
+        );
+    }
+}
+#endif
 
 }  // namespace mdv::mesh
